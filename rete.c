@@ -21,13 +21,13 @@
  */
 static inline struct token*
 create_token(struct beta_node* node,
-             struct token* parent,
-             struct wme* wme)
+             struct token*     parent,
+             struct wme*       wme)
 {
     struct token* result = (struct token*) malloc(sizeof(struct token));
     result->parent = parent;
-    result->node = node;
-    result->wme = wme;
+    result->node   = node;
+    result->wme    = wme;
     return result;
 }
 
@@ -59,10 +59,10 @@ get_field_from_wme(struct wme* wme, field_t field)
 /*
  * Add a wme to the specified alpha node's right memory
  */
-void
-add_wme_to_alpha_node(struct agent* agent,
+/*static inline*/ void
+add_wme_to_alpha_node(struct agent*      agent,
                       struct alpha_node* node,
-                      struct wme* wme)
+                      struct wme*        wme)
 {
     struct right_memory* rm =
         (struct right_memory*) malloc(sizeof(struct right_memory));
@@ -75,13 +75,13 @@ add_wme_to_alpha_node(struct agent* agent,
 /*
  * Remove a wme from the specified alpha node's right memory
  */
-static void
-remove_wme_from_alpha_node(struct agent* agent,
+static inline void
+remove_wme_from_alpha_node(struct agent*      agent,
                            struct alpha_node* node,
-                           struct wme* wme)
+                           struct wme*        wme)
 {
-    struct right_memory* rm = node->right_memories;
     struct right_memory** link = &node->right_memories;
+    struct right_memory* rm = *link;
 
     while (rm) {
         if (rm->wme == wme) {
@@ -91,7 +91,7 @@ remove_wme_from_alpha_node(struct agent* agent,
         }
 
         link = &rm->next_in_alpha_node;
-        rm = rm->next_in_alpha_node;
+        rm = *link;
     }
 }
 
@@ -99,10 +99,10 @@ remove_wme_from_alpha_node(struct agent* agent,
  * Check a single beta test
  */
 static bool_t
-check_beta_test(struct agent* agent,
+check_beta_test(struct agent*     agent,
                 struct beta_test* test,
-                struct token* token,
-                struct wme* wme)
+                struct token*     token,
+                struct wme*       wme)
 {
     switch (test->type) {
     case test_type_equality:
@@ -244,10 +244,10 @@ check_beta_test(struct agent* agent,
  * Check a list of beta tests
  */
 static inline bool_t
-check_beta_tests(struct agent* agent,
+check_beta_tests(struct agent*     agent,
                  struct beta_test* test,
-                 struct token* token,
-                 struct wme* wme)
+                 struct token*     token,
+                 struct wme*       wme)
 {
     for ( ; test != 0; test = test->next) {
         if (! check_beta_test(agent, test, token, wme))
@@ -261,12 +261,12 @@ check_beta_tests(struct agent* agent,
 /* ---------------------------------------------------------------------- */
 
 /*
- * Notify the beta node |node| that a new token |token| is being
+ * Notify the beta node |node| that a new <token, wme> pair is being
  * propagated downward from its parent beta node. The working memory
  * element |wme| may extend |token| if the parent node has no storage
  * of its own.
  */
-void
+/*static*/ void
 do_left_addition(struct agent*     agent,
                  struct beta_node* node,
                  struct token*     token,
@@ -368,8 +368,11 @@ do_left_addition(struct agent*     agent,
     }
 }
 
-
-void
+/*
+ * Notify the beta node |node| that the <token, wme> pair are about to
+ * be removed from the parent beta node.
+ */
+static void
 do_left_removal(struct agent*     agent,
                 struct beta_node* node,
                 struct token*     token,
@@ -532,7 +535,7 @@ do_left_removal(struct agent*     agent,
  * Notify the beta node |node| that a new wme |wme| has been added to
  * the right-memory to which |node| is attached.
  */
-void
+/*static inline*/ void
 do_right_addition(struct agent* agent, struct beta_node* node, struct wme* wme)
 {
     struct token** link;
@@ -599,7 +602,11 @@ do_right_addition(struct agent* agent, struct beta_node* node, struct wme* wme)
     }
 }
 
-void
+/*
+ * Notify the beta node |node| that |wme| is about to be removed from
+ * the right-memory to which |node| is attached.
+ */
+static inline void
 do_right_removal(struct agent* agent, struct beta_node* node, struct wme* wme)
 {
     struct token* token = node->tokens;

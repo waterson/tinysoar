@@ -49,20 +49,9 @@ do_left_addition(struct agent* agent,
                  struct wme* wme);
 
 void
-do_left_removal(struct agent* agent,
-                struct beta_node* node,
-                struct token* token,
-                struct wme* wme);
-
-void
 do_right_addition(struct agent* agent,
                   struct beta_node* node,
                   struct wme* wme);
-
-void
-do_right_removal(struct agent* agent,
-                 struct beta_node* node,
-                 struct wme* wme);
 
 #endif /* rete_h__ */
 
