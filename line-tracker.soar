@@ -1,7 +1,7 @@
 #----------------------------------------------------------------------
 # Find line
 sp {find-line*propose
-    (state <s> ^input-link <in>)
+    (state <s> ^io.input-link <in>)
     (<in> ^sensor-2 > 75) # white
 
    -(<s> ^found-line t)
@@ -10,7 +10,7 @@ sp {find-line*propose
     (<o> ^name find-line)}
 
 sp {find-line*implement*detect-line
-    (state <s> ^operator <o> ^input-link <in>)
+    (state <s> ^operator <o> ^io.input-link <in>)
     (<o> ^name find-line)
 
     (<in> ^sensor-2 < 25) # black
@@ -32,7 +32,7 @@ sp {find-line*reconsider
 #----------------------------------------------------------------------
 # Track line
 sp {track-line*propose
-    (state <s> ^input-link <in>)
+    (state <s> ^io.input-link <in>)
     (<in> ^sensor-2 < 25) # black
 
     (<s> ^found-line t)
@@ -44,7 +44,7 @@ sp {track-line*implement
     (state <s> ^operator <o> ^output-link <out>)
     (<o> ^name track-line)
     -->
-    (<s> ^motor-a 100 ^motor-c 100)}
+    (<out> ^motor-a 100 ^motor-c 100)}
 
 sp {track-line*reconsider
     (state <s> ^operator <o>)
@@ -55,7 +55,7 @@ sp {track-line*reconsider
 #----------------------------------------------------------------------
 # Spin
 sp {spin*propose
-    (state <s> ^input-link <in>)
+    (state <s> ^io.input-link <in>)
     (<in> ^sensor-2 > 75) # white
 
     (<s> ^found-line t)
