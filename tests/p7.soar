@@ -1,0 +1,28 @@
+package require Soar;
+
+sp {elaborate*top-state
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^ball <b>)
+    (<b> ^color blue ^size large)}
+
+sp {elaborate*snc*test1
+    (state <s> ^impasse no-change ^attribute state ^superstate <ss>)
+    (<ss> ^ball <b>)
+    (<b> ^color blue)
+    -->
+    (<s> ^test1 passed)}
+
+
+sp {elaborate*snc*test2
+    (state <s> ^impasse no-change ^attribute state ^superstate <ss>)
+    (<ss> ^ball <b>)
+    (<b> ^size large)
+    -->
+    (<s> ^test2 passed)}
+
+sp {return*chunk
+    (state <s> ^impasse no-change ^attribute state ^superstate <ss>
+               ^test1 passed ^test2 passed)
+    -->
+    (<ss> ^result yaba-daba-doo)}
