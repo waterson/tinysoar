@@ -737,10 +737,10 @@ process_matches(struct agent* agent)
  * candidate operators, pushing impasses if necessary.
  */
 static symbol_t
-run_operator_semantics_on(struct agent*       agent,
-                          symbol_t            goal,
-                          struct preference*  preferences,
-                          struct symbol_list* candidates)
+run_operator_semantics_on(struct agent*        agent,
+                          symbol_t             goal,
+                          struct preference*   preferences,
+                          struct symbol_list** candidates)
 {
     struct symbol_list* conflicted = 0;
     struct symbol_list* dominated = 0;
@@ -753,7 +753,7 @@ run_operator_semantics_on(struct agent*       agent,
     CLEAR_SYMBOL(nil);
 
     /* Collect conflicted and dominated candidates */
-    for (link = &candidates, candidate = *link;
+    for (link = candidates, candidate = *link;
          candidate != 0;
          link = &candidate->next, candidate = *link) {
         struct preference* p;
@@ -761,7 +761,7 @@ run_operator_semantics_on(struct agent*       agent,
             if ((p->type == preference_type_better || p->type == preference_type_worse)
                 && SYMBOLS_ARE_EQUAL(p->value, candidate->symbol)) {
                 struct symbol_list* referent;
-                for (referent = candidates; referent != 0; referent = referent->next) {
+                for (referent = *candidates; referent != 0; referent = referent->next) {
                     struct symbol_list* entry;
 
                     /* A candidate cannot conflict or dominate itself. */
@@ -819,7 +819,7 @@ run_operator_semantics_on(struct agent*       agent,
        candidate list. */
     while (dominated) {
         struct symbol_list* doomed = dominated;
-        struct symbol_list** link = &candidates;
+        struct symbol_list** link = candidates;
         struct symbol_list* c = *link;
 
         while (c) {
@@ -846,7 +846,7 @@ run_operator_semantics_on(struct agent*       agent,
        operator-tie if two worst preferences are proposed. I
        suspect we'll end up with a state no-change. */
     if (bests || worsts) {
-        link = &candidates;
+        link = candidates;
         candidate = *link;
         while (candidate) {
             bool_t best = 0;
@@ -875,7 +875,7 @@ run_operator_semantics_on(struct agent*       agent,
     /* Are all the candidates we've got left indifferent? */
     ASSERT(candidates != 0, ("culled too many candidates"));
 
-    for (candidate = candidates; candidate != 0; candidate = candidate->next) {
+    for (candidate = *candidates; candidate != 0; candidate = candidate->next) {
         struct preference* p;
         for (p = preferences; p != 0; p = p->next_in_slot) {
             if (p->type == preference_type_unary_indifferent)
@@ -887,7 +887,7 @@ run_operator_semantics_on(struct agent*       agent,
                candidate. Is it binary-indifferent to all the other
                remaining candidates? */
             struct symbol_list* referent;
-            for (referent = candidates; referent != 0; referent = referent->next) {
+            for (referent = *candidates; referent != 0; referent = referent->next) {
                 if (candidate == referent)
                     continue;
 
@@ -913,11 +913,11 @@ run_operator_semantics_on(struct agent*       agent,
 
     if (candidate) {
         /* We found a tie. */
-        agent_operator_tie(agent, goal, candidates);
+        agent_operator_tie(agent, goal, *candidates);
         return nil;
     }
 
-    return candidates->symbol;
+    return (*candidates)->symbol;
 }
 
 /*
@@ -936,7 +936,7 @@ run_operator_semantics_for(struct agent* agent, symbol_t goal, struct slot* slot
        rather than re-do this work... */
     collect_candidates(preferences, &candidates);
 
-    result = run_operator_semantics_on(agent, goal, preferences, candidates);
+    result = run_operator_semantics_on(agent, goal, preferences, &candidates);
 
     while (candidates) {
         struct symbol_list* doomed = candidates;
