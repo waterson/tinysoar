@@ -1,0 +1,113 @@
+# Does a retracted justification get backtraced?
+
+package require TinySoar
+
+sp {top-state*elaborate
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^foo bar)}
+
+# Copy something from the top-state so we'll include it in the chunk.
+
+sp {snc*copy-foo*propose
+    (state <s> ^superstate <ss> -^foo bar)
+    (<ss> ^foo bar ^superstate nil)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name copy-foo)}
+
+sp {snc*copy-foo*implement
+    (state <s> ^operator <o>)
+    (<o> ^name copy-foo)
+    -->
+    (<s> ^foo bar)}
+
+sp {snc*copy-foo*terminate
+    (state <s> ^operator <o>)
+    (<o> ^name copy-foo)
+    -->
+    (<s> ^operator <o> @)}
+
+# Now let's propose an operator
+
+sp {snc*silly*propose
+    (state <s> ^impasse no-change ^type state ^foo bar)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name silly)}
+
+sp {snc*silly*terminate
+    (state <s> ^operator <o> ^silly t)
+    (<o> ^name silly)
+    -->
+    (<s> ^operator <o> @)}
+
+sp {onc*silly*return-result
+    (state <s> ^superstate <ss> ^impasse no-change ^attribute operator ^quiescence t)
+    (<ss> ^foo bar)
+    -->
+    (<ss> ^silly t)}
+
+# Now propose something that will backtrace through silly, and remove it.
+
+sp {onc*silly-copy*propose
+    (state <s> ^impasse no-change ^type state ^silly t)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name copy-silly)}
+
+sp {onc*prefer*silly-copy*over*silly
+    (state <s> ^operator <o1> + ^operator { <o2> <> <o1> } +)
+    (<o1> ^name silly)
+    (<o2> ^name copy-silly)
+    -->
+    (<s> ^operator <o2> > <o1>)}
+
+sp {onc*silly-copy*implement
+    (state <s> ^operator <o> ^silly t)
+    (<o> ^name copy-silly)
+    -->
+    (<s> ^silly t - ^foo bar - ^silly-copy t)}
+
+sp {onc*silly-copy*terminate
+    (state <s> ^operator <o>)
+    (<o> ^name copy-silly)
+    -->
+    (<s> ^operator <o> @)}
+
+# Now build a chunk (?) based on silly-copy.
+
+sp {onc*build-chunk*propose
+    (state <s> ^impasse no-change ^type state ^silly-copy t)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name build-chunk)}
+
+sp {onc*prefer*build-chunk*over*silly
+    (state <s> ^operator <o1> + ^operator { <o2> <> <o1> } +)
+    (<o1> ^name silly)
+    (<o2> ^name build-chunk)
+    -->
+    (<s> ^operator <o2> > <o1>)}
+
+sp {onc*prefer*build-chunk*over*copy-foo
+    (state <s> ^operator <o1> + ^operator { <o2> <> <o1> } +)
+    (<o1> ^name copy-foo)
+    (<o2> ^name build-chunk)
+    -->
+    (<s> ^operator <o2> > <o1>)}
+
+sp {onc*build-chunk*implement
+    (state <s> ^superstate <ss> ^operator <o>)
+    (<o> ^name build-chunk)
+    -->
+    (<ss> ^operator <ss*o> +)
+    (<ss*o> ^name foo)}
+
+
+sp {onc*build-chunk*terminate
+    (state <s> ^operator <o>)
+    (<o> ^name build-chunk)
+    -->
+    (<s> ^operator <o> @)}
+
