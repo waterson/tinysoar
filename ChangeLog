@@ -1,5 +1,13 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
+Tuesday, February 12, 2002
+
+Removed the assertion in do_left_addition() requiring negative nodes
+to have a non-null |wme|. Not sure why I thought I needed that.
+
+Changed the ^motor-n annotation on the output link to take symbolic constants: `forward', `reverse', `brake', and `off'.
+
+
 Thursday, January 24, 2002
 
 Fix bug 507849,
