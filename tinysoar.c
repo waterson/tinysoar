@@ -1,3 +1,16 @@
+/* -*- Mode: C; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+
+/*
+
+  Tcl Interface
+
+  TODO
+
+  . Implement a `preferences' command that'll both display preferences
+    and let you whack 'em in (for testing and stuff).
+
+*/
+
 #include "tcl.h"
 #include "soar.h"
 #include "symtab.h"
