@@ -155,6 +155,21 @@ preference that created it? (Do we need to?)
 
 ---
 
+I _could_ incorporate the goal-level into the identifier's symbol
+itself: the highest two bits would continue to discriminate the symbol
+type, some number of the remaining high bits would encode the
+goal-level, and the low bits would be the identifier. Of course, with
+a 16-bit word, we start to run into some scarcity problems. For
+example, 2/4/10 leaves us 16 goal levels with 1024 identifiers (which
+is probably not unreasonable). Promotion would simply occur at
+assignment time.
+
+That said, the old Soar code has a bunch of magic for finding
+``clones'' (i.e., same identifier, different goal-level). I'm not sure
+how important that is yet.
+
+---
+
 Since wme has a back-pointer to its slot, I think that we should be
 able to do everything we need to do in the RETE network.
 
