@@ -16,6 +16,9 @@ Fix bug 507841,
 
 the value test is optional.
 
+Fixed the parser so that we don't o-support when doing a negated test
+on an ^operator attribute.
+
 
 Wednesday, January 23, 2002
 

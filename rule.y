@@ -419,12 +419,13 @@ attr_value_test: opt_negated '^' attr_test dot_attr_list value_test opt_acceptab
                    cond->data.simple.attr_test = $3;
                    cond->next = 0;
 
-                   /* If we're not testing acceptable preferences and
-                      we're testing an ^operator attribute, then mark
-                      the production as generating o-supported
+                   /* If we're not creating a negative condition, not
+                      testing acceptable preferences and we are
+                      testing an ^operator attribute, then mark the
+                      production as generating o-supported
                       preferences. (This seems a bit too liberal, but
                       I think it's how Soar8 works.) */
-                   if (!$6 && is_operator_test(&$3))
+                   if (!$1 && !$6 && is_operator_test(&$3))
                        parser->production->support = support_type_osupport;
 
                    /* Now walk through the `.attr' list, creating a
