@@ -20,7 +20,6 @@ OBJS = \
 	rete.obj \
 	runtime.obj \
 	symtab.obj \
-	tmem.obj \
 	wmem.obj \
         $(NULL)
 
@@ -36,7 +35,6 @@ pref.obj: pref.c soar.h alloc.h config.h config-defs.h
 rete.obj: rete.c soar.h alloc.h config.h config-defs.h
 runtime.obj: runtime.c config.h config-defs.h
 symtab.obj: symtab.c soar.h config.h config-defs.h
-tmem.obj: tmem.c soar.h alloc.h ht.h config.h config-defs.h
 wmem.obj: wmem.c soar.h alloc.h config.h config-defs.h
 
 config-defs.h:

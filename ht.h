@@ -6,9 +6,9 @@
 struct ht_entry {
     struct ht_entry* next;
     unsigned hash;
-    const void* key;
-    void* value;
 };
+
+#define HT_ENTRY_DATA(e) (((char*) e) + sizeof(struct ht_entry))
 
 typedef bool_t (*ht_key_comparitor_t)(const void* k1, const void* k2);
 
@@ -34,7 +34,7 @@ struct ht_entry**
 ht_lookup(struct ht* ht, unsigned hash, const void* key);
 
 void
-ht_add(struct ht* ht, struct ht_entry** bucket, unsigned hash, const void* key, void* value);
+ht_add(struct ht* ht, struct ht_entry** bucket, unsigned hash, struct ht_entry* entry);
 
 void
 ht_remove(struct ht* ht, struct ht_entry** bucket);

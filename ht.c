@@ -9,8 +9,13 @@
 
 #include "ht.h"
 #include "alloc.h"
+#include "config.h"
 
-#define GOLDEN_RATIO 0x9E3779B9U
+#if SIZEOF_INT >= 4
+#  define GOLDEN_RATIO 0x9E3779B9U
+#else
+#  define GOLDEN_RATIO 0x79B9U /* XXX is this right? */
+#endif
 
 /* The minimum number of buckets we'll allow a hashtable to have */
 #define MINBUCKETS_LOG2 3
@@ -32,7 +37,7 @@ rehash(struct ht* ht, struct ht_entry** oldbuckets, unsigned noldbuckets)
         while (oldentry != 0) {
             struct ht_entry* next = oldentry->next;
             struct ht_entry** newbucket =
-                ht_lookup(ht, oldentry->hash, oldentry->key);
+                ht_lookup(ht, oldentry->hash, HT_ENTRY_DATA(oldentry));
             ASSERT(*newbucket == 0, ("corrupted hashtable"));
             oldentry->next = 0;
             *newbucket = oldentry;
@@ -57,16 +62,9 @@ ht_init(struct ht* ht, ht_key_comparitor_t compare_keys)
         ht->buckets[i] = 0;
 }
 
-static ht_enumerator_result_t
-delete_enumerator(struct ht_entry* entry, void* closure)
-{
-    return ht_enumerator_result_delete;
-}
-
 void
 ht_finish(struct ht* ht)
 {
-    ht_enumerate(ht, delete_enumerator, 0);
     free(ht->buckets);
 }
 
@@ -82,7 +80,7 @@ ht_lookup(struct ht* ht, unsigned hash, const void* key)
 
     bucket = &ht->buckets[h];
     while ((entry = *bucket) != 0) {
-        if (entry->hash == hash && (*ht->compare_keys)(key, entry->key))
+        if (entry->hash == hash && (*ht->compare_keys)(key, HT_ENTRY_DATA(entry)))
             break;
 
         bucket = &entry->next;
@@ -92,10 +90,9 @@ ht_lookup(struct ht* ht, unsigned hash, const void* key)
 }
 
 void
-ht_add(struct ht* ht, struct ht_entry** bucket, unsigned hash, const void* key, void* value)
+ht_add(struct ht* ht, struct ht_entry** bucket, unsigned hash, struct ht_entry* entry)
 {
     unsigned nbuckets = NBUCKETS(ht);
-    struct ht_entry* entry;
 
     if (ht->nentries > MAX_LOAD(nbuckets)) {
         /* overloaded */
@@ -116,25 +113,24 @@ ht_add(struct ht* ht, struct ht_entry** bucket, unsigned hash, const void* key, 
         free(oldbuckets);
 
         /* make sure `bucket' is sane */
-        bucket = ht_lookup(ht, hash, key);
+        bucket = ht_lookup(ht, hash, HT_ENTRY_DATA(entry));
     }
 
-    entry = (struct ht_entry*) malloc(sizeof(struct ht_entry));
+    /* link the entry into the hashtable */
     entry->next  = *bucket;
     entry->hash  = hash;
-    entry->key   = key;
-    entry->value = value;
     *bucket = entry;
+
     ++ht->nentries;
 }
 
 void
-ht_remove(struct ht* ht, struct ht_entry** bucket)
+ht_remove(struct ht* ht, struct ht_entry** entryp)
 {
-    struct ht_entry* doomed = *bucket;
+    struct ht_entry* doomed = *entryp;
     unsigned nbuckets = NBUCKETS(ht);
 
-    *bucket = doomed->next;
+    *entryp = doomed->next;
 
     if (--ht->nentries < MIN_LOAD(nbuckets)) {
         /* underloaded */
@@ -154,8 +150,6 @@ ht_remove(struct ht* ht, struct ht_entry** bucket)
         rehash(ht, oldbuckets, nbuckets);
         free(oldbuckets);
     }
-
-    free(doomed);
 }
 
 void

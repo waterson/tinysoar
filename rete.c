@@ -172,10 +172,10 @@ get_field_from_wme(struct wme* wme, field_t field)
 
     switch (field) {
     case field_id:
-        return wme->id;
+        return wme->slot->id;
 
     case field_attr:
-        return wme->attr;
+        return wme->slot->attr;
 
     default:
         /* XXX gcc generates better code when we write the switch
@@ -193,8 +193,8 @@ get_field_from_wme(struct wme* wme, field_t field)
 static inline bool_t
 wme_matches_alpha_node(const struct wme* wme, const struct alpha_node* node)
 {
-    return (SYMBOL_IS_NIL(node->id) || SYMBOLS_ARE_EQUAL(node->id, wme->id)) &&
-        (SYMBOL_IS_NIL(node->attr) || SYMBOLS_ARE_EQUAL(node->attr, wme->attr)) &&
+    return (SYMBOL_IS_NIL(node->id) || SYMBOLS_ARE_EQUAL(node->id, wme->slot->id)) &&
+        (SYMBOL_IS_NIL(node->attr) || SYMBOLS_ARE_EQUAL(node->attr, wme->slot->attr)) &&
         (SYMBOL_IS_NIL(node->value) || SYMBOLS_ARE_EQUAL(node->value, wme->value));
 }
 
@@ -227,6 +227,14 @@ find_alpha_node(struct agent* agent, symbol_t id, symbol_t attr, symbol_t value,
             return node;
     }
     return 0;
+}
+
+static void
+add_matching_wmes(struct agent* agent, struct wme* wme, void* closure)
+{
+    struct alpha_node* alpha_node = (struct alpha_node*) closure;
+    if (wme_matches_alpha_node(wme, alpha_node))
+        add_wme_to_alpha_node(agent, alpha_node, wme);
 }
 
 /*
@@ -275,11 +283,7 @@ ensure_alpha_node(struct agent* agent, symbol_t id, symbol_t attr, symbol_t valu
         }
         else {
             /* Troll through *all* the wmes */
-            struct wme* wme;
-            for (wme = agent->wmes; wme != 0; wme = GET_WME_NEXT(*wme)) {
-                if (wme_matches_alpha_node(wme, result))
-                    add_wme_to_alpha_node(agent, result, wme);
-            }
+            wmem_enumerate_wmes(agent, add_matching_wmes, result);
         }
     }
 
@@ -547,7 +551,7 @@ check_beta_test(struct agent* agent, struct beta_test* test, struct token* token
         {
             struct symbol_list* goal;
             for (goal = agent->goals; goal != 0; goal = goal->next) {
-                if (SYMBOLS_ARE_EQUAL(goal->symbol, wme->id))
+                if (SYMBOLS_ARE_EQUAL(goal->symbol, wme->slot->id))
                     return 1;
             }
         }
@@ -557,7 +561,7 @@ check_beta_test(struct agent* agent, struct beta_test* test, struct token* token
         {
             struct symbol_list* impasse;
             for (impasse = agent->impasses; impasse != 0; impasse = impasse->next) {
-                if (SYMBOLS_ARE_EQUAL(impasse->symbol, wme->id))
+                if (SYMBOLS_ARE_EQUAL(impasse->symbol, wme->slot->id))
                     return 1;
             }
         }
@@ -1015,7 +1019,7 @@ rete_add_wme(struct agent* agent, struct wme* wme)
     int offset;
     int i;
 
-    offset = (GET_WME_TYPE(*wme) == wme_type_normal) ? 0 : 8;
+    offset = (wme->type == wme_type_normal) ? 0 : 8;
     for (i = 0; i < 8; ++i) {
         struct alpha_node* alpha;
 

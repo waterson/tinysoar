@@ -150,7 +150,7 @@ pref_process_matches(struct agent* agent)
         inst->production->instantiations = inst;
 
         for (pref = inst->preferences; pref != 0; pref = pref->next)
-            tmem_add_preference(agent, pref);
+            wmem_add_preference(agent, pref);
 
         /* on to the next one */
         inst = next;

@@ -94,3 +94,20 @@ h8300-hitachi-hms-objdump --section-headers *.o |\
  awk '{ print $3; }' |\
  perl -e 'while (<>) { $sum += hex($_); } print "$sum\n";'
 
+---
+
+I was thinking that it might be possible to shrink WMEs and generally
+save space by having a WME just maintain its `value', and get its `id'
+and `attr' from its slot...
+
+  struct wme {
+    struct slot* slot;
+    symbol_t     value;
+    ...
+  };
+
+You could then enumerate all of the WMEs in the system by enumerating
+the agent's `slots' hashtable. The only problem with this scheme are
+WMEs that are created `outside' the RETE network; e.g., by somebody
+doing brain surgery on the agent.
+

@@ -83,34 +83,6 @@ typedef struct variable_binding {
 /* ---------------------------------------------------------------------- */
 
 /*
- * Working Memory
- */
-
-typedef enum wme_type {
-    wme_type_normal,
-    wme_type_acceptable_preference
-} wme_type_t;
-
-struct wme {
-    symbol_t id;
-    symbol_t attr;
-    symbol_t value;
-    unsigned bits; /* low bit is this wme's type; high bits are pointer
-                      to next wme */
-};
-
-#define WME_TYPE_MASK ((unsigned)(0x1))
-#define WME_NEXT_MASK ((unsigned)(~0x1))
-
-#define GET_WME_TYPE(w)    ((wme_type_t)((w).bits & WME_TYPE_MASK))
-#define SET_WME_TYPE(w, t) ((w).bits &= ((unsigned)(t)) | WME_NEXT_MASK)
-
-#define GET_WME_NEXT(w)    ((struct wme*)((w).bits & WME_NEXT_MASK))
-#define SET_WME_NEXT(w, n) ((w).bits &= ((unsigned)(n)) | WME_TYPE_MASK)
-
-/* ---------------------------------------------------------------------- */
-
-/*
  * Preferences
  */
 
@@ -152,6 +124,11 @@ struct preference {
     symbol_t           referent;
 };
 
+struct preference_list {
+    struct preference_list* next;
+    struct preference* preference;
+};
+
 struct instantiation {
     struct instantiation* next;
     struct production*    production;
@@ -162,24 +139,34 @@ struct instantiation {
 /* ---------------------------------------------------------------------- */
 
 /*
- * Temporary Memory
+ * Working Memory
  */
 
+struct wme;
+
 struct slot {
-    symbol_t id;
-    symbol_t attr;
+    symbol_t                id;
+    symbol_t                attr;
+    struct preference_list* preferences;
+    struct wme*             wmes;
 };
 
-struct preference_list {
-    struct preference_list* next;
-    struct preference* preference;
+typedef enum wme_type {
+    wme_type_normal,
+    wme_type_acceptable_preference
+} wme_type_t;
+
+struct wme {
+    struct slot* slot;
+    symbol_t     value;
+    wme_type_t   type;
+    struct wme*  next;
 };
 
 struct slot_list {
-    struct slot slot;
+    struct slot*      slot;
     struct slot_list* next;
 };
-
 
 /* ---------------------------------------------------------------------- */
 
@@ -438,9 +425,6 @@ struct agent {
     unsigned next_available_identifier;
     symbol_t operator_symbol;
 
-    /* For working memory */
-    struct wme* wmes;
-
     /* For the RETE network */
     struct beta_node    root_node;
     struct token        root_token;
@@ -450,7 +434,7 @@ struct agent {
     struct match*       assertions;
     struct match*       retractions;
 
-    /* For temporary memory */
+    /* For working memory */
     struct ht slots;
     struct slot_list* modified_slots;
 };
@@ -501,21 +485,20 @@ extern struct wme*
 wmem_add(struct agent* agent, symbol_t id, symbol_t attr, symbol_t value, wme_type_t type);
 
 extern void
+wmem_add_preference(struct agent* agent, struct preference* pref);
+
+extern void
+wmem_decide(struct agent* agent);
+
+typedef void (*wme_enumerator_t)(struct agent* agent, struct wme* wme, void* closure);
+
+extern void
+wmem_enumerate_wmes(struct agent* agent, wme_enumerator_t enumerator, void* closure);
+
+extern void
 symtab_init(struct agent* agent);
 
 extern symbol_t
 symtab_get_identifier(struct agent* agent);
-
-extern void
-tmem_init(struct agent* agent);
-
-extern void
-tmem_add_preference(struct agent* agent, struct preference* pref);
-
-extern struct preference_list*
-tmem_get_preferences_for_slot(struct agent* agent, struct slot* slot);
-
-extern void
-wmem_decide(struct agent* agent);
 
 #endif /* soar_h__ */
