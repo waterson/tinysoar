@@ -810,7 +810,7 @@ reorder_conditions(struct production *p)
  * Add a production to the RETE network.
  */
 void
-rete_add_production(struct agent *agent, struct production *p)
+prod_add_production(struct agent *agent, struct production *p)
 {
     unsigned depth = 0;
     struct beta_node *parent = agent->root_node;
@@ -877,7 +877,7 @@ rete_add_production(struct agent *agent, struct production *p)
  * Remove a production from the RETE network.
  */
 void
-rete_remove_production()
+prod_remove_production()
 {
     UNIMPLEMENTED();
 }

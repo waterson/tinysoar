@@ -409,7 +409,7 @@ sp_command(ClientData data, Tcl_Interp *interp, int argc, char *argv[])
         return TCL_ERROR;
     }
 
-    rete_add_production(&agent, prod);
+    prod_add_production(&agent, prod);
 
 #ifdef DEBUG
     printf("compiled: %s\n", prod->name);

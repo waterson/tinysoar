@@ -216,7 +216,7 @@ struct slot {
 
 typedef enum wme_type {
     wme_type_normal     =  0,
-    wme_type_acceptable = -1
+    wme_type_acceptable =  1 /* XXX needs to be -1 to work with MSVC. */
 } wme_type_t;
 
 typedef enum wme_state {
@@ -590,7 +590,7 @@ rete_dump(struct agent *agent, struct symtab *symtab);
  * Add a production to the network
  */
 extern void
-rete_add_production(struct agent *agent, struct production *p);
+prod_add_production(struct agent *agent, struct production *p);
 
 /*
  * Notify the network that a new working memory element has been
