@@ -52,11 +52,12 @@ add_productions(struct rete* net)
     rete_add_production(net, &productions[0]);
 }
 
+struct wmem wmem;
+struct rete net;
+
 int
 main(int argc, char* argv[])
 {
-    struct wmem wmem;
-    struct rete net;
     struct wme* wme;
 
     wmem_init(&wmem);
