@@ -144,6 +144,7 @@ make_item_pref(struct agent      *agent,
     token->next   = 0;
     token->parent = 0;
     token->wme    = wme;
+    token->shared = 0;
 
     /* Create a dummy instantiation to reach the token. */
     inst = (struct instantiation *) malloc(sizeof(struct instantiation));
@@ -201,9 +202,6 @@ pop_goals(struct agent *agent)
 
         ASSERT(goals->instantiations == 0,
                ("instantiations not allowed in top goal"));
-
-        free(goals);
-        agent->goals = 0;
     }
 }
 
@@ -273,6 +271,8 @@ agent_finish(struct agent *agent)
 {
     pop_goals(agent);
     wmem_finish(agent);
+    free(agent->goals);
+
     rete_finish(agent);
 
     if (agent->id_entries)
@@ -285,11 +285,10 @@ agent_finish(struct agent *agent)
 void
 agent_reset(struct agent *agent)
 {
-    /* Clear working memory _before_ popping the goal stack so that
-       our WME removals can propagate correctly through the RETE
-       network. */
-    wmem_clear(agent);
     pop_goals(agent);
+    wmem_clear(agent);
+    free(agent->goals);
+    agent->goals = 0;
 
     /* Reset the identifier map. */
     if (agent->id_entries)
@@ -439,7 +438,7 @@ agent_get_id_level(struct agent *agent, symbol_t id)
     unsigned char *entry;
 
     ASSERT(GET_SYMBOL_TYPE(id) == symbol_type_identifier,
-           ("attempt to set id level on non-identifier"));
+           ("attempt to get id level on non-identifier"));
 
     entry = agent->id_entries + (GET_SYMBOL_VALUE(id) - 1);
     ASSERT(entry < agent->id_entries + agent->nid_entries,
@@ -595,119 +594,124 @@ agent_operator_tie(struct agent       *agent,
         make_item_pref(agent, superstate, goal, operators->symbol);
 }
 
-struct gc_data {
-    struct agent *agent;
-    int           level;
-};
-
-/*
- * Remove preferences for any unreachable identifiers.
- */
-static ht_enumerator_result_t
-sweep(struct ht_entry_header *header, void *closure)
-{
-    struct slot *slot = (struct slot *) HT_ENTRY_DATA(header);
-    struct gc_data *gc = (struct gc_data *) closure;
-
-    if (agent_get_id_level(gc->agent, slot->id) > gc->level) {
-        struct preference *pref;
-        struct wme *wme;
-
-        for (pref = slot->preferences; pref != 0; ) {
-            struct preference *doomed = pref;
-            pref = pref->next_in_slot;
-            wmem_remove_preference(gc->agent, doomed, 0);
-        }
-
-        for (wme = slot->wmes; wme != 0; ) {
-            struct wme *doomed = wme;
-
-            if (wme->state == wme_state_live)
-                rete_operate_wme(gc->agent, doomed, wme_operation_remove);
-
-            wme = wme->next;
-            free(doomed);
-        }
-
-        slot->wmes = 0;
-    }
-#ifdef DEBUG
-    else {
-        /* Sanity check to make sure that nothing that's still alive
-           refers to an identifier from a level that's being gc'd.
-
-           XXX could we make this stronger and assert that nothing
-           refers to a level below the identifier's level? I.e., to
-           ensure that all promotion has been done properly? */
-        struct preference *pref;
-        struct wme *wme;
-
-        for (pref = slot->preferences; pref != 0; pref = pref->next_in_slot) {
-            if (GET_SYMBOL_TYPE(pref->value) == symbol_type_identifier) {
-                ASSERT(agent_get_id_level(gc->agent, pref->value) <= gc->level,
-                       ("preference refers to a value from a gc'd level"));
-            }
-
-            if ((pref->type & preference_type_binary) &&
-                GET_SYMBOL_TYPE(pref->referent) == symbol_type_identifier) {
-                ASSERT(agent_get_id_level(gc->agent, pref->referent) <= gc->level,
-                       ("preference refers to a referent from a gc'd level"));
-            }
-        }
-
-        for (wme = slot->wmes; wme != 0; wme = wme->next) {
-            if (GET_SYMBOL_TYPE(wme->value) == symbol_type_identifier) {
-                ASSERT(agent_get_id_level(gc->agent, wme->value) <= gc->level,
-                       ("wme refers to a value from a gc'd level"));
-            }
-        }
-    }
-#endif
-
-    /* XXX Why can't we remove the slot (i.e., return
-       ht_enumerator_result_delete) here? */
-    return ht_enumerator_result_ok;
-}
-
 /*
  * Pop all of the subgoals beneath the specified goal, removing
- * preferences associated with those goals.
+ * preferences, wmes, tokens, and instantiations associated with those
+ * goals.
  */
 void
 agent_pop_subgoals(struct agent *agent, struct goal_stack *bottom)
 {
     struct goal_stack *goal;
-    struct gc_data gc = { agent, 1 };
+    struct wmem_sweep_data gc = { agent, 1 };
 
     ASSERT(bottom != 0, ("no subgoals to pop"));
 
+#ifdef CONF_SOAR_CHUNKING
+    /* Clear the `shared' bit on tokens below the bottom. */
+    for (goal = bottom; goal != 0; goal = goal->next) {
+        struct instantiation *inst;
+        for (inst = goal->instantiations; inst != 0; inst = inst->next) {
+            struct token *token;
+            for (token = inst->token; token != 0; token = token->parent)
+                token->shared = 0;
+        }
+    }
+#endif
+
     /* Determine the level we're popping. */
-    for (goal = agent->goals; goal != bottom; goal = goal->next)
-        ++gc.level;
+    if (bottom != agent->goals) {
+        goal = agent->goals;
+        do {
+#ifdef CONF_SOAR_CHUNKING
+            struct instantiation *inst;
+#endif
 
-    /* Remove preferences for the non-reachable identifiers. */
-    ht_enumerate(&agent->slots, sweep, &gc);
+            goal = goal->next;
 
-    /* Nuke goals beneath the new bottom. */
+#ifdef CONF_SOAR_CHUNKING
+            /* Re-mark the `shared' bit on tokens above the bottom,
+               inclusive. This will prevent wmem_remove_instantiation
+               from destroying tokens that are being used for
+               backtracing in live goals. */
+            for (inst = goal->instantiations; inst != 0; inst = inst->next) {
+                struct token *token;
+                for (token = inst->token; token != 0; token = token->parent)
+                    token->shared = 1;
+            }
+#endif
+
+            ++gc.level;
+        } while (goal != bottom);
+    }
+
+#ifdef CONF_SOAR_CHUNKING
+    {
+        /* Save the agent's current set of retractions in a temporary
+           buffer, as the wme removal below may trigger additional
+           retractions that must be processed immediately. */
+        struct match *retractions = agent->retractions;
+        agent->retractions = 0;
+#endif
+
+        /* Remove preferences and wmes for the soon-to-be unreachable
+           identifiers; i.e., the identifiers below the new
+           bottom-most goal. */
+        ht_enumerate(&agent->slots, wmem_sweep_subgoals, &gc);
+
+#ifdef CONF_SOAR_CHUNKING
+        /* Eagerly process retractions generated from our sweep,
+           removing and finalizing each instantiation to ensure that
+           tokens are released. */
+#ifdef DEBUG
+        printf("Retracting:\n");
+#endif
+
+        while (agent->retractions) {
+            struct match *doomed = agent->retractions;
+#ifdef DEBUG
+            printf("  %s\n", doomed->production->name);
+#endif
+            wmem_remove_instantiation(agent, doomed->data.instantiation, 1);
+
+            agent->retractions = doomed->next;
+            free(doomed);
+        }
+
+        /* Restore the agent's retraction queue to its previous
+           state. */
+        agent->retractions = retractions;
+    }
+
+    /* Remove any instantiations that have been left in the goal for
+       backtracing, finalizing the instantiation to ensure that tokens
+       are released. */
     goal = bottom->next;
-    bottom->next = 0;
 
     do {
-        struct goal_stack *doomed = goal;
-#ifdef CONF_SOAR_CHUNKING
-        struct instantiation *inst;
+        struct instantiation *inst = goal->instantiations;
 
-        inst = doomed->instantiations;
         while (inst) {
             struct instantiation *next = inst->next;
             wmem_remove_instantiation(agent, inst, 1);
             inst = next;
         }
-#endif
 
+        goal = goal->next;
+    } while (goal);
+#endif /* CONF_SOAR_CHUNKING */
+
+    /* Cut the subgoals loose. We do this last so that all of the wme
+       removals will cascade through the rete network correctly;
+       specifically, we want any `goal' tests to match. */
+    goal = bottom->next;
+    do {
+        struct goal_stack *doomed = goal;
         goal = goal->next;
         free(doomed);
     } while (goal);
+
+    bottom->next = 0;
 }
 
 /*

@@ -148,8 +148,9 @@ typedef unsigned variable_binding_t;
  * Preferences
  */
 
-#define SUPPORT_TYPE_BITS    2
-#define PREFERENCE_TYPE_BITS (BITS_PER_WORD - SUPPORT_TYPE_BITS)
+#define SUPPORT_TYPE_BITS     2
+#define PREFERENCE_STATE_BITS 1
+#define PREFERENCE_TYPE_BITS  (BITS_PER_WORD - SUPPORT_TYPE_BITS - PREFERENCE_STATE_BITS)
 
 typedef enum preference_type {
     preference_type_unary              = 0,
@@ -169,6 +170,11 @@ typedef enum preference_type {
     preference_type_worse              = preference_type_binary + 2
 } preference_type_t;
 
+typedef enum preference_state {
+    preference_state_live   =  0,
+    preference_state_zombie = -1
+} preference_state_t;
+
 typedef enum support_type {
     support_type_isupport     = 0,
     support_type_osupport     = 1,
@@ -182,6 +188,7 @@ struct preference {
     struct preference    *next_in_instantiation;
     struct instantiation *instantiation;
     preference_type_t     type    : PREFERENCE_TYPE_BITS;
+    preference_state_t    state   : PREFERENCE_STATE_BITS;
     support_type_t        support : SUPPORT_TYPE_BITS;
     symbol_t              value;
     symbol_t              referent;
@@ -213,8 +220,8 @@ typedef enum wme_type {
 } wme_type_t;
 
 typedef enum wme_state {
-    wme_state_live,
-    wme_state_zombie
+    wme_state_live   =  0,
+    wme_state_zombie = -1
 } wme_state_t;
 
 struct wme {
@@ -469,17 +476,25 @@ struct beta_node {
  * Tokens
  */
 struct token {
-    /* Back-pointer to the beta node that owns the token */
+    /* Back-pointer to the beta node that owns the token. */
     struct beta_node *node;
 
-    /* The next token in the list of tokens owned by the beta node */
+    /* The next token in the list of tokens owned by the beta node. */
     struct token *next;
 
-    /* The token that this token extends */
+    /* The token that this token extends. */
     struct token *parent;
 
-    /* The wme that the token stands for */
+    /* The wme that the token stands for. */
     struct wme *wme;
+
+    /* Set to true if the token is referenced from an old
+       instantiation for backtracing purposes. A shared token will not
+       be destroyed when removed from the rete network.
+
+       XXX this should be stuffed into the low bit one of the
+       pointers, above. */
+    bool_t shared;
 };
 
 
@@ -639,6 +654,14 @@ wmem_enumerate_wmes(struct agent *agent, wme_enumerator_t enumerator, void *clos
 
 extern void
 wmem_remove_instantiation(struct agent *agent, struct instantiation *inst, bool_t final);
+
+struct wmem_sweep_data {
+    struct agent *agent;
+    int           level;
+};
+
+extern ht_enumerator_result_t
+wmem_sweep_subgoals(struct ht_entry_header *header, void *closure);
 
 extern void
 agent_reserve_identifiers(struct agent *agent, int count);

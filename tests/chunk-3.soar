@@ -1,0 +1,53 @@
+# This test checks to see if we can trace through an operator
+# instantiation.
+
+package require TinySoar
+
+sp {elaborate*top-state
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^ball <b>)}
+
+# Here's a little decoration on the substate to verify that we safely
+# clean up when popping goals.
+sp {elaborate*snc
+    (state <s> ^impasse no-change ^attribute state)
+    -->
+    (<s> ^foo bar)}
+
+# This is the first operator. It will copy the ball to the substate,
+# and should provide us with the condition for the chunk.
+sp {propose*copy-ball
+    (state <s> ^impasse no-change ^attribute state ^superstate <ss>)
+    (<ss> ^ball <b>)
+    (<s> -^thing <b>)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name copy-ball ^ball <b>)}
+
+sp {implement*copy-ball-as-thing
+    (state <s> ^operator <o>)
+    (<o> ^name copy-ball ^ball <b>)
+    -->
+    (<s> ^thing <b>)}
+
+# This is the second operator, which returns the result based on
+# preferences and wmes created by the first operator.
+sp {propose*count
+    (state <s> ^thing <t>)
+    (<t> -^counted t)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name count ^thing <t>)}
+
+sp {implement*count
+    (state <s> ^operator <o>)
+    (<o> ^name count ^thing <t>)
+    -->
+    (<t> ^counted t)}
+
+sp {propose*wait
+    (state <s> ^superstate nil ^ball.counted t -^operator)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name wait)}

@@ -626,7 +626,7 @@ backtrace(struct agent *agent, struct chunk *chunk)
             if (pref->type == preference_type_acceptable
                 && SYMBOLS_ARE_EQUAL(pref->value, wme->value)
                 && pref->instantiation
-                && rete_get_instantiation_level(agent, pref->instantiation)) {
+                && rete_get_instantiation_level(agent, pref->instantiation) == chunk->level) {
                 break;
             }
         }

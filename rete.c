@@ -66,6 +66,7 @@ create_token(struct beta_node *node,
     result->parent = parent;
     result->node   = node;
     result->wme    = wme;
+    result->shared = 0;
     return result;
 }
 
@@ -394,7 +395,7 @@ do_left_removal(struct agent     *agent,
                 struct token     *token,
                 struct wme       *wme)
 {
-    bool_t token_saved = 0;
+    bool_t token_saved = token->shared;
 
     switch (node->type) {
     case beta_node_type_memory: {
@@ -419,8 +420,10 @@ do_left_removal(struct agent     *agent,
                 if (! token_saved)
                     free(doomed);
 #ifdef DEBUG
-                else
+                else {
+                    token->shared = 1;
                     doomed->next = 0;
+                }
 #endif
 
                 break;
@@ -455,10 +458,11 @@ do_left_removal(struct agent     *agent,
            case its removal will have no side effects */
         for (link = &node->blocked; (doomed = *link) != 0; link = &doomed->next) {
             if ((doomed->wme == wme) && (doomed->parent == token)) {
-                /* Leave `token_saved' as false: we can free tokens as
-                   we unwind. */
                 *link = doomed->next;
-                free(doomed);
+
+                if (! token_saved)
+                    free(doomed);
+
                 break;
             }
         }
@@ -481,10 +485,10 @@ do_left_removal(struct agent     *agent,
 
                     if (! token_saved)
                         free(doomed);
-#ifdef DEBUG
-                    else
+                    else {
                         doomed->next = 0;
-#endif
+                        token->shared = 1;
+                    }
 
                     break;
                 }
@@ -535,7 +539,7 @@ do_left_removal(struct agent     *agent,
                         match->production         = node->data.production;
                         match->next               = agent->retractions;
 
-#ifdef SOAR_CONF_CHUNKING
+#ifdef CONF_SOAR_CHUNKING
                         /* Save the token (so we can backtrace) if the
                            instantiation is from a substate. If we
                            don't save the token, then null out the
@@ -549,9 +553,8 @@ do_left_removal(struct agent     *agent,
                         if (rete_get_instantiation_level(agent, inst) > 1)
                             token_saved = 1;
                         else
-#endif
                             inst->token = 0;
-
+#endif
 
                         agent->retractions = match;
                     }
@@ -569,12 +572,14 @@ do_left_removal(struct agent     *agent,
             for (link = &node->tokens; (doomed = *link) != 0; link = &doomed->next) {
                 if ((doomed->wme == wme) && (doomed->parent == token)) {
                     *link = doomed->next;
+
                     if (! token_saved)
                         free(doomed);
-#ifdef DEBUG
-                    else
+                    else {
+                        token->shared = 1;
                         doomed->next = 0;
-#endif
+                    }
+
                     break;
                 }
             }
