@@ -37,7 +37,6 @@ SHARED_OBJS = \
 RUNTIME_OBJS = \
 	alloc.o \
 	agent.o \
-	pref.o \
 	rete.o \
 	wmem.o \
 	$(NULL)
