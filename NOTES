@@ -551,3 +551,72 @@ the horizon with respect to my ownership model. Specifically, if a
 preference is o-supported, and its instantiation dies, I destroy the
 instantiation object (after clearing back-pointers from the
 preference).
+
+---
+
+Hrm. Why isn't p8.soar's |propose*count*one| production matching? The
+problem appears to be with the negative condition creating something
+that's skewed just a little bit in the RETE network. Specifically, it
+looks like the test is _almost_ right: it's currently
+|value==<1,value> id==<3,value>| when what I think it should be is
+just |id==<3,value>|.
+
+Okay, the more I look at this, the more I think I sorta botched
+negative conditions. What's happening here is that subsequent positive
+tests (i.e., once that appear after the negative test in the condition
+list) are treating the negative test as if it's actually _bound_ a
+value to its variable, which is just wrong. (If it's bound something,
+then it matched, and the negative condition would've prevented us from
+ever worrying about this situation.)
+
+---
+
+Found a patch for gcc-3.0 to get it to build a cross-compiler for
+h8300:
+
+*** expr.c	Fri Apr 13 20:39:22 2001
+--- expr.c.fix	Sat Apr 14 01:49:55 2001
+***************
+*** 2776,2781 ****
+--- 2776,2782 ----
+    enum machine_mode submode;
+    enum mode_class class = GET_MODE_CLASS (mode);
+    unsigned int i;
++   rtx temp;
+  
+    if ((unsigned int) mode >= (unsigned int) MAX_MACHINE_MODE)
+      abort ();
+***************
+*** 2962,2968 ****
+  	 X with a reference to the stack pointer.  */
+        if (push_operand (x, GET_MODE (x)))
+  	{
+! 	  anti_adjust_stack (GEN_INT (GET_MODE_SIZE (GET_MODE (x))));
+  	  x = change_address (x, VOIDmode, stack_pointer_rtx);
+  	}
+  #endif
+--- 2963,2985 ----
+  	 X with a reference to the stack pointer.  */
+        if (push_operand (x, GET_MODE (x)))
+  	{
+!           /* Do not use anti_adjust_stack, since we don't want to update
+!              stack_pointer_delta.  */
+!           temp = expand_binop (Pmode,
+! #ifdef STACK_GROWS_DOWNWARD
+!                                sub_optab,
+! #else
+!                                add_optab,
+! #endif
+!                                stack_pointer_rtx,
+!                                GEN_INT
+!                                  (PUSH_ROUNDING (GET_MODE_SIZE (GET_MODE (x)))),
+!                                stack_pointer_rtx,
+!                                0,
+!                                OPTAB_LIB_WIDEN);
+!           if (temp != stack_pointer_rtx)
+!             emit_move_insn (stack_pointer_rtx, temp);
+! 
+  	  x = change_address (x, VOIDmode, stack_pointer_rtx);
+  	}
+  #endif
+
