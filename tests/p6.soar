@@ -1,0 +1,32 @@
+# Test to see if returning multiple results works. Should build a
+# chunk like:
+#
+# sp {chunk-1*d1*snochange*1
+#     :chunk
+#     (state <s1> ^ball <b1>)
+#     -->
+#     (<b1> ^junk <j1> +)
+#     (<j1> ^opacity clear + ^texture smooth + ^size small +)}
+#
+
+
+package require Soar;
+
+sp {elaborate*top-state
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^ball <b>)
+    (<b> ^color red)}
+
+sp {elaborate*snc*make-return-crap
+    (state <s> ^impasse no-change ^attribute state)
+    -->
+    (<s> ^return <r>)
+    (<r> ^size small ^texture smooth ^opacity clear)}
+
+sp {elaborate*snc*copy-ball
+    (state <s> ^impasse no-change ^attribute state ^superstate <ss> ^return <r>)
+    (<ss> ^ball <b>)
+    -->
+    (<b> ^junk <r>)}
+
