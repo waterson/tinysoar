@@ -6,7 +6,8 @@ package require TinySoar
 sp {elaborate*top-state
     (state <s> ^superstate nil)
     -->
-    (<s> ^ball <b>)}
+    (<s> ^ball <b>)
+    (<b> ^color blue)}
 
 # Here's a little decoration on the substate to verify that we safely
 # clean up when popping goals.
