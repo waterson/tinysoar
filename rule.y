@@ -449,6 +449,8 @@ attr_value_test: opt_negated '^' attr_test dot_attr_list value_test opt_acceptab
                           link variable, and we'll pick up the `attr'
                           from the list we reduced. */
                        cond = (struct condition *) malloc(sizeof(struct condition));
+                       cond->type = condition_type_positive;
+                       cond->acceptable = 0;
                        cond->data.simple.id_test.type = test_type_equality;
                        cond->data.simple.id_test.data.referent = link;
                        cond->data.simple.attr_test = $4->test;
