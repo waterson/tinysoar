@@ -1,0 +1,268 @@
+                                TinySoar
+                  Chris Waterson <waterson@maubi.net>
+
+
+1. OVERVIEW
+
+TinySoar is an implementation of the Soar8.2 artificial intelligence
+architecture (<http://ai.eecs.umich.edu/soar/>) that is intended to
+run on memory-constrained hardware, like a robot.
+
+So far, TinySoar includes one robot embedding: the Lego Mindstorms
+RCX.
+
+
+2. CREDITS
+
+The TinySoar implementation is heavily based on its big brother,
+Soar8.2. Access to that code (which has been worked on by many, many
+smart people) was invaluable to this implementation.
+
+The Lego Mindstorms RCX embedding cribbed unabashedly from LegOS
+(<http://legos.sourceforge.net/>). Wonderful documentation on the RCX,
+such as:
+
+<http://www.daimi.au.dk/dArkOS/Vaerktoejer.dir/RCX.vejledning.dir/Vejledning.html>
+
+and:
+
+<http://graphics.stanford.edu/~kekoa/rcx/>
+
+were also invaluable resources.
+
+
+3. DESIGN
+
+TinySoar includes several modules:
+
+  - Soar runtime. This is the code that executes the Soar8.2 decision
+    cycle, operator preference semantics, subgoal creation, etc. It is
+    included in both the host environment and the target agent.
+
+  - Host environment. This code lives on the ``host machine'', and is
+    a Tcl extension that behaves (in a limited way) like Soar8.2. You
+    use the host environment to write and debug a Soar agent. This
+    agent is ``exported'' to a C file that can be compiled and linked
+    with the Soar runtime and the target agent.
+
+  - Target environment. The target environment is the robot or
+    embedding enviroment in which you want your agent to r_really_ run
+    (e.g., the Lego Mindstorms RCX). The target environment includes
+    just enought functionality to ``pump'' the Soar runtime's
+    elaboration cycle, to sample sensors that drive Soar's input link,
+    and to sample Soar's output link to drive actuators.
+
+
+4. BUILDING TINYSOAR
+
+TinySoar uses `autoconf' to configure itself. Most likely, you'll need
+to build two versions of TinySoar: one for the host environment and
+one for the target environment. You'll create and debug your Soar code
+on the host environment, then use the host environment to ``export''
+the agent to be compiled into the target environment.
+
+
+4.1. Building the Host Environment
+
+Start by creating a directory that is a sibling of the TinySoar
+directory; e.g., if you've installed TinySoar in
+/usr/src/tinysoar/tinysoar, create a directory called
+/usr/src/tinysoar/debug. Then, run `configure':
+
+  $ cd /usr/src/tinysoar/debug
+  $ CFLAGS="-g -DDEBUG" ../tinysoar/configure
+
+This will configure TinySoar four your host environment. Build the
+TinySoar Tcl extension:
+
+  $ make
+
+Now, you should be able to run `tclsh' and load the TinySoar
+extension:
+
+  $ TCLLIBPATH=`pwd` tclsh
+  % package require TinySoar
+  Firing:
+  Retracting:
+  1.0
+  %
+
+If you get this far, TinySoar has been installed successfully for your
+host environment.
+
+
+4.2. Building the Lego Mindstorms RCX Environment
+
+Next, you'll want to build TinySoar for your target environment, say
+the Lego Mindstorms RCX. To do this you'll need to install a
+cross-compiler for the Hitachi H8. If you're a glutton for punishment,
+grab the source for binutils-2.10 and gcc-3.0, and build the
+cross-compiler by hand. If not, grab the RPMs from the LegOS site:
+
+  <http://legos.sourceforge.net/files/>
+
+Specifically, you'll need `binutils' and `egcs'. You might as well
+download `legOS' as well, since you'll need to use the `firmdl3'
+utility to download TinySoar onto the RCX.
+
+Once you've got your cross-compilation environment set up (building
+and installing LegOS would be a good test for this), you're ready to
+build TinySoar for the Lego RCX.
+
+Make another directory that's a sibling of the source code directory;
+e.g., /usr/src/tinysoar/h8300-hitachi-hms. 
+
+  $ cd /usr/src/tinysoar/h8300-hitachi-hms
+  $ CFLAGS="-O2 -fomit-frame-pointer" ../tinysoar/configure \
+  > --target=h8300-hitachi-hms --with-sizeof-int=2
+
+Then, build the target environment:
+
+  $ make lego
+
+This will link in a pre-existing agent (`agent.inc' in the tinysoar
+directory, which was exported from `tests/bumper.soar'), and create a
+file called `lego' that can be downloaded to the RCX using the
+`firmdl3' program included with LegOS:
+
+  $ /usr/src/legOS/util/firmdl3 --slow ./lego
+
+
+5. CREATING YOUR OWN AGENTS
+
+`bumper.soar' is a pretty boring agent: it runs motor A and motor C
+until it detects pressure on sensor 1. In other words, it drives
+forward until it bumps into something.
+
+
+To make more exciting agents, create a `.soar' file of your own, and
+`source' it using `tclsh'. In your host environment (e.g.,
+/usr/src/tinysoar/debug),
+
+  $ TCLLIBPATH=`pwd` tclsh
+  % source ../tinysoar/tests/drive.soar
+  ...
+
+and then `export' it to the `agent.inc' file in the original source
+directory:
+
+  % export ../tinysoar/agent.inc
+  
+(Actually, `drive.soar' is even more boring than `bumper.soar': it
+just runs motors A and C until the cows come home. But you get the
+picture.)
+
+
+5.1. Input/Output on the Lego Mindstorms RCX.
+
+The Lego Mindstorms RCX maps fairly conveniently to Soar's I/O
+architecture. Each of the three sensors are mapped to ^sensor-1,
+^sensor-2, and ^sensor-3 attributes on the top state's
+^input-link. These are assigned numerical values between zero and
+1023, based on the input value from the sensor.
+
+Each of the three motors are controlled by assigning numeric values to
+the ^motor-a, ^motor-b, and ^motor-c attributes on the top state's
+^output-link. A positive value drives the motor forward; a negative
+value drives it backwards, a zero value (or absence of a value) sets
+the motor to off (specifically, freewheel).
+
+
+5.2. The TinySoar Decision Cycle (or Lack Thereof)
+
+Unlike its big brother (which has several distinct phases that
+comprise the decision cycle), TinySoar just elaborates until it
+reaches quiescence, and then either picks an operator or creates an
+impasse.
+
+
+5.3. Debugging Support on the Host Environment
+
+TinySoar's host environment supports a bastardized subset of Soar8.2's
+commands:
+
+  ela[borate]
+
+    Run TinySoar for a single elaboration.
+
+
+  pri[nt] <id>
+
+    Print the WMEs associated with the specified identifier.
+
+
+  pref[erence] -a <id> ^<attr> [+|-]<val> <type>
+
+    Add a preference to working memory with the specified (id ^attr
+    val). <id> must be an identifier. <attr> must be a symbolic
+    constant. <val> may be an identifier, a symbolic constant, or a
+    numeric constant. Numeric constants must be prefixed by a `+' or a
+    `-' sign. <type> is the preference type; i.e., one of:
+
+      + (acceptable)
+      - (reject)
+      @ (reconsider)
+      ! (require)
+      ~ (prohibit)
+
+    The result is a number identifying the preference: this value can
+    be used with `preference -r' to remove the preference from memory.
+
+
+  pref[erence] -r <pref>
+
+    Remove the specified preference from memory.
+
+
+  pref[erence] <id> ^<attr>
+
+    Display the preferences in the specified slot. <id> must by an
+    identifier, <attr> must by a symbolic constant.
+
+
+  export <file>
+
+    Export the RETE network as a C header to the specified file.
+
+
+  dump-rete
+
+    Dump the RETE network. (For deep debugging only.)
+
+
+Note that, unlike Soar8.2, identifiers are specified using _numbers_;
+e.g.:
+
+  % print 1
+  ([1] ^superstate nil ^io [2] ^operator [5] ^operator [5] +)
+
+In other words, the top state has the I/O link, and operator `5' both
+with `normal' and `acceptable' WMEs present.
+
+  % print 5
+  ([5] ^name drive)
+
+Operator 5's name is `drive'.
+
+  % pref 1 ^operator
+  134698720: 5 @
+  134691928: 5 +
+
+There is a reconsider preference and an acceptable preference for the
+`^operator' slot in the top state.
+
+  % print 2
+  ([2] ^input-link [3] ^output-link [4])
+  % pref -a 3 ^sensor-1 +100 +
+  134699296
+
+We just added an acceptable preference to the input link, setting the
+`^sensor-1' attribute to a numeric constant of +100.
+
+  % pref -r 134699296
+
+Now we've removed that preference.
+
+Note that it is not possible to directly manipulate working memory
+elements: only preferences can be manipulated.
+
