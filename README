@@ -168,9 +168,10 @@ architecture. Each of the three sensors are mapped to ^sensor-1,
 
 Each of the three motors are controlled by assigning numeric values to
 the ^motor-a, ^motor-b, and ^motor-c attributes on the top state's
-^output-link. A positive value drives the motor forward; a negative
-value drives it backwards, a zero value (or absence of a value) sets
-the motor to off (specifically, freewheel).
+^output-link. A value of `forward' drives the motor forward; a value
+of `reverse' drives it backwards; a value of `brake' locks the motor
+in place; a value of `off' (or absence of a value) turns the motor off
+(specifically, freewheel).
 
 
 5.2. The TinySoar Decision Cycle (or Lack Thereof)
