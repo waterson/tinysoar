@@ -177,6 +177,66 @@ how important that is yet.
 
 ---
 
+Encoding the goal level into the identifier itself wouldn't work: the
+identifier is copy-propagated in too many places for us to reasonably
+keep this synchronized.
+
+So let's revisit why we need to know the goal-level of an
+identifier. The `goal level' of an identifier is the highest goal from
+which the identifier is reachable via the directed WME graph
+(following the `id' through the `attr' to the `value').
+
+First, we need to know this in order to detect `promotion' of new
+identifiers; i.e., when a lower-level identifier becomes reachable
+from a higher-level goal. For chunking, newly reachable identifiers
+comprise the `results' that have been returned from a lower-level goal
+to a higher-level goal: these preferences are included in the chunk's
+RHS, and are back-traced to compute the chunk's LHS.
+
+Second, we need to know when an identifier becomes *unreachable* from
+any goal. This allows us to garbage collect o-supported preferences
+from subgoals that no longer exist.
+
+In theory, we could compute this value each time we need it; however,
+doing so would probably require O(n**2) time where |n| is the number
+of WMEs (because we'd need to do |n| traversals over the WME table to
+propagate each goal identifier's level), and O(m) space (where |m| is
+the number of identifiers, to remember the goal level of each
+identifier so far).
+
+Alternatively, we could cache the identifier's goal level:
+
+- By making identifiers be pointers to out-of-line structures.
+
+  . The simplest implementation here would require the out-of-line
+    structures to be aligned on four-byte boundaries since symbol_t
+    uses the low two bits for type information. Expensive...unless we
+    need the space for something besides the goal level.
+
+  . We could make the low bit of the symbol_t designate identifier
+    vs. non-identifier, and then differentiate non-identifiers with
+    higher bits. This makes the symbol extraction logic more
+    complicated, and this logic is used all over IIRC.
+
+  . Doing this would solve the `identifier recycling' problem.
+
+- By keeping an out-of-line lookup table that tracks identifier
+  attributes.
+
+  . A simple implementation would keep one byte per identifier in a
+    flat array. Ideally, this table could also be used to generate new
+    identifiers, thus also avoiding the identifier recycling
+    problem. The down-side is that the array would require a large
+    block of contiguous space; potentially difficult to come by on a
+    Lego RCX.
+
+If we cache the identifier's goal level, we'd want to be able to keep
+it synchronized (e.g., during `promotion') with a minimum of
+work. I.e., caching would be of little value if wehad to continually
+re-compute each identifier's reachability from scratch.
+
+---
+
 Since wme has a back-pointer to its slot, I think that we should be
 able to do everything we need to do in the RETE network.
 
@@ -198,17 +258,21 @@ able to do everything we need to do in the RETE network.
 
 ---
 
-Trying to understand the backtracing algorithm...
+Trying to understand the backtracing algorithm. `Grounds' are
+conditions that will appear in the chunk's left-hand side.
 
   var grounds_level;
 
   procedure backtrace_through_instantiation(inst)
   begin
-    |tc| = {}; /* the transitive closure of ... XXXwhat? */
+    /* Compute the set of identifiers reachable from higher-level goal
+       identifiers via the instantiation's positive condition
+       tests. */
+    |tc| = {};
     do
       foreach positive condition |c| in |inst|
       begin
-        if |c.id| is a goal and |c.wme.id.level <= grounds_level| then
+        if |c.id| is a goal and |c.id.level <= grounds_level| then
           /* basis case: id is a higher goal that was tested, so add
              the value */
           |tc| = |tc| U |c.value|
@@ -229,7 +293,7 @@ Trying to understand the backtracing algorithm...
              immediately reachable from a higher goal. */
           |grounds| = |grounds| U |c|;
 
-        else if |c.wme.id.level <= grounds_level| then
+        else if |c.id.level <= grounds_level| then
           /* The condition tested something above us that's not
              immediately reachable from a higher goal. */
           |potentials| = |potentials| U |c|;
@@ -241,12 +305,12 @@ Trying to understand the backtracing algorithm...
 
         endif
       else
-        /* negative cond's are either grounds or potentials */
+        /* Negative cond's are either grounds or potentials. */
         |negated| = |negated| U make_chunk_cond_for(|c|);
       endif
     end
 
-    /* add new nots to the not-set */
+    /* Add new nots to the `not-set'. */
     if |inst.nots| then
       |instantiations_with_nots| = |instantiations_with_nots| U |inst|
     endif
@@ -259,12 +323,12 @@ Trying to understand the backtracing algorithm...
 
       /* Did we test a preference at this level that's a clone of some
          higher-level preference? */
-      |bt_pref| = find_clone_for_level(|c.wme.preference|, |grounds_level| + 1);
+      |bt_pref| = find_clone_for_level(|c.preference|, |grounds_level| + 1);
 
       if |bt_pref| then
         /* Yes. Backtrace through the instantiation that created the
            preference in our current match-goal level */
-        backtrace_through_instantiation(|br_pref.instantiation|);
+        backtrace_through_instantiation(|bt_pref.instantiation|);
 
         /* XXX check if any prohibit preferences */
 
@@ -287,7 +351,9 @@ Trying to understand the backtracing algorithm...
     do
       foreach condition |c| in |potentials| do
         if |c.id| in |tc| then /* XXX NCC */
+          |potentials| = |potentials| - |c|;
           |grounds| = |grounds| U |c|;
+          |tc| = |tc| U |c.id| U |c.value|;
         endif
       end
     until |grounds| reaches a fix point.
@@ -295,13 +361,13 @@ Trying to understand the backtracing algorithm...
 
   function trace_ungrounded_potentials() return boolean
   begin
-    /* pick out positive potentials that we can backtrace through */
+    /* Pick out positive potentials that we can backtrace through. */
     |pots_to_bt| = {};
 
     foreach condition |c| in |potentials| do
       /* Did we test a preference at this level that's a clone of some
          higher-level preference? */
-      |bt_pref| = find_clone_for_level(|c.wme.preference|, |grounds_level| + 1);
+      |bt_pref| = find_clone_for_level(|c.preference|, |grounds_level| + 1);
 
       if |bt_pref| then
         /* Yes. Remove from the set of potentials and backtrace it. */
@@ -311,7 +377,7 @@ Trying to understand the backtracing algorithm...
     end
 
     foreach condition |c| in |pots_to_bt| do
-      |bt_pref| = find_clone_for_level(|c.wme.preference|, |grounds_level| + 1);
+      |bt_pref| = find_clone_for_level(|c.preference|, |grounds_level| + 1);
 
       backtrace_through_instantiation(|bt_pref.instantiation|);
 
@@ -352,6 +418,80 @@ Trying to understand the backtracing algorithm...
 I think that one thing that'll be hard to do in the raw RETE net will
 be to figure out how to string together matching |id| and |value|
 tests, as we need to do in |backtrace_through_instantiation()|.
+
+What if we decided to ignore `clones' and just used the |preference|
+argument to |find_clones_for_level|?
+
+I'm not sure why we need to distinguish between `locals' and
+`potentials'. Need to understand that a bit better.
+
+---
+
+How do we account for `better' or `worse' preferences in the
+backtrace? It looks like we don't. Given:
+
+package require Soar;
+
+sp {elaborate*top-state
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^ball <b>)
+    (<b> ^color red)}
+
+sp {propose*foo
+    (state <s> ^impasse no-change ^attribute state ^superstate <ss>)
+    (<ss> ^ball <b>)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name foo ^ball <b>)}
+
+sp {propose*bar
+    (state <s> ^impasse no-change ^attribute state ^superstate <ss>)
+    (<ss> ^ball <b>)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name bar)}
+
+sp {prefer*foo*over*bar
+    (state <s> ^operator <o1> + ^operator <o2> + ^superstate <ss>)
+    (<ss> ^ball.color red)
+    (<o1> ^name foo)
+    (<o2> ^name bar)
+    -->
+    (<s> ^operator <o1> > <o2>)}
+
+sp {implement*foo
+    (state <s> ^operator <o>)
+    (<o> ^name foo ^ball <b>)
+    -->
+    (<b> ^counted t)}
+
+sp {terminate*foo
+    (state <s> ^operator <o>)
+    (<o> ^name foo ^ball <b>)
+    (<b> ^counted t)
+    -->
+    (<s> ^operator <o> @)}
+
+Soar-8.3 builds this chunk:
+
+sp {chunk-3*d2*snochange*1
+    :chunk
+    (state <s1> ^ball <b1>)
+    -->
+    (<b1> ^counted t +)
+}
+
+Presumably, if we'd accounted for the `better' preference from
+|prefer*foo*over*bar|, the chunk's conditions ought to have included
+|<b1> ^color red|.
+
+---
+
+If, for some reason, we can't chunk (e.g., the backtrace detects that
+we tested |^quiescence t| along the way), we create a
+`justification'. A justification is a temporary rule that is excised
+as soon as it no longer matches.
 
 ---
 
@@ -652,12 +792,4 @@ some token shadowing thing that isn't really a token, but remembers
 why an o-supported preference got instantiated. I should probably
 figure out how I'd do the simple case (i.e., pref returned whose
 dependencies still exist as proper tokens) first, anyway...
-
-
----
-
-Been banging around with the Lego RCX recently. Discovered an odd bug
-with a test case (`tests/bumper.soar') that I need to work out:
-removing the |^superstate nil| condition from |prefer*drive-to-wait|
-causes the rule to never match. Urg.
 
