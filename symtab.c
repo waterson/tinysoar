@@ -130,11 +130,11 @@ symtab_init(struct symtab* symtab)
     struct predefined_symbol* def;
 
     ht_init(&symtab->table, (ht_key_compare_t) compare_symbols);
-    symtab->next_sym_constant = 1;
-    symtab->next_variable     = 1;
-    symtab->next_identifier   = 1;
+    symtab->next_sym_constant = 0;
+    symtab->next_variable     = 0;
+    symtab->next_identifier   = 0;
     
-    for (def = symbols; def->name != 0; def++) {
+    for (def = symbols; def->name != 0; ++def) {
         symbol_t sym;
         MAKE_SYMBOL(sym, def->type, def->val);
         add_symbol(symtab, 0, def->name, sym);
@@ -160,6 +160,12 @@ symtab_init(struct symtab* symtab)
             break;
         }
     }
+
+    /* Now advance each so that they'll cough up the next available
+       number when asked */
+    ++symtab->next_sym_constant;
+    ++symtab->next_variable;
+    ++symtab->next_identifier;
 }
 
 void
