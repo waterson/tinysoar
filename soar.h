@@ -231,7 +231,9 @@ struct slot_list {
  */
 
 /*
- * Tests.
+ * Tests. Note that we don't support `impasse' tests: we don't ever
+ * allow attribute impasses to occur (and this appears to be the only
+ * way that they can be created in Soar-8.3).
  */
 typedef enum test_type {
     test_type_blank,
@@ -245,7 +247,6 @@ typedef enum test_type {
     test_type_disjunctive,
     test_type_conjunctive,
     test_type_goal_id,
-    test_type_impasse_id,
 } test_type_t;
 
 struct test {
@@ -500,7 +501,6 @@ struct agent {
     struct token        root_token;
     struct alpha_node  *alpha_nodes[16];
     struct symbol_list *goals;
-    struct symbol_list *impasses;
     struct match       *assertions;
     struct match       *retractions;
 
