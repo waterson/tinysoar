@@ -1,0 +1,22 @@
+# What happens if two productions are indifferent, but a third is
+# not? We end up with an operator tie between all three operators:
+#
+# (S2 ^attribute operator ^choices multiple
+#       ^impasse tie ^item O1 ^item O2 ^item O3 ^quiescence t ^superstate S1
+#       ^type state)
+#
+
+sp {propose*one*two*three
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^operator <o1> + ^operator <o2> + ^operator <o3> +)
+    (<o1> ^name one)
+    (<o2> ^name two)
+    (<o3> ^name three)}
+
+sp {propose*one*indifferent*two
+    (state <s> ^operator <o1> + ^operator <o2> +)
+    (<o1> ^name one)
+    (<o2> ^name two)
+    -->
+    (<s> ^operator <o1> = <o2>)}

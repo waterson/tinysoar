@@ -1,0 +1,30 @@
+# What happens if two conflicting ``better'' preferences are made? In
+# Soar-8.2, we get an ``operator conflict'', and the substate is
+# elaborated like this by the architecture:
+#
+# (S2 ^attribute operator
+#       ^choices multiple ^impasse conflict ^item O1 ^item O2 ^quiescence t
+#       ^superstate S1 ^type state)
+#
+
+sp {propose*two
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^operator <o1> + ^operator <o2> +)
+    (<o1> ^name one)
+    (<o2> ^name two)}
+
+sp {propose*one*better
+    (state <s> ^operator <o1> + ^operator <o2> +)
+    (<o1> ^name one)
+    (<o2> ^name two)
+    -->
+    (<s> ^operator <o1> > <o2>)}
+
+sp {propose*two*better
+    (state <s> ^operator <o1> + ^operator <o2> +)
+    (<o1> ^name one)
+    (<o2> ^name two)
+    -->
+    (<s> ^operator <o2> > <o1>)}
+    

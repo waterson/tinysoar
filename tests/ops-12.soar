@@ -1,0 +1,16 @@
+# Does indifferent matter more than best/worst? Nope, Soar-8.2 always
+# picks the best.
+
+sp {propose*one*two
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^operator <o1> + > ^operator <o2> + <)
+    (<o1> ^name one)
+    (<o2> ^name two)}
+
+sp {propose*indifferent*one*two
+    (state <s> ^operator <o1> + ^operator <o2> +)
+    (<o1> ^name one)
+    (<o2> ^name two)
+    -->
+    (<s> ^operator <o1> = <o2>)}

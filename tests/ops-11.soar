@@ -1,0 +1,31 @@
+# Can we detect a non-trivial conflict cycle? Soar-8.2 can't. It ends
+# up in a state no-change.
+
+sp {propose*one*two*three
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^operator <o1> + ^operator <o2> + ^operator <o3> +)
+    (<o1> ^name one)
+    (<o2> ^name two)
+    (<o3> ^name three)}
+
+sp {propose*one*better*two
+    (state <s> ^operator <o1> + ^operator <o2> +)
+    (<o1> ^name one)
+    (<o2> ^name two)
+    -->
+    (<s> ^operator <o1> > <o2>)}
+
+sp {propose*two*better*three
+    (state <s> ^operator <o2> + ^operator <o3> +)
+    (<o2> ^name two)
+    (<o3> ^name three)
+    -->
+    (<s> ^operator <o2> > <o3>)}
+
+sp {propose*three*better*one
+    (state <s> ^operator <o3> + ^operator <o1> +)
+    (<o3> ^name three)
+    (<o1> ^name one)
+    -->
+    (<s> ^operator <o3> > <o1>)}

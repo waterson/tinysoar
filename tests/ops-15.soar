@@ -1,0 +1,9 @@
+# What happens if we have two worsts? Soar-8.2 ends up with an
+# operator-tie, as expected.
+
+sp {propose*one*two*worst
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^operator <o1> + < ^operator <o2> + <)
+    (<o1> ^name one)
+    (<o2> ^name two)}

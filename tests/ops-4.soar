@@ -1,0 +1,14 @@
+# What happens if two operators have no preference between them? In
+# Soar-8.2, we end up with an operator tie, where the substate is
+# elaborated like this:
+#
+# (S2 ^attribute operator ^choices multiple
+#       ^impasse tie ^item O1 ^item O2 ^quiescence t ^superstate S1 ^type state)
+#
+
+sp {propose*two
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^operator <o1> + ^operator <o2> +)
+    (<o1> ^name one)
+    (<o2> ^name two)}

@@ -1,0 +1,19 @@
+# Do better preferences work between to operators that are both
+# ``best''? They do in Soar-8.2, so expect ``one'' to be the selected
+# operator after running this test.
+
+package require TinySoar;
+
+sp {propose*two*best
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^operator <o1> + > ^operator <o2> + >)
+    (<o1> ^name one)
+    (<o2> ^name two)}
+
+sp {propose*one*better
+    (state <s> ^operator <o1> + ^operator <o2> +)
+    (<o1> ^name one)
+    (<o2> ^name two)
+    -->
+    (<s> ^operator <o1> > <o2>)}
