@@ -127,6 +127,11 @@ file called `lego' that can be downloaded to the RCX using the
 
   $ /usr/src/legOS/util/firmdl3 --slow ./legosoar
 
+Note that you'll need to pull the batteries out of the RCX each time
+before downloading a new TinySoar agent. This is because a TinySoar
+agent is firmware, and isn't smart enough to notice that new firmware
+is trying to be downloaded on top of it. (I really ought to fix this.)
+
 
 5. CREATING YOUR OWN AGENTS
 
