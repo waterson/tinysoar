@@ -157,7 +157,7 @@ libtinysoar.a: $(TINYSOAR_OBJS)
 
 tinysoar.so: tinysoar.c libtinysoar.a $(PARSER_LIBNAME) $(RUNTIME_LIBNAME) $(BASE_LIBNAME)
 	$(CC) $(CFLAGS) -shared -o $@ $< -ltcl -L. -ltinysoar -l$(PARSER) -l$(RUNTIME) -l$(BASE)
-	$(INSTALL) $(srcdir)/pkgIndex.tcl .
+	$(INSTALL) -C $(srcdir)/pkgIndex.tcl .
 
 # ----------------------------------------------------------------------
 #
