@@ -28,9 +28,21 @@ do_left_addition(struct agent* agent,
                  struct wme* wme);
 
 static void
+do_left_removal(struct agent* agent,
+                struct beta_node* node,
+                struct token* token,
+                struct wme* wme);
+
+static void
 do_right_addition(struct agent* agent,
                   struct beta_node* node,
                   struct wme* wme);
+
+static void
+do_right_removal(struct agent* agent,
+                 struct beta_node* node,
+                 struct wme* wme);
+
 
 struct variable_binding_list {
     symbol_t                      variable;
@@ -127,11 +139,6 @@ create_token(struct beta_node* node,
     result->parent = parent;
     result->node = node;
     result->wme = wme;
-
-    /* push onto list of tokens that are owned by `node' */
-    result->next = node->tokens;
-    node->tokens = result;
-
     return result;
 }
 
@@ -672,7 +679,7 @@ check_beta_tests(struct agent* agent,
 }
 
 /*
- * Propogate matches from the parent node to its child.
+ * Propagate matches from the parent node to its child.
  *
  * This corresponds to update_node_with_matches_from_above() from
  * rete.c in Soar8.
@@ -783,7 +790,8 @@ create_negative_node(struct agent* agent,
     result->next_with_same_alpha_node = alpha_node->children;
     alpha_node->children = result;
 
-    result->tokens = 0;
+    result->tokens     = 0;
+    result->blockers   = 0;
 
     result->data.tests = tests;
 
@@ -1000,8 +1008,13 @@ do_left_addition(struct agent* agent,
     case beta_node_type_memory:
         {
             /* Add a new token to the memory and notify children */
-            struct token* new_token = create_token(node, token, wme);
+            struct token* new_token;
             struct beta_node* child;
+
+            new_token = create_token(node, token, wme);
+            new_token->next = node->tokens;
+            node->tokens = new_token;
+
             for (child = node->children; child != 0; child = child->siblings)
                 do_left_addition(agent, child, new_token, 0);
         }
@@ -1022,19 +1035,45 @@ do_left_addition(struct agent* agent,
 
     case beta_node_type_negative:
         {
+            bool_t had_blockers = (node->blockers != 0);
+            struct token* new_token;
             struct right_memory* rm;
+
+            ASSERT(wme != 0, ("no wme in left-addition to negative node"));
+            new_token = create_token(node, token, wme);
+
             for (rm = node->alpha_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
-                if (check_beta_tests(agent, node->data.tests, token, rm->wme))
+                if (check_beta_tests(agent, node->data.tests, new_token, rm->wme)) {
+                    new_token->next = node->blockers;
+                    node->blockers = new_token;
                     break;
+                }
             }
 
             if (! rm) {
-                struct token* new_token =
-                    create_token(node, token, wme);
+                new_token->next = node->tokens;
+                node->tokens = new_token;
+            }
 
+            if (node->blockers) {
+                if (! had_blockers) {
+                    /* We've now got a brand new WME that causes the
+                       negative node to match, ``blocking'' the other
+                       tokens. */
+                    struct token* blocked;
+                    for (blocked = node->tokens; blocked != 0; blocked = blocked->next) {
+                        struct beta_node* child;
+                        for (child = node->children; child != 0; child = child->siblings)
+                            do_left_removal(agent, child, blocked->parent, blocked->wme);
+                    }
+                }
+            }
+            else {
+                /* Nothing matches the negative node, so go ahead and
+                   propagate the token downwards. */
                 struct beta_node* child;
                 for (child = node->children; child != 0; child = child->siblings)
-                    do_left_addition(agent, child, new_token, 0);
+                    do_left_addition(agent, child, new_token->parent, new_token->wme);
             }
         }
         break;
@@ -1042,6 +1081,10 @@ do_left_addition(struct agent* agent,
     case beta_node_type_production:
         {
             struct token* new_token = create_token(node, token, wme);
+            struct match* match;
+
+            new_token->next = node->tokens;
+            node->tokens = new_token;
 
             /* XXX Soar8 checks the retraction queue to see if the
                match has been retracted, and if so, removes the match
@@ -1050,9 +1093,7 @@ do_left_addition(struct agent* agent,
                this gonna be a problem? */
 
             /* Allocate a new match and place on the firing queue */
-            struct match* match =
-                (struct match*) malloc(sizeof(struct match));
-
+            match = (struct match*) malloc(sizeof(struct match));
             match->data.token = new_token;
             match->production = node->data.production;
             match->next = agent->assertions;
@@ -1102,7 +1143,6 @@ do_left_removal(struct agent* agent,
         break;
 
     case beta_node_type_positive_join:
-    case beta_node_type_negative:
         {
             /* XXX I have no idea if this is really right. */
             struct right_memory* rm;
@@ -1110,6 +1150,54 @@ do_left_removal(struct agent* agent,
                 struct beta_node* child;
                 for (child = node->children; child != 0; child = child->siblings)
                     do_left_removal(agent, child, token, rm->wme);
+            }
+        }
+        break;
+
+    case beta_node_type_negative:
+        {
+            struct token* doomed;
+            struct token **link;
+
+            /* First see if this was a ``blocker'' token, in which
+               case its removal may cause us to cascade through all
+               the unblocked tokens */
+            for (doomed = node->blockers, link = &node->blockers;
+                 doomed != 0;
+                 link = &doomed->next, doomed = doomed->next) {
+                if (doomed->wme == wme) {
+                    *link = doomed->next;
+                    free(doomed);
+                    break;
+                }
+            }
+
+            if (doomed && !node->blockers) {
+                /* We just nuked the last ``blocker'' token. Propagate
+                   through all the tokens that are now unblocked */
+                struct token* unblocked;
+                for (unblocked = node->tokens; unblocked != 0; unblocked = unblocked->next) {
+                    struct beta_node* child;
+                    for (child = node->children; child != 0; child = child->siblings)
+                        do_left_addition(agent, child, unblocked->parent, unblocked->wme);
+                }
+            }
+            else {
+                for (doomed = node->tokens, link = &node->tokens;
+                     doomed != 0;
+                     link = &doomed->next, doomed = doomed->next) {
+                    if (doomed->wme == wme) {
+                        if (!node->blockers) {
+                            struct beta_node* child;
+                            for (child = node->children; child != 0; child = child->siblings)
+                                do_left_removal(agent, child, doomed->parent, doomed->wme);
+                        }
+
+                        *link = doomed->next;
+                        free(doomed);
+                        break;
+                    }
+                }
             }
         }
         break;
@@ -1196,19 +1284,18 @@ do_right_addition(struct agent* agent, struct beta_node* node, struct wme* wme)
         {
             struct token* token;
 
-            /* XXX I have a bad feeling about this */
-            ASSERT(node->parent->type == beta_node_type_memory ||
-                   node->parent->type == beta_node_type_negative,
-                   ("unexpected parent node in right addition"));
-
-            for (token = node->parent->tokens; token != 0; token = token->next) {
-                if (! check_beta_tests(agent, node->data.tests, token, wme)) {
+            for (token = node->tokens; token != 0; token = token->next) {
+                if (!node->data.tests || !check_beta_tests(agent, node->data.tests, token, wme)) {
+                    /* If there are no beta tests, or the beta tests
+                       fail, then the negative condition has
+                       matched. Pass along the token to the kids */
                     struct beta_node* child;
                     for (child = node->children; child != 0; child = child->siblings)
                         do_left_addition(agent, child, token, wme);
                 }
             }
         }
+        break;
 
     case beta_node_type_memory_positive_join:
         UNIMPLEMENTED(); /* XXX write me! */
@@ -1301,11 +1388,9 @@ rete_add_production(struct agent* agent, struct production* p)
     for (cond = p->conditions; cond != 0; cond = cond->next) {
         struct beta_node* child = 0;
 
-        ++depth;
-
         switch (cond->type) {
         case condition_type_positive:
-            child = ensure_positive_condition_node(agent, cond, depth, parent, &bindings);
+            child = ensure_positive_condition_node(agent, cond, ++depth, parent, &bindings);
             break;
 
         case condition_type_negative:

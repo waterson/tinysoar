@@ -406,8 +406,12 @@ struct beta_node {
     /* The tokens that exist at this beta node */
     struct token* tokens;
 
+    /* For negative nodes, the tokens that match the node and
+       ``block'' the other tokens from propagating through. */
+    struct token* blockers;
+
     union {
-        /* if type == positive_join, the tests to apply at this node */
+        /* if type in { positive_join, negative }, the tests to apply at this node */
         struct beta_test*  tests;
 
         /* if type == production, the the production that's been matched */
