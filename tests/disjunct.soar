@@ -1,0 +1,22 @@
+package require TinySoar
+
+sp {elaborate
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^foo bar)}
+
+sp {disjunct*1
+    (state <s> ^superstate nil ^foo << bar baz >>)
+    -->
+    (<s> ^disjunct-1 succeeded)}
+
+sp {disjunct*2*a
+    (state <s> ^superstate nil ^foo { <f> << bar baz >> })
+    -->
+    (<s> ^foo-2 <f>)}
+
+sp {disjunct*2*b
+    (state <s> ^superstate nil ^foo-2 bar)
+    -->
+    (<s> ^disjunct-2 succeeded)}
+

@@ -402,7 +402,8 @@ process_test(const struct test                  *test,
              field_t                             field,
              const struct variable_binding_list *bindings,
              symbol_t                           *constant,
-             struct beta_test                  **beta_tests)
+             struct beta_test                  **beta_tests,
+             bool_t                              force_beta_test)
 {
     struct beta_test *beta_test = 0;
     symbol_type_t symbol_type;
@@ -414,7 +415,8 @@ process_test(const struct test                  *test,
 
     switch (test->type) {
     case test_type_equality:
-        if (symbol_type != symbol_type_variable && !GET_SYMBOL_VALUE(*constant)) {
+        if (!force_beta_test && symbol_type != symbol_type_variable
+            && !GET_SYMBOL_VALUE(*constant)) {
             /* It's a constant, and we can install an alpha test */
             *constant = test->data.referent;
             break;
@@ -472,13 +474,26 @@ process_test(const struct test                  *test,
     case test_type_conjunctive:
         {
             struct test_list *tests;
-            for (tests = test->data.conjuncts; tests != 0; tests = tests->next)
-                process_test(&tests->test, depth, field, bindings, constant, beta_tests);
+            for (tests = test->data.conjuncts; tests != 0; tests = tests->next) {
+                process_test(&tests->test, depth, field, bindings, constant,
+                             beta_tests, 0);
+            }
         }
         break;
 
     case test_type_disjunctive:
-        UNIMPLEMENTED(); /* XXX just hit a test that needs writin' */
+        {
+            struct test_list *tests;
+
+            beta_test = (struct beta_test *) malloc(sizeof(struct beta_test));
+            beta_test->data.disjuncts = 0;
+
+            for (tests = test->data.disjuncts; tests != 0; tests = tests->next) {
+                process_test(&tests->test, depth, field, bindings, constant,
+                             &beta_test->data.disjuncts, 1);
+            }
+        }
+        break;
 
     default:
         ERROR(("shouldn't get here"));
@@ -531,15 +546,12 @@ bind_variables(const struct test             *test,
         break;
 
     case test_type_conjunctive:
+    case test_type_disjunctive:
         {
             struct test_list *tests;
             for (tests = test->data.conjuncts; tests != 0; tests = tests->next)
                 bind_variables(&tests->test, depth, field, bindings);
         }
-        break;
-
-    case test_type_disjunctive:
-        UNIMPLEMENTED(); /* XXX write me! */
         break;
 
     case test_type_goal_id:
@@ -578,9 +590,14 @@ ensure_positive_condition_node(struct agent                  *agent,
     bind_variables(&cond->data.simple.attr_test,  depth, field_attr,  bindings);
     bind_variables(&cond->data.simple.value_test, depth, field_value, bindings);
 
-    process_test(&cond->data.simple.id_test,    depth, field_id,    *bindings, &alpha_id,    &tests);
-    process_test(&cond->data.simple.attr_test,  depth, field_attr,  *bindings, &alpha_attr,  &tests);
-    process_test(&cond->data.simple.value_test, depth, field_value, *bindings, &alpha_value, &tests);
+    process_test(&cond->data.simple.id_test, depth, field_id, *bindings,
+                 &alpha_id, &tests, 0);
+
+    process_test(&cond->data.simple.attr_test, depth, field_attr, *bindings,
+                 &alpha_attr, &tests, 0);
+
+    process_test(&cond->data.simple.value_test, depth, field_value, *bindings,
+                 &alpha_value, &tests, 0);
 
     /* See if there's a memory node we can use. */
     for (memory_node = parent->children; memory_node != 0; memory_node = memory_node->siblings) {
@@ -660,9 +677,14 @@ ensure_negative_condition_node(struct agent                  *agent,
     bind_variables(&cond->data.simple.attr_test,  depth, field_attr,  bindings);
     bind_variables(&cond->data.simple.value_test, depth, field_value, bindings);
 
-    process_test(&cond->data.simple.id_test,    depth, field_id,    *bindings, &alpha_id,    &tests);
-    process_test(&cond->data.simple.attr_test,  depth, field_attr,  *bindings, &alpha_attr,  &tests);
-    process_test(&cond->data.simple.value_test, depth, field_value, *bindings, &alpha_value, &tests);
+    process_test(&cond->data.simple.id_test, depth, field_id, *bindings,
+                 &alpha_id, &tests, 0);
+
+    process_test(&cond->data.simple.attr_test, depth, field_attr, *bindings,
+                 &alpha_attr,  &tests, 0);
+
+    process_test(&cond->data.simple.value_test, depth, field_value, *bindings,
+                 &alpha_value, &tests, 0);
 
     /* See if there's already a negative node we can use. It ought to
        have the same alpha node that we'd get, as well as identical

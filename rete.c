@@ -938,16 +938,16 @@ dump_test(struct symtab *symtab, struct beta_test *test)
     case test_type_disjunctive:
         {
             struct beta_test *disjunct = test->data.disjuncts;
+            printf("(");
             while (disjunct) {
-                printf("( ");
                 dump_test(symtab, disjunct);
-                printf(")");
 
                 disjunct = disjunct->next;
 
                 if (disjunct)
                     printf(" || ");
             }
+            printf(")");
         }
         return;
 
