@@ -1,3 +1,14 @@
+Tuesday, December 26, 2000
+
+Kludged my way through getting preference memory started. Need to fix
+create_instantiation() to do bonafide `gensym'-ing. Maybe it's time to
+make a real symbol table?
+
+Also, I hard-coded the initialization of the action struct's `depth'
+and `field' values when the rhs_value is a variable binding. That'll
+need to move into the rule compilation. Maybe we can initialize with a
+variable symbol, and then resolve when making the p-node?
+
 Monday, December 25, 2000
 
 Debugged a single-condition production. Now I'm bombing in a

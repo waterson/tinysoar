@@ -139,9 +139,9 @@ typedef enum preference_type {
 
 
 typedef enum support_type {
-    support_type_i       = 0,
-    support_type_o       = 1,
-    support_type_unknown = -1
+    support_type_isupport = 0,
+    support_type_osupport = 1,
+    support_type_unknown  = -1
 } support_type_t;
 
 struct preference {
@@ -164,6 +164,7 @@ struct instantiation {
 struct prefmem {
     struct pool instantiation_pool;
     struct pool preference_pool;
+    struct pool symbol_list_pool;
     struct instantiation* instantiations;
     struct preference*    preferences;
 };
@@ -268,8 +269,9 @@ struct action {
  * Productions
  */
 struct production {
-    struct condition* lhs;
-    struct action*    rhs;
+    struct condition* conditions;
+    struct action*    actions;
+    unsigned          num_unbound_vars;
 };
 
 /*----------------------------------------------------------------------*/

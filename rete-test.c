@@ -1,7 +1,8 @@
 #include "soar.h"
 
-struct test_list test_list[2];
-struct condition conditions[2];
+struct test_list  test_list[2];
+struct condition  conditions[2];
+struct action     actions[2];
 struct production productions[1];
 
 static symbol_t symtab[] = {
@@ -14,6 +15,8 @@ static symbol_t symtab[] = {
     DECLARE_SYMBOL(1, symbol_type_symbolic_constant),
     DECLARE_SYMBOL(2, symbol_type_symbolic_constant),
     DECLARE_SYMBOL(3, symbol_type_symbolic_constant),
+    DECLARE_SYMBOL(4, symbol_type_symbolic_constant),
+    DECLARE_SYMBOL(5, symbol_type_symbolic_constant),
 };
 
 #define VARIABLE_BASE        0
@@ -28,12 +31,16 @@ static symbol_t symtab[] = {
 #define CONSTANT_SUPERSTATE  CONSTANT_BASE + 0
 #define CONSTANT_NIL         CONSTANT_BASE + 1
 #define CONSTANT_INPUT_LINK  CONSTANT_BASE + 2
+#define CONSTANT_OPERATOR    CONSTANT_BASE + 3
+#define CONSTANT_NAME        CONSTANT_BASE + 4
+#define CONSTANT_WAIT        CONSTANT_BASE + 5
 
 static void
 init_productions()
 {
-    productions[0].lhs = &conditions[0];
-    productions[0].rhs = 0; /*XXX*/
+    productions[0].conditions = &conditions[0];
+    productions[0].actions    = &actions[0];
+    productions[0].num_unbound_vars = 1;
 
     /* (<s> ^superstate nil) */
     conditions[0].type = condition_type_positive;
@@ -64,6 +71,35 @@ init_productions()
     conditions[1].data.simple.value_test.type = test_type_equality;
     conditions[1].data.simple.value_test.data.referent = symtab[VARIABLE_INPUT_LINK];
     conditions[1].next = 0;
+
+    /* (<s> ^operator <o> +) */
+    actions[0].next = &actions[1];
+    actions[0].preference_type = preference_type_acceptable;
+    actions[0].support_type    = support_type_isupport;
+
+    actions[0].id.type = rhs_value_type_variable_binding;
+    actions[0].id.val.variable_binding.depth = 2; /* XXX should be computed */
+    actions[0].id.val.variable_binding.field = field_id;
+
+    actions[0].attr.type = rhs_value_type_symbol;
+    actions[0].attr.val.symbol = symtab[CONSTANT_OPERATOR];
+
+    actions[0].value.type = rhs_value_type_unbound_variable;
+    actions[0].value.val.unbound_variable = 0;
+
+    /* (<o> ^name wait) */
+    actions[1].next = 0;
+    actions[1].preference_type = preference_type_acceptable;
+    actions[1].support_type    = support_type_isupport;
+
+    actions[1].id.type = rhs_value_type_unbound_variable;
+    actions[1].id.val.unbound_variable = 0;
+
+    actions[1].attr.type = rhs_value_type_symbol;
+    actions[1].attr.val.symbol = symtab[CONSTANT_NAME];
+
+    actions[1].value.type = rhs_value_type_symbol;
+    actions[1].value.val.symbol = symtab[CONSTANT_WAIT];
 }
 
 struct wmem wmem;

@@ -926,7 +926,7 @@ rete_add_production(struct rete* net, const struct production* p)
 
     /* Iterate through the conditions of the production, constructing the
        beta network as we do so. */
-    for (cond = p->lhs; cond != 0; cond = cond->next) {
+    for (cond = p->conditions; cond != 0; cond = cond->next) {
         struct beta_node* child;
 
         switch (cond->type) {
