@@ -1,179 +1,98 @@
-#include <assert.h>
-#include <malloc.h>
-
+#include "wmem.h"
 #include "rete.h"
 
-static const value_t*
-get_binding_for(const binding_t* binding, variable_t var)
-{
-    for ( ; binding != 0; binding = binding->parent) {
-        if (binding->variable == var)
-            return &binding->value;
-    }
+struct wme_list {
+    wme_t*           wme;
+    struct wme_list* next;
+};
 
-    return 0;
+struct alpha_node {
+    symbol_t id;
+    symbol_t attr;
+    symbol_t value;
+    struct alpha_node* siblings;
+    struct beta_node*  children;
+    struct wme_list*   wmes;
+};
+
+typedef enum beta_node_type {
+    beta_node_type_root,
+    beta_node_type_memory,
+    beta_node_type_positive_join,
+    beta_node_type_production
+} beta_node_type_t;
+
+struct beta_node {
+    beta_node_type_t type;
+    struct beta_node* siblings;
+    struct beta_node* children;
+
+    union {
+        struct {
+            struct production* production;
+        } p;
+    } data;
+};
+
+struct rete {
+    struct beta_node root;
+};
+
+void
+rete_init(struct rete* rete)
+{
+    rete->root.type = beta_node_type_root;
 }
 
-static void
-extend_binding(binding_t** bindings, const binding_t* parent, variable_t var, const value_t* value)
-{
-    binding_t* binding = (binding_t*) malloc(sizeof(binding_t));
-    assert(binding);
-
-    binding->variable = var;
-    binding->value    = *value;
-    binding->parent   = parent;
-
-    if (*bindings)
-        (*bindings)->next = binding;
-
-    *bindings = binding;
-}
-
-static int
-simple_test(simple_test_node_t* node, const binding_t* bindings, wme_t* wme)
-{
-    if (node->attribute != wme->attribute)
-        return 1;
-
-    if (get_binding_for(bindings, node->object)) {
-        /* If we've already bound the object variable, then this
-           reduces to a consitency check. */
-        const binding_t* parent;
-        for (parent = bindings; parent != 0; parent = parent->next) {
-            const value_t* obj = get_binding_for(parent, node->object);
-
-            /* Every binding should have the object variable bound! */
-            assert(obj != 0);
-
-            if (node->value.type == value_type_variable) {
-                /* We're binding a variable. Is it consistent? */
-                const value_t* value = get_binding_for(parent, node->value.val);
-                if (!value || (value->val == wme->value.val)) {
-                    /* Yep. */
-                    extend_binding(&node->inner.node.bindings, parent, node->value.val, &wme->value);
-                }
-            }
-            else {
-                /* It's a simple consistency check. */
-                if (value_equals(&node->value, &wme->value)) {
-                    extend_binding(&node->inner.node.bindings, parent, node->object, obj);
-                }
-            }
-        }
-    }
-    else {
-        /* The object variable is free. See if the WME will fit */
-        if (node->value.type == value_type_variable) {
-            /* XXX ouch. we have to bind both the object and the value
-               variables, but there's no way for our data structure to
-               do that! */
-            assert(0);
-        }
-        else {
-            if (value_equals(&node->value, &wme->value)) {
-                if (bindings) {
-                    const binding_t* parent;
-                    for (parent = bindings; parent != 0; parent = parent->next)
-                        extend_binding(&node->inner.node.bindings, parent, node->object, &wme->value);
-                }
-                else {
-                    extend_binding(&node->inner.node.bindings, 0, node->object, &wme->value);
-                }
-            }
-        }
-    }
-    return 1;
-}
-
-static int
-complex_test(complex_test_node_t* node, const binding_t* bindings, wme_t* wme)
-{
-    if (node->test == complex_test_type_state_object) {
-        if (wme->object == OBJECT_STATE) { /* XXX wrong! can be >1 state object */
-            binding_t* binding;
-            for (binding = node->inner.node.bindings; binding != 0; binding = binding->next) {
-                assert(binding->value.type == value_type_object);
-                if (binding->value.val == wme->object)
-                    return 1;
-            }
-
-            if (bindings) {
-                const binding_t* parent;
-                for (parent = bindings; parent != 0; parent = parent->next) {
-                    value_t val = MAKE_OBJECT_VALUE(wme->object);
-                    extend_binding(&node->inner.node.bindings, parent, (variable_t) node->data, &val);
-                }
-            }
-            else {
-                value_t val = MAKE_OBJECT_VALUE(wme->object);
-                extend_binding(&node->inner.node.bindings, 0, (variable_t) node->data, &val);
-            }
-        }
-
-        return 1;
-    }
-
-    return 0;
-}
-
-static int
-join(join_node_t* node, wme_t* wme)
+/*
+ * Find or create a beta node for the given single condition `cond',
+ * which must be a simple positive condition. The new node is a child
+ * of `parent'.
+ */
+static struct beta_node*
+create_positive_condition_node(struct rete* net,
+                               struct condition* cond,
+                               struct beta_node* parent)
 {
     return 0;
 }
 
-static void
-instantiation(instantiation_node_t* node, wme_t* wme)
+
+void
+rete_add_production(struct rete* net, struct production* p)
 {
-}
+    struct beta_node* parent = &net->root;
+    struct condition* cond;
 
-static void
-add_wme(inner_node_t* node, binding_t* bindings, wme_t* wme)
-{
-    for ( ; node != 0; node = (inner_node_t*) node->node.siblings) {
-        switch (node->node.type) {
-        case node_type_simple_test:
-            if (! simple_test((simple_test_node_t*) node, bindings, wme))
-                continue;
+    for (cond = p->lhs; cond != 0; cond = cond->next) {
+        struct beta_node* child;
 
+        switch (cond->type) {
+        case condition_type_positive:
+            child = create_positive_condition_node(net, cond, parent);
             break;
 
-        case node_type_complex_test:
-            if (! complex_test((complex_test_node_t*) node, bindings, wme))
-                continue;
-
+        case condition_type_negative:
+        case condition_type_conjunctive_negation:
             break;
-
-        case node_type_join:
-            if (! join((join_node_t*) node, wme))
-                continue;
-
-            break;
-
-        case node_type_instantiation:
-            instantiation((instantiation_node_t*) node, wme);
-
-            /* instantiation nodes are leaves, so they won't have any
-               children.. */
-            continue;
         }
 
-        if (node->node.bindings)
-            add_wme((inner_node_t*)node->children, node->node.bindings, wme);
+        assert(child != 0);
+        parent = child;
     }
 }
 
 void
-rete_add_wme(rete_t* rete, wme_t* wme)
+rete_remove_production()
 {
-    add_wme(rete->root, 0, wme);
 }
 
 void
-rete_init(rete_t* rete, wme_t* wmes)
+rete_add_wme()
 {
-    wme_t* wme;
-    for (wme = wmes; wme->object != 0; ++wme)
-        rete_add_wme(rete, wme);
+}
+
+void
+rete_remove_wme()
+{
 }

@@ -3,33 +3,22 @@
 
 #include "config.h"
 
-typedef int variable_t;
-typedef int symbol_t;
-typedef int object_t;
+enum symbol_type;
+typedef enum symbol_type symbol_type_t;
 
-typedef enum value_type {
-    value_type_variable,
-    value_type_object,
-    value_type_symbol,
-    value_type_integer
-} value_type_t;
+enum symbol_type {
+    symbol_type_variable,
+    symbol_type_identifier,
+    symbol_type_symbolic_constant,
+    symbol_type_integer_constant
+};
 
-typedef struct value {
-    value_type_t type : 2;
-    int          val  : BITS_PER_WORD - 2;
-} value_t;
+struct symbol;
+typedef struct symbol symbol_t;
 
-static inline int
-value_equals(const value_t* left, const value_t* right)
-{
-    return *((int*)left) == *((int*)right);
-}
-
-#define MAKE_VARIABLE_VALUE(_var) { value_type_variable, (_var) }
-#define MAKE_OBJECT_VALUE(_obj)   { value_type_object,   (_obj) }
-#define MAKE_SYMBOL_VALUE(_sym)   { value_type_symbol,   (_sym) }
-#define MAKE_INTEGER_VALUE(_n)    { value_type_integer,  (_n)   }
-
-#define OBJECT_STATE 1
+struct symbol {
+    int           val  : BITS_PER_WORD - 2;
+    symbol_type_t type : 2;
+};
 
 #endif /* types_h__ */
