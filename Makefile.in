@@ -169,7 +169,7 @@ test: tcl-extension
 	@for t in `cat $(TEST_LIST)`; do \
 		echo -n "$$t..." ; \
 		TCLLIBPATH=`pwd` tclsh $(srcdir)/tests/run-test.tcl $(srcdir)/tests/$$t 1> /dev/null ; \
-		if [ $$? == 0 ]; then \
+		if [ $$? = 0 ]; then \
 			echo "succeeded." ; \
 		else \
 			echo "failed." ; \
