@@ -5,6 +5,15 @@ loading `p1.soar' and elaborating a couple of times. It looks like a
 preference is holding a dangling pointer in its
 `next_in_instantiation' field.
 
+In the spirit of forward flailing, I cobbled together simple negative
+conditions in the RETE net; enough to get `p2.soar' nominally
+`working'. (It's one frigging production, so it's not like I have a
+clue whether this stuff'll fly.) Need to debug in earnest at some
+point.
+
+I should create a `preferences' command so that I can add `found-line'
+preference to the state to debug the negative condition foo.
+
 
 Tuesday, January 16, 2001
 
