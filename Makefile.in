@@ -38,11 +38,13 @@ VPATH	= @srcdir@
 
 AR	= @AR@
 CC	= @CC@
-INSTALL = @INSTALL@
 LD	= @LD@
 LEX	= @LEX@
 RANLIB	= @RANLIB@
 YACC	= @YACC@
+
+DSO_SUFFIX = @DSO_SUFFIX@
+DSO_LDOPTS = @DSO_LDOPTS@
 
 CFLAGS	= @CFLAGS@ -Wall @DEFS@ -I$(srcdir) -I.
 LDFLAGS	= @LDFLAGS@
@@ -57,7 +59,7 @@ CHUNKING = @CHUNKING@
 all: tcl-extension
 
 clean:
-	rm -rf .deps tinysoar.so legosoar test-alloc y.tab.* lex.yy.c *.o *.a *.map core *~
+	rm -rf .deps tinysoar.$(DSO_SUFFIX) legosoar test-alloc y.tab.* lex.yy.c *.o *.a *.map core *~
 
 distclean: clean
 	rm -f Makefile config.cache config.log config.status defs.h
@@ -153,7 +155,7 @@ lex.yy.c: rule.l
 # A TCL extension for testing and development.
 #
 
-tcl-extension: tinysoar.so
+tcl-extension: tinysoar.$(DSO_SUFFIX)
 
 TINYSOAR_OBJS = \
 	export.o \
@@ -161,9 +163,9 @@ TINYSOAR_OBJS = \
 
 libtinysoar.a: $(TINYSOAR_OBJS)
 
-tinysoar.so: tinysoar.c libtinysoar.a $(PARSER_LIBNAME) $(RUNTIME_LIBNAME) $(BASE_LIBNAME)
-	$(CC) $(CFLAGS) -shared -o $@ $< -ltcl -L. -ltinysoar -l$(PARSER) -l$(RUNTIME) -l$(BASE)
-	$(INSTALL) -C $(srcdir)/pkgIndex.tcl .
+tinysoar.$(DSO_SUFFIX): tinysoar.c libtinysoar.a $(PARSER_LIBNAME) $(RUNTIME_LIBNAME) $(BASE_LIBNAME)
+	$(CC) $(CFLAGS) $(DSO_LDOPTS) -o $@ $< -ltcl -L. -ltinysoar -l$(PARSER) -l$(RUNTIME) -l$(BASE)
+	cp $(srcdir)/pkgIndex.tcl .
 
 # ----------------------------------------------------------------------
 #

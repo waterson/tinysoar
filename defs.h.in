@@ -35,6 +35,7 @@
 
 #undef const
 #undef inline
+#undef STDC_HEADERS
 #undef HAVE_MALLOC_H
 #undef HAVE_STRING_H
 #undef HAVE_VPRINTF

@@ -40,7 +40,9 @@
 
 /* Just use the libc allocator if we've got it. Otherwise, we'll
    assume built-in implementations. */
-#ifdef HAVE_MALLOC_H
+#if defined(STDC_HEADERS)
+#  include <stdlib.h>
+#elif defined(HAVE_MALLOC_H)
 #  include <malloc.h>
 #else
 extern void
@@ -56,7 +58,7 @@ free(void *ptr);
 extern void
 heap_walk();
 #  endif
-#endif /* ! HAVE_MALLOC_H */
+#endif
 
 /* Just use the libc memcpy, etc. if we've got it. Otherwise, we'll
    assume built-in implementations. */
