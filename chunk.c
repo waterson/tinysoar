@@ -58,31 +58,43 @@ struct chunk {
 };
 
 static variable_binding_t *
+get_variable_binding(struct variable_binding_list *bindings,
+                     symbol_t                      variable)
+{
+    for ( ; bindings != 0; bindings = bindings->next) {
+        if (SYMBOLS_ARE_EQUAL(bindings->variable, variable))
+            return &bindings->binding;
+    }
+
+    return 0;
+}
+
+static variable_binding_t *
 ensure_variable_binding(struct variable_binding_list **bindings,
                         symbol_t                       variable,
                         field_t                        field,
                         int                            depth)
 {
-    struct variable_binding_list *binding;
-
-    /* See if we've already bound this identifier. If so, bail. */
-    for (binding = *bindings; binding != 0; binding = binding->next) {
-        if (SYMBOLS_ARE_EQUAL(binding->variable, variable))
-            break;
-    }
+    /* See if we've already bound this identifier. */
+    variable_binding_t *binding =
+        get_variable_binding(*bindings, variable);
 
     if (! binding) {
         /* Nope. Allocate a new binding and add it to the set. */
-        binding = (struct variable_binding_list *)
+        struct variable_binding_list *list;
+
+        list = (struct variable_binding_list *)
             malloc(sizeof(struct variable_binding_list));
                 
-        binding->variable = variable;
-        INIT_VARIABLE_BINDING(binding->binding, field, depth);
-        binding->next = *bindings;
-        *bindings = binding;
+        list->variable = variable;
+        INIT_VARIABLE_BINDING(list->binding, field, depth);
+        list->next = *bindings;
+        *bindings = list;
+
+        binding = &list->binding;
     }
 
-    return &binding->binding;
+    return binding;
 }
 
 static void
@@ -139,8 +151,17 @@ copy_tests(struct beta_test             **dest,
                 relative_depth =
                     depth - GET_VARIABLE_BINDING_DEPTH(test->data.variable_referent);
 
-                SET_VARIABLE_BINDING_DEPTH(test->data.variable_referent,
-                                           relative_depth);
+                if (relative_depth == 0 &&
+                    GET_VARIABLE_BINDING_FIELD(test->data.variable_referent) == test->field) {
+                    /* Don't create vacuous tests; i.e., that test the
+                       same field at the same level. */
+                    *dest = test->next;
+                    free(test);
+                }
+                else {
+                    SET_VARIABLE_BINDING_DEPTH(test->data.variable_referent,
+                                               relative_depth);
+                }
             }
             else
                 test->data.constant_referent = src->data.constant_referent;
@@ -291,9 +312,11 @@ make_rhs(struct agent                 *agent,
     node = (struct beta_node *) malloc(sizeof(struct beta_node));
     node->type = beta_node_type_production;
     node->data.production = production;
+    node->alpha_node = 0;
     node->tokens = 0;
     node->parent = parent;
     node->siblings = parent->children;
+    node->children = 0;
     parent->children = node;
 
     /* Create tokens! */
@@ -312,6 +335,7 @@ make_production(struct agent            *agent,
     struct beta_node *parent = agent->root_node;
     struct token_list *tokens;
     int depth = 0;
+    bool_t tested_goal = 0;
 
     /* Create beta nodes for each token.
 
@@ -360,35 +384,56 @@ make_production(struct agent            *agent,
                 struct beta_test *test;
                 int relative_depth;
 
-                test = (struct beta_test *) malloc(sizeof(struct beta_test));
-                test->type = test_type_equality;
-                test->relational_type = relational_type_variable;
-                test->field = field_id;
-                test->data.variable_referent =
-                    *ensure_variable_binding(&bindings, tokens->token->wme->slot->id, field_id, depth);
+                node->data.tests = 0;
 
-                relative_depth = 
-                    depth - GET_VARIABLE_BINDING_DEPTH(test->data.variable_referent);
+                if (get_variable_binding(bindings, tokens->token->wme->slot->id)) {
+                    /* Bind the id. */
+                    test = (struct beta_test *) malloc(sizeof(struct beta_test));
+                    test->type = test_type_equality;
+                    test->relational_type = relational_type_variable;
+                    test->field = field_id;
+                    test->data.variable_referent =
+                        *ensure_variable_binding(&bindings, tokens->token->wme->slot->id, field_id, depth);
 
-                SET_VARIABLE_BINDING_DEPTH(test->data.variable_referent, relative_depth);
+                    relative_depth = 
+                        depth - GET_VARIABLE_BINDING_DEPTH(test->data.variable_referent);
 
-                test->next = 0;
-                node->data.tests = test;
+                    SET_VARIABLE_BINDING_DEPTH(test->data.variable_referent, relative_depth);
 
-                test= (struct beta_test *) malloc(sizeof(struct beta_test));
-                test->type = test_type_equality;
-                test->relational_type = relational_type_variable;
-                test->field = field_value;
-                test->data.variable_referent =
-                    *ensure_variable_binding(&bindings, tokens->token->wme->value, field_value, depth);
+                    test->next = node->data.tests;
+                    node->data.tests = test;
+                }
 
-                relative_depth = 
-                    depth - GET_VARIABLE_BINDING_DEPTH(test->data.variable_referent);
+                if (get_variable_binding(bindings, tokens->token->wme->value)) {
+                    /* Bind the value. */
+                    test = (struct beta_test *) malloc(sizeof(struct beta_test));
+                    test->type = test_type_equality;
+                    test->relational_type = relational_type_variable;
+                    test->field = field_value;
+                    test->data.variable_referent =
+                        *ensure_variable_binding(&bindings, tokens->token->wme->value, field_value, depth);
 
-                SET_VARIABLE_BINDING_DEPTH(test->data.variable_referent, relative_depth);
+                    relative_depth = 
+                        depth - GET_VARIABLE_BINDING_DEPTH(test->data.variable_referent);
 
-                test->next = node->data.tests;
-                node->data.tests = test;
+                    SET_VARIABLE_BINDING_DEPTH(test->data.variable_referent, relative_depth);
+
+                    test->next = node->data.tests;
+                    node->data.tests = test;
+                }
+
+                if (! tested_goal) {
+                    /* Make sure the id is-a goal. */
+                    test = (struct beta_test *) malloc(sizeof(struct beta_test));
+                    test->type = test_type_goal_id;
+                    test->field = field_id;
+                    test->next = node->data.tests;
+                    node->data.tests = test;
+
+                    tested_goal = 1;
+                }
+
+                ASSERT(node->data.tests != 0, ("uh, no tests!"));
             }
 
             node->tokens = 0;
@@ -425,6 +470,19 @@ make_production(struct agent            *agent,
             node->data.tests = 0;
             copy_tests(&node->data.tests, orig->parent->data.tests, &bindings,
                        depth, tokens->token->wme);
+
+            if (! tested_goal && agent_is_goal(agent, tokens->token->wme->slot->id)) {
+                /* Make sure the id is-a goal. */
+                struct beta_test *test;
+
+                test = (struct beta_test *) malloc(sizeof(struct beta_test));
+                test->type = test_type_goal_id;
+                test->field = field_id;
+                test->next = node->data.tests;
+                node->data.tests = test;
+
+                tested_goal = 1;
+            }
 
             node->tokens = 0;
             node->children = 0;
@@ -469,6 +527,18 @@ token_is_reachable(struct token_list *grounds,
     return 0;
 }
 
+static bool_t
+token_list_contains(struct token_list *list,
+                    struct token      *token)
+{
+    for ( ; list != 0; list = list->next) {
+        if (list->token == token)
+            return 1;
+    }
+
+    return 0;
+}
+
 static void
 collect(struct agent          *agent,
         struct chunk          *chunk,
@@ -483,9 +553,12 @@ collect(struct agent          *agent,
     for (token = inst->token; token != 0; token = token->parent) {
         struct wme *wme = token->wme;
         if (wme) {
-            struct token_list *entry =
-                (struct token_list *) malloc(sizeof(struct token_list));
+            struct token_list *entry;
 
+            if (token_list_contains(chunk->grounds, token))
+                continue;
+
+            entry = (struct token_list *) malloc(sizeof(struct token_list));
             entry->token = token;
 
             if (agent_get_id_level(agent, wme->slot->id) < chunk->level
@@ -666,15 +739,11 @@ append_if_result(struct agent            *agent,
 void
 chunk_if_results(struct agent         *agent,
                  struct instantiation *inst,
-                 struct preference    *o_rejects)
+                 struct preference    *o_rejects,
+                 int                   level)
 {
     struct preference_list *results;
     struct preference *pref;
-    int level;
-
-    /* Based on the goal level of the instantiation, determine if the
-       instantation created any results for higher goals. */
-    level = rete_get_instantiation_level(agent, inst);
 
     results = 0;
     for (pref = inst->preferences; pref != 0; pref = pref->next_in_instantiation)
