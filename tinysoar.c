@@ -175,8 +175,11 @@ preferences -r <pref>";
                 break;
             
             case symbol_type_integer_constant:
-            case symbol_type_identifier:
                 printf("%d ", GET_SYMBOL_VALUE(pref->value));
+                break;
+
+            case symbol_type_identifier:
+                printf("[%d] ", GET_SYMBOL_VALUE(pref->value));
                 break;
 
             default:

@@ -1219,7 +1219,7 @@ select_operator(struct agent *agent)
                 for (i = 0; i < depth; ++i)
                     printf("  ");
 
-                printf("[%d]: %d", GET_SYMBOL_VALUE(goal->symbol), GET_SYMBOL_VALUE(selected_op));
+                printf("[%d]: [%d]", GET_SYMBOL_VALUE(goal->symbol), GET_SYMBOL_VALUE(selected_op));
                 printf("\n");
 #endif
 
