@@ -2,7 +2,7 @@
 # up in a state no-change.
 
 package require TinySoar;
-set cycles 4
+set cycles 5
 
 sp {propose*one*two*three
     (state <s> ^superstate nil)
