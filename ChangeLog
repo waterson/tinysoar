@@ -1,5 +1,12 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
+Wednesday, December 19, 2001
+
+Saved 100 or so bytes on the H8 by getting rid of bit fields in the
+allocator. Fixed the problem with `bumper.soar': wasn't taking
+`cond->acceptable' into account when trying to re-use beta nodes.
+
+
 Monday, December 17, 2001
 
 Added license headers, tidied up comments a bit.
