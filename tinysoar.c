@@ -222,6 +222,9 @@ dump_beta_node(struct beta_node* node, int nest, int recur)
         printf(" name=%s", node->data.production->name);
 #endif
         break;
+
+    default:
+        ERROR(("unexepected node type"));
     }
 
     printf(">\n");
