@@ -15,7 +15,7 @@ ifdef MDDEPFILES
 include $(MDDEPFILES)
 endif
 
-rete-test: rete-test.o alloc.o rete.o wmem.o
+rete-test: rete-test.o pool.o rete.o wmem.o
 
 clean:
 	rm -rf .deps rete-test *.o *~
