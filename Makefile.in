@@ -18,7 +18,7 @@ VPATH=@srcdir@
 .c.o:
 	$(CC) -c $(CFLAGS) -Wp,-MD,$(MDDEPDIR)/$*.pp -o $@ $<
 
-all: $(MDDEPDIR) rete-test
+all: $(MDDEPDIR)
 
 MDDEPFILES := $(wildcard $(MDDEPDIR)/*.pp)
 
@@ -44,6 +44,7 @@ RUNTIME_OBJS = \
 PARSER_OBJS = \
 	y.tab.o \
 	lex.yy.o \
+	prod.o \
 	symtab.o \
 	$(NULL)
 
@@ -51,11 +52,7 @@ TINYSOAR_OBJS = \
 	tinysoar.o \
 	$(NULL)
 
-all: rete-test parser-test tinysoar.so
-
-rete-test: rete-test.c $(RUNTIME_OBJS) $(SHARED_OBJS)
-
-parser-test: parser-test.c $(PARSER_OBJS) $(SHARED_OBJS)
+all: tinysoar.so
 
 y.tab.c: rule.y
 	$(YACC) -d rule.y
@@ -67,7 +64,7 @@ tinysoar.so: $(TINYSOAR_OBJS) $(PARSER_OBJS) $(RUNTIME_OBJS) $(SHARED_OBJS)
 	$(CC) -shared -o $@ $^ -ltcl
 
 clean:
-	rm -rf .deps rete-test parser-test tinysoar.so y.tab.* lex.yy.c *.o core *~
+	rm -rf .deps tinysoar.so y.tab.* lex.yy.c *.o core *~
 
 distclean: clean
 	rm -f Makefile config.cache config.log config.status defs.h

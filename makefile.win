@@ -36,12 +36,7 @@ TINYSOAR_OBJS = \
         tinysoar.obj \
         $(NULL)
 
-all: rete-test.exe parser-test.exe tinysoar.dll
-
-parser-test.exe: parser-test.obj $(PARSER_OBJS) $(SHARED_OBJS)
-        $(LINK) $(LFLAGS) /nologo /out:$@ $**
-
-parser-test.obj: parser-test.c parser.h config.h defs.h
+all: tinysoar.dll
 
 y.tab.obj: y.tab.c
 
@@ -52,12 +47,6 @@ lex.yy.c: rule.l
         flex $**
 
 lex.yy.obj: lex.yy.c y.tab.h
-
-rete-test.exe: 	rete-test.obj $(RUNTIME_OBJS) $(SHARED_OBJS)
-        $(LINK) $(LFLAGS) /out:$@ $**
-
-rete-test.obj: rete-test.c soar.h alloc.h config.h defs.h
-
 
 TCL_DIR=c:\tcl
 
