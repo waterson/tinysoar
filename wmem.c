@@ -587,8 +587,8 @@ create_instantiation(struct agent       *agent,
         pref->value = instantiate_rhs_value(&action->value, token, unbound_vars);
 
         if (action->preference_type & preference_type_binary) {
-            ASSERT(SYMBOLS_ARE_EQUAL(attr, SYM(OPERATOR_CONSTANT)),
-                   ("binary preference on non-operator"));
+            WARN_IF(SYMBOLS_ARE_EQUAL(attr, SYM(OPERATOR_CONSTANT)),
+                    ("binary preference on non-operator"));
 
             pref->referent = instantiate_rhs_value(&action->referent, token, unbound_vars);
         }
@@ -1020,7 +1020,7 @@ run_operator_semantics_on(struct agent        *agent,
     }
 
     /* We'd better have some candidates left! */
-    ASSERT(*candidates != 0, ("culled too many candidates"));
+    WARN_IF(*candidates != 0, ("culled too many candidates"));
 
     if (! *candidates) {
         /* Punt and drop into a state no-change. This can occur when

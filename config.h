@@ -63,10 +63,15 @@ typedef unsigned char bool_t;
    extern void
    runtime_assert(const char *fmtstr, ...);
 
-#  define ASSERT(cond, args) ((cond) ? (void)0 : runtime_assert args)
-#  define ERROR(args)        ASSERT(0, args)
-#  define UNIMPLEMENTED()    ASSERT(0, ("unimplemented"))
-#  define UNREACHABLE()      ASSERT(0, ("unreachable"))
+   extern void
+   runtime_warn(const char *fmtstr, ...);
+
+#  define WARN(args)          runtime_warn args
+#  define WARN_IF(cond, args) ((cond) ? (void)0 : runtime_warn args)
+#  define ASSERT(cond, args)  ((cond) ? (void)0 : runtime_assert args)
+#  define ERROR(args)         ASSERT(0, args)
+#  define UNIMPLEMENTED()     ASSERT(0, ("unimplemented"))
+#  define UNREACHABLE()       ASSERT(0, ("unreachable"))
 
 #  ifdef _WIN32
 #    include <crtdbg.h>
@@ -74,10 +79,12 @@ typedef unsigned char bool_t;
 #  endif
 
 #else
-#  define ASSERT(cond, args) ((void)0)
-#  define ERROR(args)        ((void)0)
-#  define UNIMPLEMENTED()    ((void)0)
-#  define UNREACHABLE()      ((void)0)
+#  define WARN(args)          ((void)0)
+#  define WARN_IF(cond, args) ((void)0)
+#  define ASSERT(cond, args)  ((void)0)
+#  define ERROR(args)         ((void)0)
+#  define UNIMPLEMENTED()     ((void)0)
+#  define UNREACHABLE()       ((void)0)
 #endif
 
 #ifndef VERIFY_HEAP

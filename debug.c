@@ -67,5 +67,18 @@ runtime_assert(const char *fmtstr, ...)
 #endif
 }
 
+void
+runtime_warn(const char *fmtstr, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmtstr);
+    vfprintf(stderr, fmtstr, ap);
+    va_end(ap);
+
+    if (fmtstr[strlen(fmtstr) - 1] != '\n')
+        fprintf(stderr, "\n");
+}
+
 #endif /* DEBUG */
 
