@@ -556,9 +556,14 @@ check_beta_test(struct agent* agent,
                 struct wme* left_wme = wme;
                 int depth = (int) test->data.variable_referent.depth;
                 if (depth) {
+                    /* Start with |depth == 1| referring to the WME
+                       from the token. */
                     struct token* t = token;
-                    while (--depth > 0)
+
+                    /* Walk up the token for anything deeper. */
+                    while (--depth >= 1)
                         t = t->parent;
+
                     left_wme = t->wme;
                 }
 
