@@ -566,6 +566,13 @@ rete_find_alpha_node(struct agent *agent,
                      symbol_t      value,
                      wme_type_t    type);
 
+struct alpha_node *
+rete_ensure_alpha_node(struct agent *agent,
+                       symbol_t      id,
+                       symbol_t      attr,
+                       symbol_t      value,
+                       wme_type_t    type);
+
 extern void
 rete_finish(struct agent *agent);
 

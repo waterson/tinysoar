@@ -936,6 +936,80 @@ rete_find_alpha_node(struct agent *agent,
     return 0;
 }
 
+/*
+ * Add existing WMEs to the alpha node when a new alpha node is
+ * created.
+ */
+static void
+add_matching_wmes(struct agent *agent, struct wme *wme, void *closure)
+{
+    struct alpha_node *alpha_node = (struct alpha_node *) closure;
+    if (wme_matches_alpha_node(wme, alpha_node))
+        add_wme_to_alpha_node(agent, alpha_node, wme);
+}
+
+/*
+ * Find an existing alpha node that is appropriate for testing the
+ * specified fields. If none exists, create a new one.
+ *
+ * This corresponds to find_or_make_alpha_mem() in rete.c from Soar8.
+ */
+struct alpha_node *
+rete_ensure_alpha_node(struct agent *agent,
+                       symbol_t      id,
+                       symbol_t      attr,
+                       symbol_t      value,
+                       wme_type_t    type)
+{
+    struct alpha_node *result;
+
+    if (! (result = rete_find_alpha_node(agent, id, attr, value, type))) {
+        struct alpha_node **head =
+            &agent->alpha_nodes[get_alpha_test_index(id, attr, value, type)];
+
+        struct alpha_node *more_general_node;
+        symbol_t nil;
+
+        result = (struct alpha_node *) malloc(sizeof(struct alpha_node));
+        result->id    = id;
+        result->attr  = attr;
+        result->value = value;
+        result->siblings = *head;
+        result->children = 0;
+        result->right_memories = 0;
+        *head = result;
+
+        /* Fill in the new memory with any matching wmes */
+        more_general_node = 0;
+        CLEAR_SYMBOL(nil);
+
+        if (! SYMBOL_IS_NIL(id))
+            more_general_node = rete_find_alpha_node(agent, nil, attr, value, type);
+
+        if (! more_general_node && ! SYMBOL_IS_NIL(value))
+            more_general_node = rete_find_alpha_node(agent, nil, attr, nil, type);
+
+        if (more_general_node) {
+            /* Found a more general working memory; use it to fill in
+               our right memory */
+            struct right_memory *rm;
+            for (rm = more_general_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
+                if (wme_matches_alpha_node(rm->wme, result))
+                    add_wme_to_alpha_node(agent, result, rm->wme);
+            }
+        }
+        else {
+            /* Troll through *all* the wmes */
+            wmem_enumerate_wmes(agent, add_matching_wmes, result);
+        }
+    }
+
+    return result;
+}
+
+/*
+ * Add a wme to or remove a wme from the network.
+ */
 void
 rete_operate_wme(struct agent *agent, struct wme *wme, wme_operation_t op)
 {

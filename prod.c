@@ -127,77 +127,6 @@ beta_tests_are_identical(struct beta_test *left, struct beta_test *right)
 }
 
 /*
- * Add existing WMEs to the alpha node when a new alpha node is
- * created.
- */
-static void
-add_matching_wmes(struct agent *agent, struct wme *wme, void *closure)
-{
-    struct alpha_node *alpha_node = (struct alpha_node *) closure;
-    if (wme_matches_alpha_node(wme, alpha_node))
-        add_wme_to_alpha_node(agent, alpha_node, wme);
-}
-
-/*
- * Find an existing alpha node that is appropriate for testing the
- * specified fields. If none exists, create a new one.
- *
- * This corresponds to find_or_make_alpha_mem() in rete.c from Soar8.
- */
-static struct alpha_node *
-ensure_alpha_node(struct agent *agent,
-                  symbol_t      id,
-                  symbol_t      attr,
-                  symbol_t      value,
-                  wme_type_t    type)
-{
-    struct alpha_node *result;
-
-    if (! (result = rete_find_alpha_node(agent, id, attr, value, type))) {
-        struct alpha_node **head =
-            &agent->alpha_nodes[get_alpha_test_index(id, attr, value, type)];
-
-        struct alpha_node *more_general_node;
-        symbol_t nil;
-
-        result = (struct alpha_node *) malloc(sizeof(struct alpha_node));
-        result->id    = id;
-        result->attr  = attr;
-        result->value = value;
-        result->siblings = *head;
-        result->children = 0;
-        result->right_memories = 0;
-        *head = result;
-
-        /* Fill in the new memory with any matching wmes */
-        more_general_node = 0;
-        CLEAR_SYMBOL(nil);
-
-        if (! SYMBOL_IS_NIL(id))
-            more_general_node = rete_find_alpha_node(agent, nil, attr, value, type);
-
-        if (! more_general_node && ! SYMBOL_IS_NIL(value))
-            more_general_node = rete_find_alpha_node(agent, nil, attr, nil, type);
-
-        if (more_general_node) {
-            /* Found a more general working memory; use it to fill in
-               our right memory */
-            struct right_memory *rm;
-            for (rm = more_general_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
-                if (wme_matches_alpha_node(rm->wme, result))
-                    add_wme_to_alpha_node(agent, result, rm->wme);
-            }
-        }
-        else {
-            /* Troll through *all* the wmes */
-            wmem_enumerate_wmes(agent, add_matching_wmes, result);
-        }
-    }
-
-    return result;
-}
-
-/*
  * Create a beta memory node with the specified parent.
  */
 static struct beta_node *
@@ -558,8 +487,8 @@ ensure_positive_condition_node(struct agent                  *agent,
             /* If we didn't a matching positive-join node, make one
                now, parented by the memory node. */
             alpha_node =
-                ensure_alpha_node(agent, alpha_id, alpha_attr, alpha_value,
-                                  cond->acceptable);
+                rete_ensure_alpha_node(agent, alpha_id, alpha_attr, alpha_value,
+                                       cond->acceptable);
 
             return create_positive_join_node(agent, memory_node, alpha_node, tests);
         }
@@ -579,7 +508,7 @@ ensure_positive_condition_node(struct agent                  *agent,
     memory_node = create_memory_node(agent, parent);
 
     alpha_node =
-        ensure_alpha_node(agent, alpha_id, alpha_attr, alpha_value, cond->acceptable);
+        rete_ensure_alpha_node(agent, alpha_id, alpha_attr, alpha_value, cond->acceptable);
 
     return create_positive_join_node(agent, memory_node, alpha_node, tests);
 }
@@ -636,8 +565,8 @@ ensure_negative_condition_node(struct agent                  *agent,
     if (! result) {
         /* If we didn't a matching negative node, make one now. */
         alpha_node =
-            ensure_alpha_node(agent, alpha_id, alpha_attr, alpha_value,
-                              cond->acceptable);
+            rete_ensure_alpha_node(agent, alpha_id, alpha_attr, alpha_value,
+                                   cond->acceptable);
 
         return create_negative_node(agent, parent, alpha_node, tests);
     }

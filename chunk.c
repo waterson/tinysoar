@@ -209,7 +209,7 @@ copy_tests(struct beta_test             **dest,
                compiler. */
 
         case test_type_goal_id:
-            /* No other information needed. */
+            test->field = src->field;
             break;
         }
     }
@@ -567,7 +567,10 @@ make_production(struct agent           *agent,
             /* Find the (* ^operator *) alpha node, and link the
                positive join node to it. */
             alpha_node =
-                rete_find_alpha_node(agent, 0, OPERATOR_CONSTANT, 0, wme_type_acceptable);
+                rete_ensure_alpha_node(agent, 0,
+                                       DECLARE_SYMBOL(symbol_type_symbolic_constant,
+                                                      OPERATOR_CONSTANT),
+                                       0, wme_type_acceptable);
 
             node->alpha_node = alpha_node;
             node->next_with_same_alpha_node = alpha_node->children;
@@ -593,11 +596,21 @@ make_production(struct agent           *agent,
             ASSERT(node->data.tests != 0, ("uh, no tests!"));
         }
         else {
+            symbol_t attr = 0, value = 0;
+            struct wme *wme = tokens->token->wme;
+
             ASSERT((orig->parent->type == beta_node_type_positive_join),
                    ("expected a positive join node"));
 
+            /* XXX should we compute the alpha test from the wme? Or
+               should we just copy the alpha node from the original? */
+            if (GET_SYMBOL_TYPE(wme->slot->attr) != symbol_type_identifier)
+                attr = wme->slot->attr;
+            if (GET_SYMBOL_TYPE(wme->value) != symbol_type_identifier)
+                value = wme->value;
+
             /* Link it into the alpha network, if appropriate. */
-            node->alpha_node = orig->parent->alpha_node;
+            node->alpha_node = rete_ensure_alpha_node(agent, 0, attr, value, wme->type);
             if (node->alpha_node) {
                 node->next_with_same_alpha_node = node->alpha_node->children;
                 node->alpha_node->children = node;
@@ -606,10 +619,10 @@ make_production(struct agent           *agent,
                 node->next_with_same_alpha_node = 0;
 
             /* Copy the tests. XXX do we need field_attr, to? */
-            ensure_variable_binding(&bindings, tokens->token->wme->slot->id, field_id, depth);
+            ensure_variable_binding(&bindings, wme->slot->id, field_id, depth);
 
-            if (GET_SYMBOL_TYPE(tokens->token->wme->value) == symbol_type_identifier)
-                ensure_variable_binding(&bindings, tokens->token->wme->value, field_value, depth);
+            if (GET_SYMBOL_TYPE(wme->value) == symbol_type_identifier)
+                ensure_variable_binding(&bindings, wme->value, field_value, depth);
 
             node->data.tests = 0;
             copy_tests(&node->data.tests, orig->parent->data.tests, &bindings,
@@ -617,7 +630,7 @@ make_production(struct agent           *agent,
 
             /* If the `id' field is a goal, and we haven't yet added a
                test for the goal, then make one now. */
-            if (! tested_goal && agent_is_goal(agent, tokens->token->wme->slot->id)) {
+            if (! tested_goal && agent_is_goal(agent, wme->slot->id)) {
                 add_goal_test(&node->data.tests);
                 tested_goal = 1;
             }
@@ -625,11 +638,11 @@ make_production(struct agent           *agent,
             /* Compute o-support: if we test the `^operator' attribute
                of a wme in the grounds, we'll call it o-supported. */
             if ((support == support_type_isupport)
-                && SYMBOLS_ARE_EQUAL(tokens->token->wme->slot->attr,
+                && SYMBOLS_ARE_EQUAL(wme->slot->attr,
                                      DECLARE_SYMBOL(symbol_type_symbolic_constant,
                                                     OPERATOR_CONSTANT))
-                && (tokens->token->wme->type == wme_type_normal)
-                && agent_is_goal(agent, tokens->token->wme->slot->id)) {
+                && (wme->type == wme_type_normal)
+                && agent_is_goal(agent, wme->slot->id)) {
                 support = support_type_osupport;
             }
         }
@@ -745,7 +758,7 @@ collect(struct agent          *agent,
     struct token *token;
 
 #ifdef DEBUG_CHUNKING
-    printf("collecting tokens from %s:\n", inst->production->name);
+    printf("collecting tokens from %s:\n", (inst->production ? inst->production->name : "<dummy>"));
 #endif
 
     /* Note that we've visitied this instantiation so we don't visit
@@ -766,7 +779,7 @@ collect(struct agent          *agent,
             continue;
 
         if (wme) {
-            if (agent_get_id_level(agent, wme->slot->id) < chunk->level
+            if ((agent_get_id_level(agent, wme->slot->id) < chunk->level)
                 && agent_is_goal(agent, wme->slot->id)) {
                 link = &chunk->grounds;
             }
@@ -873,9 +886,7 @@ backtrace(struct agent *agent, struct chunk *chunk)
                     && SYMBOLS_ARE_EQUAL(pref->value, wme->value)
                     && pref->instantiation
                     && !instantiation_list_contains(chunk->visited,
-                                                    pref->instantiation)
-                    && (rete_get_instantiation_level(agent, pref->instantiation)
-                        == chunk->level)) {
+                                                    pref->instantiation)) {
 
 #ifdef DEBUG_CHUNKING
                     printf("backtracing ");
