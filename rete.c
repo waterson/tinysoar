@@ -32,30 +32,6 @@ create_token(struct beta_node* node,
 }
 
 /*
- * Are the two tokens equal?
- */
-static bool_t
-tokens_are_equal(struct token* left, struct token* right)
-{
-    while (left && right) {
-        /* If we ever get to a point where left and right refer to the
-           same token, then the tokens are most certainly equal */
-        if (left == right)
-            return 1;
-
-        /* If the wmes don't match, the tokens are different */
-        if (left->wme != right->wme)
-            return 0;
-
-        /* Walk up to the parent */
-        left = left->parent;
-        right = right->parent;
-    }
-
-    return (left == 0) && (right == 0);
-}
-
-/*
  * Select a field from the specified wme.
  */
 static symbol_t
@@ -291,10 +267,10 @@ check_beta_tests(struct agent* agent,
  * of its own.
  */
 void
-do_left_addition(struct agent* agent,
+do_left_addition(struct agent*     agent,
                  struct beta_node* node,
-                 struct token* token,
-                 struct wme* wme)
+                 struct token*     token,
+                 struct wme*       wme)
 {
     switch (node->type) {
     case beta_node_type_memory:
@@ -375,7 +351,7 @@ do_left_addition(struct agent* agent,
             match = (struct match*) malloc(sizeof(struct match));
             match->data.token = new_token;
             match->production = node->data.production;
-            match->next = agent->assertions;
+            match->next       = agent->assertions;
             agent->assertions = match;
         }
         break;
@@ -394,10 +370,10 @@ do_left_addition(struct agent* agent,
 
 
 void
-do_left_removal(struct agent* agent,
+do_left_removal(struct agent*     agent,
                 struct beta_node* node,
-                struct token* token,
-                struct wme* wme)
+                struct token*     token,
+                struct wme*       wme)
 {
     switch (node->type) {
     case beta_node_type_memory:
@@ -405,10 +381,10 @@ do_left_removal(struct agent* agent,
             struct token* doomed;
             struct token **link;
 
-            for (doomed = node->tokens, link = &node->tokens;
+            for (link = &node->tokens, doomed = *link;
                  doomed != 0;
-                 link = &doomed->next, doomed = doomed->next) {
-                if (doomed->wme == wme) {
+                 link = &doomed->next, doomed = *link) {
+                if ((doomed->wme == wme) && (doomed->parent == token)) {
                     struct beta_node* child;
                     for (child = node->children; child != 0; child = child->siblings)
                         do_left_removal(agent, child, doomed, 0);
@@ -444,7 +420,7 @@ do_left_removal(struct agent* agent,
             for (link = &node->blocked, doomed = *link;
                  doomed != 0;
                  link = &doomed->next, doomed = *link) {
-                if (doomed->wme == wme) {
+                if ((doomed->wme == wme) && (doomed->parent == token)) {
                     *link = doomed->next;
                     free(doomed);
                     break;
@@ -457,7 +433,7 @@ do_left_removal(struct agent* agent,
                 for (link = &node->tokens, doomed = *link;
                      doomed != 0;
                      link = &doomed->next, doomed = *link) {
-                    if (doomed->wme == wme) {
+                    if ((doomed->wme == wme) && (doomed->parent == token)) {
                         struct beta_node* child;
                         for (child = node->children; child != 0; child = child->siblings)
                             do_left_removal(agent, child, doomed, 0);
@@ -484,8 +460,7 @@ do_left_removal(struct agent* agent,
                 for (link = &agent->assertions, match = *link;
                      match != 0;
                      link = &match->next, match = *link) {
-                    if ((match->data.token->wme == wme) &&
-                        tokens_are_equal(match->data.token->parent, token)) {
+                    if ((match->data.token->wme == wme) && (match->data.token->parent == token)) {
                         /* Yep. Remove from the assertion queue */
                         *link = match->next;
                         free(match);
@@ -501,7 +476,7 @@ do_left_removal(struct agent* agent,
                 for (inst = node->data.production->instantiations;
                      inst != 0;
                      inst = inst->next) {
-                    if (inst->token->wme == wme /* XXX sufficient? */) {
+                    if ((inst->token->wme == wme) && (inst->token->parent == token)) {
                         /* See if this match is already on the retraction queue */
                         for (match = agent->retractions; match != 0; match = match->next) {
                             if (match->data.instantiation == inst)
@@ -513,8 +488,9 @@ do_left_removal(struct agent* agent,
                                retraction queue */
                             match = (struct match*) malloc(sizeof(struct match));
                             match->data.instantiation = inst;
-                            match->production = node->data.production;
-                            match->next = agent->retractions;
+                            match->production         = node->data.production;
+                            match->next               = agent->retractions;
+
                             agent->retractions = match;
                         }
                     }
@@ -528,7 +504,7 @@ do_left_removal(struct agent* agent,
                 for (link = &node->tokens, doomed = *link;
                      token != 0;
                      link = &doomed->next, doomed = *link) {
-                    if (doomed->wme == wme) {
+                    if ((doomed->wme == wme) && (doomed->parent == token)) {
                         *link = doomed->next;
                         free(doomed);
                         break;
