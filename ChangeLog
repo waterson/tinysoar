@@ -1,5 +1,19 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
+Monday, June 11, 2001
+
+Need to make sure that o-support works. I've enhanced p2.soar a bit so
+that when you set |^found-line t|, it will just start selecting a
+``wait'' operator. But since the |implement*find-line*move-forward|
+production tests the operator, we should leave the |^motor-a 100| and
+|^motor-c 100| attributes on the output link!
+
+Also, I could spend some time figuring out why the
+|implement*find-line*detect-line| production won't match when
+|^sensor-a|'s value is changed. (I suspect that I punted on integer
+comparison somewhere!)
+
+
 Thursday, June 7, 2001
 
 Okay, I think negative node stuff is working pretty much correctly
