@@ -8,6 +8,7 @@ sp {elaborate*top-state
     (<s> ^ball <b>)
     (<b> ^color red)}
 
+# Propose an operator in the substate. It refers to an object from the superstate.
 sp {propose*foo
     (state <s> ^impasse no-change ^attribute state ^superstate <ss>)
     (<ss> ^ball <b>)
@@ -15,12 +16,14 @@ sp {propose*foo
     (<s> ^operator <o> +)
     (<o> ^name foo ^ball <b>)}
 
+# Decorate the object from the superstate, returning a result.
 sp {implement*foo
     (state <s> ^operator <o>)
     (<o> ^name foo ^ball <b>)
     -->
     (<b> ^counted t)}
 
+# Eh?
 sp {implement*foo*2
     (state <s> ^operator <o>)
     (<o> ^name foo)

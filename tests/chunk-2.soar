@@ -8,6 +8,7 @@ sp {elaborate*top-state
     (<s> ^ball <b>)
     (<b> ^color red)}
 
+# Propose an operator that refers to an object from the superstate.
 sp {propose*foo
     (state <s> ^impasse no-change ^attribute state ^superstate <ss>)
     (<ss> ^ball <b>)
@@ -15,6 +16,7 @@ sp {propose*foo
     (<s> ^operator <o> +)
     (<o> ^name foo ^ball <b>)}
 
+# Propose a second operator that refers to the same object.
 sp {propose*bar
     (state <s> ^impasse no-change ^attribute state ^superstate <ss>)
     (<ss> ^ball <b>)
@@ -22,6 +24,9 @@ sp {propose*bar
     (<s> ^operator <o> +)
     (<o> ^name bar)}
 
+# Prefer the first operator, testing something on the object in the
+# superstate (and therefore bringing search control knowledge -- which
+# shouldn't be backtraced -- into play).
 sp {prefer*foo*over*bar
     (state <s> ^operator <o1> + ^operator <o2> + ^superstate <ss>)
     (<ss> ^ball.color red)
@@ -30,6 +35,7 @@ sp {prefer*foo*over*bar
     -->
     (<s> ^operator <o1> > <o2>)}
 
+# Return the chunk.
 sp {implement*foo
     (state <s> ^operator <o>)
     (<o> ^name foo ^ball <b>)
