@@ -1,481 +1,462 @@
-/* -*- Mode: Text; indent-tabs-mode: nil -*- */
+2002-10-11  Chris Waterson  <waterson@maubi.net>
 
-Saturday, August 17, 2002
+	* chunk.c, TODO: Clean up comments.  In theory, justifications
+	ought not variablize anymore.  Also, they are removed when
+	retracted.
 
-Finally unearthed the problem that was keeping chunk-8.soar from
-working: the post-collect token sorting was somehow broken. I changed
-the sort to happen on insertion, and chunk-8.soar started to work --
-yay!
+	* ChangeLog: Reformat!
 
-Added arbitrary post-conditions so that we could start regression
-testing chunks.
+2002-10-10  Chris Waterson  <waterson@maubi.net>
 
+	* chunk.c: Fix crash and FMR when backtracing dummy productions.
 
-Tuesday, August 13, 2002
+2002-08-17  Chris Waterson  <waterson@maubi.net>
 
-Fixed some problems with print_rule and its descendants.  Fixed a
-problem with building on OS/X: .o files can't depend on the .deps
-directory, because directory mtime is updated whenever a file in the
-directory is touched.
+	Finally unearthed the problem that was keeping chunk-8.soar from
+	working: the post-collect token sorting was somehow broken. I
+	changed the sort to happen on insertion, and chunk-8.soar started
+	to work -- yay!
 
+	Added arbitrary post-conditions so that we could start regression
+	testing chunks.
 
-Wednesday, May 1, 2002
+2002-08-13  Chris Waterson  <waterson@maubi.net>
 
-Added code to properly maintain the goal level of each
-identifier. This simplifies the preference and wme garbage collection
-that takes place when the goal stack is popped: we can now simply use
-the goal levels rather than computing identifier reachability.
+	Fixed some problems with print_rule and its descendants.  Fixed
+	a problem with building on OS/X: .o files can't depend on the
+	.deps directory, because directory mtime is updated whenever a
+	file in the directory is touched.
 
+2002-05-01  Chris Waterson  <waterson@maubi.net>
 
-Saturday, April 20, 2002
+	Added code to properly maintain the goal level of each
+	identifier. This simplifies the preference and wme garbage
+	collection that takes place when the goal stack is popped: we can
+	now simply use the goal levels rather than computing identifier
+	reachability.
 
-Made it so that we garbage collect identifiers. Now we don't run out of 'em anymore.
+2002-04-20  Chris Waterson  <waterson@maubi.net>
 
-<http://sourceforge.net/tracker/index.php?func=detail&aid=508521&group_id=42131&atid=432196>
+	Made it so that we garbage collect identifiers. Now we don't run
+	out of 'em anymore.
 
-----------------------------------------------------------------------
+	<http://sourceforge.net/tracker/index.php?func=detail&aid=508521&group_id=42131&atid=432196>
 
-Saturday, April 20, 2002
+2002-04-02  Chris Waterson  <waterson@maubi.net>
 
-Made disjunctive tests work.
+	* (Version 0.3 released.)
 
-<https://sourceforge.net/tracker/index.php?func=detail&aid=516730&group_id=42131&atid=432196>
+2002-04-20  Chris Waterson  <waterson@maubi.net>
 
-Added a regression test harness.
+	Made disjunctive tests work.
 
+	<https://sourceforge.net/tracker/index.php?func=detail&aid=516730&group_id=42131&atid=432196>
 
-Monday, March 18, 2002
+	Added a regression test harness.
 
-Fixed bogus linked-list manipulation in the beta_node_type_negative
-case for do_right_(addition|removal) that was causing us to end up in
-an infinite loop. Overzealous conversion to `for' loops probably
-introduced this bug. :-/
+2002-03-18  Chris Waterson  <waterson@maubi.net>
 
+	Fixed bogus linked-list manipulation in the
+	beta_node_type_negative case for do_right_(addition|removal) that
+	was causing us to end up in an infinite loop. Overzealous
+	conversion to `for' loops probably introduced this bug. :-/
 
-Saturday, March 16, 2002
+2002-03-16  Chris Waterson  <waterson@maubi.net>
 
-Fixed a problem with the `export' command: we were crashing during
-export if a beta node had no beta tests.
+	Fixed a problem with the `export' command: we were crashing during
+	export if a beta node had no beta tests.
 
-Fixed a problem with operator selection: `better' and `worse'
-preferences were dominating _every_ other candidate in the list, not
-just their referent. I think this may be the problem I was seeing with
-the `culled too many candidates' bugs.
+	Fixed a problem with operator selection: `better' and `worse'
+	preferences were dominating _every_ other candidate in the list,
+	not just their referent. I think this may be the problem I was
+	seeing with the `culled too many candidates' bugs.
 
+2002-03-14  Chris Waterson  <waterson@maubi.net>
 
-Thursday, March 14, 2002
+	Fixed the `print' command so that it returned a result to the Tcl
+	interpreter instead of just printf'ing. This allows script to
+	inspect the agent's state (e.g., the ^output-link).
 
-Fixed the `print' command so that it returned a result to the Tcl
-interpreter instead of just printf'ing. This allows script to inspect
-the agent's state (e.g., the ^output-link).
+2002-03-13  Chris Waterson  <waterson@maubi.net>
 
+	Get rid of the `impasse' test type: since we're supporting `pure'
+	Soar-8.3 semantics, there can never be attribute impasses (which,
+	AFAICT, is the only way that impasses can arise).
 
-Wednesday, March 13, 2002
+	Been fixing problems with clean up of o-supported preferences in
+	substates. Implemented a simple garbage collection scheme that
+	removes `unreachable' preferences; i.e., preferences that are no
+	longer reachable from a goal in the goal stack.
 
-Get rid of the `impasse' test type: since we're supporting `pure'
-Soar-8.3 semantics, there can never be attribute impasses (which,
-AFAICT, is the only way that impasses can arise).
+	Started working on a simple eight-puzzle hack as a test-harness
+	for substateas and, eventually, chunking.
 
-Been fixing problems with clean up of o-supported preferences in
-substates. Implemented a simple garbage collection scheme that removes
-`unreachable' preferences; i.e., preferences that are no longer
-reachable from a goal in the goal stack.
+2002-02-14  Chris Waterson  <waterson@maubi.net>
 
-Started working on a simple eight-puzzle hack as a test-harness for
-substates and, eventually, chunking.
+	* (Version 0.2 released.)
 
-----------------------------------------------------------------------
+2002-02-12  Chris Waterson  <waterson@maubi.net>
 
-Tuesday, February 12, 2002
+	Removed the assertion in do_left_addition() requiring negative nodes
+	to have a non-null |wme|. Not sure why I thought I needed that.
 
-Removed the assertion in do_left_addition() requiring negative nodes
-to have a non-null |wme|. Not sure why I thought I needed that.
+	Changed the ^motor-n annotation on the output link to take symbolic
+	constants: `forward', `reverse', `brake', and `off'.
 
-Changed the ^motor-n annotation on the output link to take symbolic
-constants: `forward', `reverse', `brake', and `off'.
+2002-01-24  Chris Waterson  <waterson@maubi.net>
 
+	Fix bug 507849,
 
-Thursday, January 24, 2002
+	<https://sourceforge.net/tracker/?func=detail&aid=507849&group_id=42131&atid=432196>
 
-Fix bug 507849,
+	When doing right-removal on a negative node, we need to iterate
+	through the remaining right-memories for each token to see if the
+	token is still blocked.
 
-<https://sourceforge.net/tracker/?func=detail&aid=507849&group_id=42131&atid=432196>
+	Fix bug 507841,
 
-When doing right-removal on a negative node, we need to iterate
-through the remaining right-memories for each token to see if the
-token is still blocked.
+	<https://sourceforge.net/tracker/?func=detail&aid=507841&group_id=42131&atid=432196>:
 
-Fix bug 507841,
+	the value test is optional.
 
-<https://sourceforge.net/tracker/?func=detail&aid=507841&group_id=42131&atid=432196>:
+	Fixed the parser so that we don't o-support when doing a negated test
+	on an ^operator attribute.
 
-the value test is optional.
+2002-01-23  Chris Waterson  <waterson@maubi.net>
 
-Fixed the parser so that we don't o-support when doing a negated test
-on an ^operator attribute.
+	Fix a problem with o-rejects: if an o-reject is created and there's
+	not slot to apply it on, we crash!
 
+2002-01-09  Chris Waterson  <waterson@maubi.net>
 
-Wednesday, January 23, 2002
+	Fix lexer to grok signed integer constants. Swap type and value
+	bits in symbol_t so that we handle signed integer constants
+	correctly in other parts of the code. Streamline symbol bit
+	monkeying a bit.
 
-Fix a problem with o-rejects: if an o-reject is created and there's
-not slot to apply it on, we crash!
+2001-12-31  Chris Waterson  <waterson@maubi.net>
 
+	* (Release tinysoar-0.1.)
 
-Wednesday, January 9, 2002
+2001-12-20  Chris Waterson  <waterson@maubi.net>
 
-Fix lexer to grok signed integer constants. Swap type and value bits
-in symbol_t so that we handle signed integer constants correctly in
-other parts of the code. Streamline symbol bit monkeying a bit.
+	Take a first crack at implementing `.attr' notation.
 
-----------------------------------------------------------------------
+2001-12-19  Chris Waterson  <waterson@maubi.net>
 
-Monday, December 31, 2001
+	Saved 100 or so bytes on the H8 by getting rid of bit fields in
+	the allocator. Fixed the problem with `bumper.soar': wasn't taking
+	`cond->acceptable' into account when trying to re-use beta nodes.
 
-Release tinysoar-0.1.
+2001-12-17  Chris Waterson  <waterson@maubi.net>
 
-Thursday, December 20, 2001
+	Added license headers, tidied up comments a bit.
 
-Take a first crack at implementing `.attr' notation.
+2001-12-16  Chris Waterson  <waterson@maubi.net>
 
+	Got a proper run-loop for the RCX; i.e., one that actually pays
+	attention to the `Run' and `On-Off' buttons.
 
-Wednesday, December 19, 2001
+2001-12-15  Chris Waterson  <waterson@maubi.net>
 
-Saved 100 or so bytes on the H8 by getting rid of bit fields in the
-allocator. Fixed the problem with `bumper.soar': wasn't taking
-`cond->acceptable' into account when trying to re-use beta nodes.
+	Converted symbol_t and variable_binding_t from bit-packed
+	structures to raw unsigned integers with hand bit-twiddling. Had
+	to do this to get around the fact that different compilers (even
+	different gcc back-ends) order the bit fields differently. (I need
+	the order to be consistent so I can initialize unions with a
+	single unsigned value.)
 
+2001-12-14  Chris Waterson  <waterson@maubi.net>
 
-Monday, December 17, 2001
+	Tracked the remaining problems with the RCX: turns out the
+	h8300-hitachi-hms version of gcc orders bitfields in strucutres
+	differently than the x86 version does. So, the code I have that
+	tries to treat word-wide structures as unsigned values got the
+	bitfield stuff backwards. Gonna have to do those by hand.
 
-Added license headers, tidied up comments a bit.
+	Also cleaned up a bunch of the macros that are used to specify
+	symbols: the parameters to these things were randomly ordered as
+	far as I could tell.
 
+2001-12-09  Chris Waterson  <waterson@maubi.net>
 
-Sunday, December 16, 2001
+	Implemented a brain-dead, slow as molasses, first-fit allocator to
+	run on the RCX, and a simple test harness to bang on
+	it. Implemented a lame ``simulator'' for the RCX so I could verify
+	that things were working right.
 
-Got a proper run-loop for the RCX; i.e., one that actually pays
-attention to the `Run' and `On-Off' buttons.
+	Using the harness, I found two leaks in wmem.c. The first had to do
+	with the fact that reconsider preferences were marked as o-supported
+	(because they test the operator), and so were never getting
+	removed. Fixed this by forcing reconsider preferences to be
+	i-suppored. The second leak had to do with the fact that we don't
+	duplicate check o-supported preferences, and so were ending up with an
+	ever-increasing supply of o-supported preferences in a slot.
 
+	The harness was also useful in detecting the fact that I'd passed
+	the arguments to MAKE_SYMBOL in the wrong order!
 
-Saturday, December 15, 2001
+	The RCX still doesn't run Soar, but I think I'm getting
+	closer. (It currently just sits idle for about three seconds, and
+	then starts to spasmodically pulse the motor.)
 
-Converted symbol_t and variable_binding_t from bit-packed structures
-to raw unsigned integers with hand bit-twiddling. Had to do this to
-get around the fact that different compilers (even different gcc
-back-ends) order the bit fields differently. (I need the order to be
-consistent so I can initialize unions with a single unsigned value.)
+2001-12-06  Chris Waterson  <waterson@maubi.net>
 
+	Banged around with the Lego RCX a bit, checked in a bunch of test
+	cases so I remember how to do stuff. Cleaned up makefiles so I can
+	do `objdir'-style builds. Added a `lego' target for an RCX-based
+	agent.
 
-Friday, December 14, 2001
+2001-10-28  Chris Waterson  <waterson@maubi.net>
 
-Tracked the remaining problems with the RCX: turns out the
-h8300-hitachi-hms version of gcc orders bitfields in strucutres
-differently than the x86 version does. So, the code I have that tries
-to treat word-wide structures as unsigned values got the bitfield
-stuff backwards. Gonna have to do those by hand.
+	Silly change to fix all the pointers from |void* foo| to |void
+	*foo|. I bored!
 
-Also cleaned up a bunch of the macros that are used to specify
-symbols: the parameters to these things were randomly ordered as far
-as I could tell.
+2001-06-11  Chris Waterson  <waterson@maubi.net>
 
+	Need to make sure that o-support works. I've enhanced p2.soar a
+	bit so that when you set |^found-line t|, it will just start
+	selecting a ``wait'' operator. But since the
+	|implement*find-line*move-forward| production tests the operator,
+	we should leave the |^motor-a 100| and |^motor-c 100| attributes
+	on the output link!
 
-Sunday, December 9, 2001
+	Also, I could spend some time figuring out why the
+	|implement*find-line*detect-line| production won't match when
+	|^sensor-a|'s value is changed. (I suspect that I punted on
+	integer comparison somewhere!)
 
-Implemented a brain-dead, slow as molasses, first-fit allocator to run
-on the RCX, and a simple test harness to bang on it. Implemented a
-lame ``simulator'' for the RCX so I could verify that things were
-working right.
+	Spent a bit more time digging into the numeric comparison stuff,
+	and I think the problem is in |process_tests()|, where we
+	unilaterally assume that a constant test can be done by the alpha
+	network. Fixed it, yay! Still need to do o-support, though...
 
-Using the harness, I found two leaks in wmem.c. The first had to do
-with the fact that reconsider preferences were marked as o-supported
-(because they test the operator), and so were never getting
-removed. Fixed this by forcing reconsider preferences to be
-i-suppored. The second leak had to do with the fact that we don't
-duplicate check o-supported preferences, and so were ending up with an
-ever-increasing supply of o-supported preferences in a slot.
+2001-06-07  Chris Waterson  <waterson@maubi.net>
 
-The harness was also useful in detecting the fact that I'd passed the
-arguments to MAKE_SYMBOL in the wrong order!
+	Okay, I think negative node stuff is working pretty much correctly
+	now. _Still_ have a weird problem with WMEs being left over after
+	|init-soar|, which is clear now with some of the improved
+	|dump-rete| fu that I've added.
 
-The RCX still doesn't run Soar, but I think I'm getting closer. (It
-currently just sits idle for about three seconds, and then starts to
-spasmodically pulse the motor.)
+	Time to start filling in some of the architecture & runtime stuff
+	and making bigger tests?
 
+2001-06-01  Chris Waterson  <waterson@maubi.net>
 
-Thursday, December 6, 2001
+	I have the negative stuff all wrong. I have no idea what I was
+	thinking when I first wrote it. This is the place to start hacking
+	next.
 
-Banged around with the Lego RCX a bit, checked in a bunch of test
-cases so I remember how to do stuff. Cleaned up makefiles so I can do
-`objdir'-style builds. Added a `lego' target for an RCX-based agent.
+2001-02-10  Chris Waterson  <waterson@maubi.net>
 
+	Found a couple bone headed mistakes in my hand-rolled linked list
+	code. That fixed the problem with `init-soar'. Moved the `id' and
+	`attr' fields out of the `preferences' struct. Replaced them with
+	a back-pointer to the slot.
 
-Sunday, October 28, 2001
+	Fixed `wmem_remove_preference()' to take a preference
+	pointer (instead of the same parameter list that
+	`wmem_add_preference()' takes). I did this because I realized that
+	it should be legal to have >1 identical preferences in a slot. For
+	example, two different productions assert the same
+	preference. When one of the instantiations dies, you want to be
+	sure you yank the right preference. (So that when the other dies,
+	it'll find /its/ preference.)
 
-Silly change to fix all the pointers from |void* foo| to |void
-*foo|. I bored!
+	I expanded p2.soar, adding a production to set `^found-line t' on
+	the top-state. It uncovered several bugs:
 
+	1. Conditions that compare integer values are broken. (I'm not even
+	   sure I ever implemented them.)
 
-Monday, June 11, 2001
+	2. Negative conditions are broken.
 
-Need to make sure that o-support works. I've enhanced p2.soar a bit so
-that when you set |^found-line t|, it will just start selecting a
-``wait'' operator. But since the |implement*find-line*move-forward|
-production tests the operator, we should leave the |^motor-a 100| and
-|^motor-c 100| attributes on the output link!
+	   - The don't match properly; e.g., doing
 
-Also, I could spend some time figuring out why the
-|implement*find-line*detect-line| production won't match when
-|^sensor-a|'s value is changed. (I suspect that I punted on integer
-comparison somewhere!)
+	        % pref -a 3 ^sensor-a 75 +
 
-                             * * *
+	     will properly create a condition that matches
+	     `implement*find-line*detect-line'; however, creating the
+	     `^fount-line t' attribute won't retract `propose*find-line'.
 
-Spent a bit more time digging into the numeric comparison stuff, and I
-think the problem is in |process_tests()|, where we unilaterally
-assume that a constant test can be done by the alpha network. Fixed
-it, yay! Still need to do o-support, though...
+	   - When we do `init-soar', we're
 
+	3. `init-soar' is still crashing. This happens because we weren't
+	   checking the retraction queue before adding a new instantiation, and
+	   we ended up with duplicates in the queue.
 
-Thursday, June 7, 2001
+	4. Fixing (3) makes it so that we now don't (appear to) properly
+	   retract `implement*find-line*move-forward' when a new operator gets
+   	   selected.
 
-Okay, I think negative node stuff is working pretty much correctly
-now. _Still_ have a weird problem with WMEs being left over after
-|init-soar|, which is clear now with some of the improved |dump-rete|
-fu that I've added.
+	On another tangent, it might make sense to have two kinds of
+	preference structures: one that takes a reference, and one that
+	doesn't. Save a bit of space, anyway: I bet most preferences are
+	unary.
 
-Time to start filling in some of the architecture & runtime stuff and
-making bigger tests?
+2001-02-07  Chris Waterson  <waterson@maubi.net>
 
+	Went ahead and hacked preferences to be threaded by
+	instantiation. This probably makes it even more important to move
+	the `id' and `attr' fields out of the `preference' struct, and
+	just re-use the values from the slot. (Ideally, we wouldn't even
+	need a back-pointer to the slot...)
 
-Friday, June 1, 2001
+	There still are some problems with `init-soar' that I need to
+	track down. Also, `p2.soar' is acting weird. Need to look at that.
 
-I have the negative stuff all wrong. I have no idea what I was
-thinking when I first wrote it. This is the place to start hacking
-next.
+2001-02-05  Chris Waterson  <waterson@maubi.net>
 
+	Tinkered with making it so that an instantiation remembers the
+	list of unbound variables. When the time comes for an
+	instantiation to be removed, we just ``run the instantiation
+	backwards'', removing all the preferences that the instantiation
+	created by re-evaluating the RHS action.
 
-Saturday, Feburary 10, 2001
+	This almost works, except for one problem. The WMEs in the
+	instantiation's token may very well be gone by the time you're
+	ready to remove the instantiation!
 
-Found a couple bone headed mistakes in my hand-rolled linked list
-code. That fixed the problem with `init-soar'. Moved the `id' and
-`attr' fields out of the `preferences' struct. Replaced them with a
-back-pointer to the slot.
+	That doubly-linked list is starting to smell better...
 
-Fixed `wmem_remove_preference()' to take a preference pointer (instead
-of the same parameter list that `wmem_add_preference()' takes). I did
-this because I realized that it should be legal to have >1 identical
-preferences in a slot. For example, two different productions assert
-the same preference. When one of the instantiations dies, you want to
-be sure you yank the right preference. (So that when the other dies,
-it'll find /its/ preference.)
+2001-02-04  Chris Waterson  <waterson@maubi.net>
 
-I expanded p2.soar, adding a production to set `^found-line t' on the
-top-state. It uncovered several bugs:
+	Spent some time debugging the mysterious crash on Win32. Added the
+	`/MDd' option and debugged a place where I was allocating a block
+	that was too small. At least now I can reproduce the crash on
+	Windows!
 
-1. Conditions that compare integer values are broken. (I'm not even
-   sure I ever implemented them.)
+	It looks like the problem has to do with updating the preference's
+	`next_in_instantiation' pointer when we remove a preference from
+	the linked list of preferences. It's left dangling, pointing at
+	garbage. (Search on `XXX safe?' in wmem_remove_preference().)
 
-2. Negative conditions are broken.
+	If I can't figure this out, I might need to make a doubly-linked
+	list of preferences that are owned by each instantiation so I can
+	yank it there. Hrm, need to think about this a bit more...
 
-   - The don't match properly; e.g., doing
+	Maybe I don't need to remember what preferences are owned by an
+	instantiation at all. Instead, I could just re-process the RHS
+	using the instantiation that's about to get nuked.
 
-     % pref -a 3 ^sensor-a 75 +
+	Okay, I think I see the problem with that idea: the instantiation
+	doesn't remember any identifiers that get generated for unbound
+	variables. So we won't know how to remove those. Grr.
 
-     will properly create a condition that matches
-    `implement*find-line*detect-line'; however, creating the
-    `^fount-line t' attribute won't retract `propose*find-line'.
+2001-01-21  Chris Waterson  <waterson@maubi.net>
 
-   - When we do `init-soar', we're
+	I've got some weird corruption crasher going on, Linux only, after
+	loading `p1.soar' and elaborating a couple of times. It looks like
+	a preference is holding a dangling pointer in its
+	`next_in_instantiation' field.
 
-3. `init-soar' is still crashing. This happens because we weren't
-   checking the retraction queue before adding a new instantiation, and
-   we ended up with duplicates in the queue.
+	In the spirit of forward flailing, I cobbled together simple
+	negative conditions in the RETE net; enough to get `p2.soar'
+	nominally `working'. (It's one frigging production, so it's not
+	like I have a clue whether this stuff'll fly.) Need to debug in
+	earnest at some point.
 
-4. Fixing (3) makes it so that we now don't (appear to) properly
-   retract `implement*find-line*move-forward' when a new operator gets
-   selected.
+	I should create a `preferences' command so that I can add
+	`found-line' preference to the state to debug the negative
+	condition foo.
 
-On another tangent, it might make sense to have two kinds of
-preference structures: one that takes a reference, and one that
-doesn't. Save a bit of space, anyway: I bet most preferences are
-unary.
+2001-01-16  Chris Waterson  <waterson@maubi.net>
 
+	Got a crude stab at getting the operator decision logic
+	implemented. I think I might be running into another RETE bug;
+	can't seem to the the `reconsider' production to fire in
+	`p1.soar'.
 
-Wednesday, Feburary 7, 2001
+	Okay, so I think I figured out what was wrong: had an off-by-one
+	in the rete code and was notifying the rete network with the wrong
+	wme :-/. Now I keep selected `reconsider*wait* over and over
+	again; however, I'm a bit worried because I don't get new
+	identifiers. Not that I *expected* to, but I think that `real'
+	Soar might regenerate identifiers for each new operator that gets
+	selected. Is that necessary?
 
-Went ahead and hacked preferences to be threaded by
-instantiation. This probably makes it even more important to move the
-`id' and `attr' fields out of the `preference' struct, and just re-use
-the values from the slot. (Ideally, we wouldn't even need a
-back-pointer to the slot...)
+2001-01-15  Chris Waterson  <waterson@maubi.net>
 
-There still are some problems with `init-soar' that I need to track
-down. Also, `p2.soar' is acting weird. Need to look at that.
+	So the problem wasn't with propogating wmes into new rules: I was
+	incorrectly getting some conditions marked randomly as
+	`acceptable' tests (because I didn't initialize `acceptable'
+	properly in the `id_test' reduction). Anyway, got past that, but
+	now it seems I'm getting some token corruption while adding the
+	wme to working memory.
 
+2001-01-14  Chris Waterson  <waterson@maubi.net>
 
-Monday, February 5, 2001
+	Seems like it might be a good thing to do away with `productions'
+	in the runtime. I don't see a real good reason that we need to
+	remember them.
 
-Tinkered with making it so that an instantiation remembers the list of
-unbound variables. When the time comes for an instantiation to be
-removed, we just ``run the instantiation backwards'', removing all the
-preferences that the instantiation created by re-evaluating the RHS
-action.
+	It looks like the code that's supposed to propogate existing WMEs
+	into new rules is broken. Gotta look at that.
 
-This almost works, except for one problem. The WMEs in the
-instantiation's token may very well be gone by the time you're ready
-to remove the instantiation!
+2001-01-08  Chris Waterson  <waterson@maubi.net>
 
-That doubly-linked list is starting to smell better...
+	Need to finish up the semantic actions for rule right-hand
+	sides. Should simplify so that reductions can uniformly refer to
+	$0 to add actions.
 
+2001-01-03  Chris Waterson  <waterson@maubi.net>
 
-Sunday, February 4, 2001
+	I made WMEs just refer back to the slot they're in to pick up the
+	`id' and `attr' fields. Can we do the same with preferences?
 
-Spent some time debugging the mysterious crash on Win32. Added the
-`/MDd' option and debugged a place where I was allocating a block that
-was too small. At least now I can reproduce the crash on Windows!
+2000-12-29  Chris Waterson  <waterson@maubi.net>
 
-It looks like the problem has to do with updating the preference's
-`next_in_instantiation' pointer when we remove a preference from the
-linked list of preferences. It's left dangling, pointing at
-garbage. (Search on `XXX safe?' in wmem_remove_preference().)
+	Hacked up basic symbol table stuff, but will need to expand later
+	to cough up identifiers by `gc'-ing through live WMEs to find
+	unused ids. Left off while debugging preferences.
 
-If I can't figure this out, I might need to make a doubly-linked list
-of preferences that are owned by each instantiation so I can yank it
-there. Hrm, need to think about this a bit more...
+2000-12-28  Chris Waterson  <waterson@maubi.net>
 
-                        *       *       *
+	Fixed the action struct's depth foo as described below.
 
-Maybe I don't need to remember what preferences are owned by an
-instantiation at all. Instead, I could just re-process the RHS using
-the instantiation that's about to get nuked.
+2000-12-26  Chris Waterson  <waterson@maubi.net>
 
-Okay, I think I see the problem with that idea: the instantiation
-doesn't remember any identifiers that get generated for unbound
-variables. So we won't know how to remove those. Grr.
+	Kludged my way through getting preference memory started. Need to
+	fix create_instantiation() to do bonafide `gensym'-ing. Maybe it's
+	time to make a real symbol table?
 
+	Also, I hard-coded the initialization of the action struct's
+	`depth' and `field' values when the rhs_value is a variable
+	binding. That'll need to move into the rule compilation. Maybe we
+	can initialize with a variable symbol, and then resolve when
+	making the p-node?
 
-Sunday, January 21, 2001
+2000-12-25  Chris Waterson  <waterson@maubi.net>
 
-I've got some weird corruption crasher going on, Linux only, after
-loading `p1.soar' and elaborating a couple of times. It looks like a
-preference is holding a dangling pointer in its
-`next_in_instantiation' field.
+	Debugged a single-condition production. Now I'm bombing in a
+	production with two positive conditions. Gotta fix that.
 
-In the spirit of forward flailing, I cobbled together simple negative
-conditions in the RETE net; enough to get `p2.soar' nominally
-`working'. (It's one frigging production, so it's not like I have a
-clue whether this stuff'll fly.) Need to debug in earnest at some
-point.
+2000-12-19  Chris Waterson  <waterson@maubi.net>
 
-I should create a `preferences' command so that I can add `found-line'
-preference to the state to debug the negative condition foo.
+	I've got the basic stuff for alpha nodes, memory nodes, and
+	positive join nodes hooked up. I'm starting to go through
+	debugging |rete_add_wme()|, and am bombing out in the
+	right-addition routine because I'm not getting a binding for the
+	`S1' stuff. Need to debug that.
 
+2000-12-05  Chris Waterson  <waterson@maubi.net>
 
-Tuesday, January 16, 2001
+	There's also starting to be a bit of redundant code, so a bit of
+	refactoring will probably be in order shortly.
 
-Got a crude stab at getting the operator decision logic implemented. I
-think I might be running into another RETE bug; can't seem to the the
-`reconsider' production to fire in `p1.soar'.
+2000-12-04  Chris Waterson  <waterson@maubi.net>
 
-                          *       *       *
+	The rete propogation stuff is buggy right now. The problem is that:
 
-Okay, so I think I figured out what was wrong: had an off-by-one in
-the rete code and was notifying the rete network with the wrong wme
-:-/. Now I keep selected `reconsider*wait* over and over again;
-however, I'm a bit worried because I don't get new identifiers. Not
-that I *expected* to, but I think that `real' Soar might regenerate
-identifiers for each new operator that gets selected. Is that
-necessary?
+	1) I'm just naively letting stuff meander down the net. This'll
+	cause instantiation nodes to get tickled more than once. I think I
+	need to make the tests more restrictive by default;
+	esp. simple_test() should return zero at the end?
 
-
-Monday, January 15, 2001
-
-So the problem wasn't with propogating wmes into new rules: I was
-incorrectly getting some conditions marked randomly as `acceptable'
-tests (because I didn't initialize `acceptable' properly in the
-`id_test' reduction). Anyway, got past that, but now it seems I'm
-getting some token corruption while adding the wme to working memory.
-
-
-Sunday, January 14, 2001
-
-Seems like it might be a good thing to do away with `productions' in
-the runtime. I don't see a real good reason that we need to remember
-them.
-
-It looks like the code that's supposed to propogate existing WMEs into
-new rules is broken. Gotta look at that.
-
-
-Monday, January 8, 2001
-
-Need to finish up the semantic actions for rule right-hand
-sides. Should simplify so that reductions can uniformly refer to $0 to
-add actions.
-
-
-Wednesday, January 3, 2001
-
-I made WMEs just refer back to the slot they're in to pick up the `id'
-and `attr' fields. Can we do the same with preferences?
-
-
-Friday, December 29, 2000
-
-Hacked up basic symbol table stuff, but will need to expand later to
-cough up identifiers by `gc'-ing through live WMEs to find unused
-ids. Left off while debugging preferences.
-
-
-Thursday, December 28, 2000
-
-Fixed the action struct's depth foo as described below.
-
-
-Tuesday, December 26, 2000
-
-Kludged my way through getting preference memory started. Need to fix
-create_instantiation() to do bonafide `gensym'-ing. Maybe it's time to
-make a real symbol table?
-
-Also, I hard-coded the initialization of the action struct's `depth'
-and `field' values when the rhs_value is a variable binding. That'll
-need to move into the rule compilation. Maybe we can initialize with a
-variable symbol, and then resolve when making the p-node?
-
-
-Monday, December 25, 2000
-
-Debugged a single-condition production. Now I'm bombing in a
-production with two positive conditions. Gotta fix that.
-
-
-Tuesday, December 19, 2000
-
-I've got the basic stuff for alpha nodes, memory nodes, and positive
-join nodes hooked up. I'm starting to go through debugging
-|rete_add_wme()|, and am bombing out in the right-addition routine
-because I'm not getting a binding for the `S1' stuff. Need to debug
-that.
-
-
-Tuesday, December 5, 2000
-
-There's also starting to be a bit of redundant code, so a bit of
-refactoring will probably be in order shortly.
-
-
-Monday, December 4, 2000
-
-The rete propogation stuff is buggy right now. The problem is that:
-
-1) I'm just naively letting stuff meander down the net. This'll cause
-instantiation nodes to get tickled more than once. I think I need to
-make the tests more restrictive by default; esp. simple_test() should
-return zero at the end?
-
-2) (Maybe the same as 1, above) I need to be able to go out and check
-working memory for values. When I see a WME in simple_test() that
-doesn't have the same attribute as the node I'm looking at, I should
-go out to working memory and see if there is any element that'll
-satisfy my conditions, and only then propogate the stuff onward...
+	2) (Maybe the same as 1, above) I need to be able to go out and
+	check working memory for values. When I see a WME in simple_test()
+	that doesn't have the same attribute as the node I'm looking at, I
+	should go out to working memory and see if there is any element
+	that'll satisfy my conditions, and only then propogate the stuff
+	onward...
 
