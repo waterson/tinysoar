@@ -241,7 +241,7 @@ typedef enum rhs_value_type {
     rhs_value_type_unbound_variable
 } rhs_value_type_t;
 
-typedef struct rhs_value {
+struct rhs_value {
     rhs_value_type_t type;
     union {
         symbol_t           symbol;
