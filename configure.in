@@ -86,7 +86,7 @@ if test "$target" = "$host"; then
   dnl Handle platform-specific issues.
   case "$target" in
   *-darwin*)
-        CFLAGS="$CFLAGS -fno-common"
+        CFLAGS="$CFLAGS -fno-common -arch ppc"
         DSO_LDOPTS="-bundle"
         DSO_SUFFIX=dylib
         ;;
