@@ -25,4 +25,7 @@ symtab_lookup(struct symtab* symtab, symbol_type_t type, const char* name, bool_
 extern const char*
 symtab_find_name(struct symtab* symtab, symbol_t symbol);
 
+extern void
+symtab_finish(struct symtab* symtab);
+
 #endif /* symtab_h__ */

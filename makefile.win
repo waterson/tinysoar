@@ -1,4 +1,4 @@
-CFLAGS=/nologo /W3 /DWINDOWS
+CFLAGS=/nologo /W3 /DWINDOWS /DYYDEBUG=1
 LFLAGS=/nologo
 LINK=link
 

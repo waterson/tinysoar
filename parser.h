@@ -3,16 +3,11 @@
 
 #include "soar.h"
 
-struct attr_value_test {
-    struct test attr_test;
-    struct test value_test;
-};
-
-struct attr_value_test_list {
-    struct attr_value_test tests;
-    struct attr_value_test_list* next;
-};
-
+struct preference_specifier_list {
+    struct preference_specifier_list* next;
+    preference_type_t type;
+    struct rhs_value  referent;
+}; 
 
 struct parser {
     struct symtab*     symtab;

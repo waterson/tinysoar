@@ -116,8 +116,8 @@ typedef enum preference_type {
     preference_type_require            = preference_type_unary + 7,
 
     preference_type_binary_indifferent = preference_type_binary - 0,
-    preference_type_better_preference  = preference_type_binary - 1,
-    preference_type_worse_preference   = preference_type_binary - 2
+    preference_type_better             = preference_type_binary - 1,
+    preference_type_worse              = preference_type_binary - 2
 } preference_type_t;
 
 #define SUPPORT_TYPE_BITS    2

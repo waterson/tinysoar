@@ -7,31 +7,39 @@
 
 #define YYPARSE_PARAM yyparse_param
 
-static void
-process_attr_value_test_list(struct condition* cond,
-                             struct attr_value_test_list* list);
+#if YYDEBUG != 0
+extern void yyprint();
+#define YYPRINT(stream, token, lval) yyprint((stream), (token), (lval))
+#endif
 
 /* Prototypes to keep the compiler from whining */
 extern void yyerror(char*);
 extern int yylex(void);
+
+struct condition_list {
+    struct condition head;
+    struct condition* tail;
+};
 %}
 
 %union {
-    const char*                  sym_constant;
-    int                          int_constant;
-    struct test                  test;
-    test_type_t                  test_type;
-    symbol_t                     symbol;
-    struct rhs_value             rhs_value;
-    struct symbol_list*          symbol_list;
-    struct test_list*            test_list;
-    struct condition             condition;
-    struct condition*            condition_list;
-    struct attr_value_test       attr_value_test;
-    struct attr_value_test_list* attr_value_test_list;
+    char                context;
+    const char*         sym_constant;
+    int                 int_constant;
+    struct test         test;
+    test_type_t         test_type;
+    symbol_t            symbol;
+    struct rhs_value    rhs_value;
+    struct symbol_list* symbol_list;
+    struct test_list*   test_list;
+    struct condition    condition;
+    struct condition*   condition_list;
+    bool_t              negated;
+    struct action       action;
+    struct action*      action_list;
+    struct preference_specifier_list  preference_specifier;
+    struct preference_specifier_list* preference_specifier_list;
 }
-
-%token CONTEXT
 
 %token LEFT_ANGLE
 %token RIGHT_ANGLE
@@ -43,32 +51,53 @@ extern int yylex(void);
 %token GREATER_THAN_OR_EQUAL
 %token SAME_TYPE
 
+%token <context> CONTEXT
+
 %token <sym_constant> VARIABLE
 %token <sym_constant> SYM_CONSTANT
+
 %token <int_constant> INT_CONSTANT
 
-%type <test> conjunctive_test
-%type <test> id_test
-%type <test> value_test
-%type <test> attr_test
-%type <test> test
-%type <test> simple_test
-%type <test> relational_test
-%type <test> disjunction_test
-%type <attr_value_test> attr_value_test
-%type <test_list> simple_test_list
-%type <attr_value_test_list> attr_value_test_list
-%type <test_type> relation
-%type <symbol> single_test
-%type <symbol> constant
-%type <rhs_value> rhs_value
-%type <rhs_value> value_make
-%type <symbol_list> constants
-%type <condition> conds_for_one_id
-%type <condition> positive_cond
+%type <condition> attr_value_test
+%type <condition> attr_value_test_list
 %type <condition> cond
+%type <condition> conds_for_one_id
+%type <condition> id_test
 %type <condition> lhs
+%type <condition> positive_cond
+
 %type <condition_list> cond_list
+
+%type <negated> opt_negated;
+
+%type <rhs_value> rhs_value
+%type <action> attr_value_make
+%type <action> value_make
+%type <action> value_make_list
+%type <action> rhs_action
+%type <action_list> attr_value_make_list
+%type <action_list> rhs_action_list
+%type <action_list> rhs
+
+%type <preference_specifier> preference_specifier;
+%type <preference_specifier_list> preference_specifier_list;
+
+%type <symbol> constant
+%type <symbol> single_test
+
+%type <symbol_list> constants
+
+%type <test> attr_test
+%type <test> conjunctive_test
+%type <test> disjunction_test
+%type <test> relational_test
+%type <test> simple_test
+%type <test> test
+%type <test> value_test
+
+%type <test_list> simple_test_list
+
+%type <test_type> relation
 %%
 
 rule: lhs ARROW rhs
@@ -92,7 +121,11 @@ rule: lhs ARROW rhs
 
 lhs: cond cond_list
    {
-       $1.next = $2;
+       struct condition* cond = &$1;
+       while (cond->next)
+           cond = cond->next;
+
+       cond->next = $2;
        $$ = $1;
    }
    ;
@@ -107,8 +140,14 @@ cond: positive_cond
 positive_cond: conds_for_one_id
              | '{' cond cond_list '}'
              {
+                 /* XXX O(n^2), because we have to get to the tail of
+                    the condition list */
+                 struct condition* cond = &$2;
+                 while (cond->next)
+                     cond = cond->next;
+
+                 cond->next = $3;
                  $$ = $2;
-                 $2.next = $3;
              }
              ;
 
@@ -116,26 +155,28 @@ cond_list: /* empty */
          { $$ = 0; }
          | cond_list cond
          {
-             struct condition* cond =
+             struct condition* new_cond =
                  (struct condition*) malloc(sizeof(struct condition));
 
-             *cond = $2;
-             cond->next = 0;
+             *new_cond = $2;
 
              if ($1) {
-                 $1->next = cond;
+                 /* XXX O(n^2), because we have to get to the tail of
+                    the condition list */
+                 struct condition* cond = $1;
+                 while (cond->next)
+                     cond = cond->next;
+
+                 cond->next = new_cond;
                  $$ = $1;
              }
-             else $$ = cond;
+             else $$ = new_cond;
          }
          ;
 
 conds_for_one_id: '(' id_test attr_value_test_list ')'
                 {
-                    $$.type = condition_type_positive;
-                    $$.data.simple.id_test = $2;
-
-                    process_attr_value_test_list(&$$, $3);
+                    $$ = $2;
                 }
 
                 | '(' CONTEXT id_test attr_value_test_list ')'
@@ -143,59 +184,113 @@ conds_for_one_id: '(' id_test attr_value_test_list ')'
                     struct test_list* context_conjunct;
                     struct test_list* id_test_conjunct;
 
-                    $$.type = condition_type_positive;
+                    /* Pull up whatever got computed as `id_test', but... */
+                    $$ = $3;
+
+                    /* ...we'll need to make a conjunctive `id_test'
+                       that incorporates both the original test and
+                       the context test. Convert this test to a
+                       conjunctive test and fix up the `id_test'
+                       slot. */
                     $$.data.simple.id_test.type = test_type_conjunctive;
 
                     id_test_conjunct =
                         (struct test_list*) malloc(sizeof(struct test_list));
 
-                    id_test_conjunct->test = $3;
+                    id_test_conjunct->test = $3.data.simple.id_test;
+
+                    /* XXX what to do if the test is conjunctive or
+                       disjunctive? */
+                    if (id_test_conjunct->test.type == test_type_conjunctive ||
+                        id_test_conjunct->test.type == test_type_disjunctive) {
+                        ERROR(("can't handle conjunctive/disjunctive id test with `%s'",
+                               (($2 == 's') ? "state" : "impasse")));
+                    }
 
                     context_conjunct =
                         (struct test_list*) malloc(sizeof(struct test_list));
 
-                    context_conjunct->test.type = test_type_goal_id;
-                    context_conjunct->test.data.referent = $3.data.referent;
+                    context_conjunct->test.type = ($2 == 's')
+                        ? test_type_goal_id
+                        : test_type_impasse_id;
+
+                    context_conjunct->test.data.referent = $3.data.simple.id_test.data.referent;
 
                     $$.data.simple.id_test.data.conjuncts = context_conjunct;
                     context_conjunct->next = id_test_conjunct;
                     id_test_conjunct->next = 0;
-
-                    process_attr_value_test_list(&$$, $4);
                 }
                 ;
 
 id_test: test
+       {
+           $$.type = condition_type_positive;
+           $$.data.simple.id_test = $1;
+           $$.data.simple.attr_test.type = test_type_blank;
+           $$.data.simple.value_test.type = test_type_blank;
+           $$.next = 0;
+       }
        ;
 
 attr_value_test_list: /* empty */
-                    { $$ = 0; }
+                    { /* nothing to do */ }
                     | attr_value_test_list attr_value_test
                     {
-                        struct attr_value_test_list* entry =
-                            (struct attr_value_test_list*) malloc(sizeof(struct attr_value_test_list));
-
-                        entry->tests = $2;
-                        entry->next = 0;
-
-                        if ($1) {
-                            $1->next = entry;
-                            $$ = $1;
+                        if ($<condition>0.data.simple.attr_test.type == test_type_blank &&
+                            $<condition>0.data.simple.value_test.type == test_type_blank) {
+                            /* There's room in the id_test to our left
+                               for the attribute and value tests. */
+                            $<condition>0.data.simple.attr_test = $2.data.simple.attr_test;
+                            $<condition>0.data.simple.value_test = $2.data.simple.value_test;
                         }
-                        else $$ = entry;
+                        else {
+                            struct condition* cond;
+                            struct condition* new_cond =
+                                (struct condition*) malloc(sizeof(struct condition));
+
+                            /* Pull the attr_ and value_tests from the
+                               attr_value_test we just reduced */
+                            *new_cond = $2;
+
+                            /* Add this condition to the end of the
+                               list of conditions that we're reducing */
+                            cond = &$<condition>0;
+
+                            /* XXX O(n^2), because we have to get to
+                               the tail of the condition list */
+                            while (cond->next)
+                                cond = cond->next;
+
+                            cond->next = new_cond;
+                        }
                     }
                     ;
 
-attr_value_test: '^' attr_test dot_attr_list value_test
+attr_value_test: opt_negated '^' attr_test dot_attr_list value_test
                {
+                   /* XXX is this sufficient to handle negation? */
+                   $$.type = $1 ? condition_type_negative : condition_type_positive;
+                   $$.data.simple.id_test.type = test_type_blank;
+                   $$.data.simple.attr_test = $3;
+                   $$.data.simple.value_test = $5;
+                   $$.next = 0;
+
                    /* XXX need to handle dot_attr_list! */
-                   $$.attr_test = $2;
-                   $$.value_test = $4;
                }
                ;
 
+opt_negated: /* empty */
+           { $$ = 0; }
+           | '-'
+           { $$ = 1; }
+           ;
+
 dot_attr_list: /* empty */
              | dot_attr_list '.' attr_test
+             {
+                 /* XXX */
+                 UNIMPLEMENTED();
+             }
              ;
 
 attr_test: test
@@ -206,6 +301,10 @@ value_test: test opt_acceptable
 
 opt_acceptable: /* empty */
               | '+'
+              {
+                  /* XXX */
+                  UNIMPLEMENTED();
+              }
               ;
 
 test: conjunctive_test
@@ -315,47 +414,125 @@ rhs: rhs_action_list
    ;
 
 rhs_action_list: /* empty */
+               { $$ = 0; }
                | rhs_action_list rhs_action
+               {
+                   struct action* action =
+                       (struct action*) malloc(sizeof(struct action));
+
+                   *action = $2;
+
+                   if ($1) {
+                       struct action* link = $1;
+
+                       /* XXX O(n^2) because we have to find the end
+                          of the list */
+                       while (link->next)
+                           link = link->next;
+
+                       link->next = action;
+                       $$ = $1;
+                   }
+                   else $$ = action;
+               }
                ;
 
 rhs_action: '(' VARIABLE attr_value_make attr_value_make_list ')'
+          {
+              struct parser* parser =
+                  (struct parser*) yyparse_param;
+
+              symbol_t id =
+                  symtab_lookup(parser->symtab, symbol_type_variable, $2, 1);
+
+              struct action* action = &$3;
+              struct action** link = &action->next;
+
+              while (action) {
+                  action->id.type = rhs_value_type_symbol;
+                  action->id.val.symbol = id;
+              }
+
+              *link = $4;
+          }
           ;
 
 attr_value_make_list: /* empty */
+                    { $$ = 0; }
                     | attr_value_make_list attr_value_make
+                    {
+                        struct action* new_action =
+                            (struct action*) malloc(sizeof(struct action));
+
+                        *new_action = $2;
+
+                        if ($1) {
+                            struct action* action = $1;
+
+                            while (action->next)
+                                action = action->next;
+
+                            action->next = $1;
+                        }
+                        else $$ = new_action;
+                    }
                     ;
 
 attr_value_make: '^' rhs_value value_make value_make_list
+               {
+                   $$.preference_type = preference_type_acceptable; /* XXX */
+                   $$.support_type = 0; /* XXX */
+                   $$.attr  = $2;
+               }
                ;
 
 
 value_make_list: /* empty */
+               { /* XXX */ }
                | value_make_list value_make
                ;
 
 value_make: rhs_value preference_specifier_list
+          { /* XXX */ }
           ;
 
 preference_specifier_list: /* empty */
+                         { $$ = 0; }
                          | preference_specifier_list preference_specifier
                          ;
 
 preference_specifier: '+'
+                    { $$.type = preference_type_acceptable; }
                     | '-'
+                    { $$.type = preference_type_reject; }
                     | '!'
+                    { $$.type = preference_type_require; }
                     | '~'
+                    { $$.type = preference_type_prohibit; }
                     | '@'
-                    | '=' %prec
+                    { $$.type = preference_type_reconsider; }
                     | '>' rhs_value
+                    { $$.type = preference_type_better; $$.referent = $2; }
                     | '=' rhs_value
+                    { $$.type = preference_type_binary_indifferent; $$.referent = $2; }
                     | '<' rhs_value
+                    { $$.type = preference_type_worse; $$.referent = $2; }
+                    | '>' 
+                    { $$.type = preference_type_best; } %prec
+                    | '='
+                    { $$.type = preference_type_unary_indifferent; } %prec
+                    | '<'
+                    { $$.type = preference_type_worst; } %prec
                     ;
 
 rhs_value: VARIABLE
          {
-             /* XXX */
+            struct parser* parser =
+                (struct parser*) yyparse_param;
+
              $$.type = rhs_value_type_symbol;
-             /* or maybe rhs_value_type_unbound_variable */
+             $$.val.symbol =
+                 symtab_lookup(parser->symtab, symbol_type_symbolic_constant, $1, 1);
          }
          | constant
          {
@@ -394,19 +571,19 @@ constant: SYM_CONSTANT
 
 %%
 
-static void
-process_attr_value_test_list(struct condition* cond,
-                             struct attr_value_test_list* list)
+#if YYDEBUG != 0
+void
+yyprint(FILE* stream, int token, YYSTYPE lval)
 {
-    if (! list) {
-        cond->data.simple.attr_test.type = test_type_blank;
-        cond->data.simple.value_test.type = test_type_blank;
-    }
-    else if (! list->next) {
-        cond->data.simple.attr_test  = list->tests.attr_test;
-        cond->data.simple.value_test = list->tests.value_test;
-    }
-    else {
-        /* XXX writeme */
+    switch (token) {
+    case SYM_CONSTANT:
+    case VARIABLE:
+        fprintf(stream, " `%s'", lval.sym_constant);
+        break;
+
+    default:
+        /* do nothing */
+        break;
     }
 }
+#endif /* YYDEBUG */

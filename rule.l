@@ -8,21 +8,23 @@
 #include <stdlib.h>
 %}
 
+ID [[:alpha:]]([[:alnum:]]|"-"|"_"|"*")*
+
 %%
 
-state|impasse return CONTEXT;
-"<<"               return LEFT_ANGLE;
-">>"               return RIGHT_ANGLE;
-"<>"               return NOT_EQUAL;
-"<="               return LESS_THAN_OR_EQUAL;
-">="               return GREATER_THAN_OR_EQUAL;
-"<=>"              return SAME_TYPE;
-"-->"              return ARROW;
-[0-9]+             yylval.int_constant = atoi(yytext); return INT_CONSTANT;
-"<"[[:alnum:]]+">" yylval.sym_constant = yytext; return VARIABLE;
-[[:alnum:]]+       yylval.sym_constant = yytext; return SYM_CONSTANT;
+state|impasse yylval.context = yytext[0]; return CONTEXT;
+"<"{ID}">"    yylval.sym_constant = yytext; return VARIABLE;
+{ID}          yylval.sym_constant = yytext; return SYM_CONSTANT;
+[0-9]+        yylval.int_constant = atoi(yytext); return INT_CONSTANT;
+"<<"          return LEFT_ANGLE;
+">>"          return RIGHT_ANGLE;
+"<>"          return NOT_EQUAL;
+"<="          return LESS_THAN_OR_EQUAL;
+">="          return GREATER_THAN_OR_EQUAL;
+"<=>"         return SAME_TYPE;
+"-->"         return ARROW;
 "("|")"|"-"|"+"|"."|"^"|"{"|"}"|"="|"<"|">"|"!"|"~"|"@" return yytext[0];
-[ \t\n]+    /* consume whitespace */
+[[:space:]]+  /* consume whitespace */
 
 %%
 
@@ -36,7 +38,7 @@ soar_parse_rule(struct symtab* symtab, const char* rule)
     struct production* result =
         (struct production*) malloc(sizeof(struct production));
 
-#if YY_DEBUG != 0
+#if YYDEBUG != 0
     extern int yydebug;
     yydebug = 1;
 #endif

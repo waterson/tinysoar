@@ -162,3 +162,9 @@ symtab_init(struct symtab* symtab)
     }
 }
 
+void
+symtab_finish(struct symtab* symtab)
+{
+    /* XXX uh, needs to do a bit more than this */
+    ht_finish(&symtab->table);
+}
