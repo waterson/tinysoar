@@ -487,6 +487,13 @@ rete_init(struct agent* agent);
 extern void
 rete_finish(struct agent* agent);
 
+#ifdef DEBUG
+struct symtab;
+
+extern void
+rete_dump(struct agent* agent, struct symtab* symtab);
+#endif
+
 /*
  * Add a production to the network
  */

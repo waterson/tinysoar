@@ -98,7 +98,6 @@ agent_init(struct agent* agent)
             MAKE_SYMBOL(constants[i], symbol_type_symbolic_constant, i);
     }
 
-    rete_init(agent);
     wmem_init(agent);
 
     agent->goals = agent->impasses = 0;
