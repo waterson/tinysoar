@@ -776,7 +776,7 @@ wmem_remove_instantiation(struct agent         *agent,
            been transferred to the instantiation; i.e., its `token'
            slot wasn't nulled out during the left-removal of the
            production. */
-        save = (inst->tokens != 0);
+        save = (inst->token != 0);
     }
     else
 #endif
