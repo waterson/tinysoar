@@ -31,7 +31,6 @@ OBJS = \
 	rete.o \
 	runtime.o \
 	symtab.o \
-	tmem.o \
 	wmem.o \
 	$(NULL)
 
