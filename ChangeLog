@@ -10,6 +10,12 @@ When doing right-removal on a negative node, we need to iterate
 through the remaining right-memories for each token to see if the
 token is still blocked.
 
+Fix bug 507841,
+
+<https://sourceforge.net/tracker/?func=detail&aid=507841&group_id=42131&atid=432196>:
+
+the value test is optional.
+
 
 Wednesday, January 23, 2002
 

@@ -510,6 +510,10 @@ attr_test: test
          ;
 
 value_test: test
+          | /* empty */
+          {
+              $$.type = test_type_blank;
+          }
           ;
 
 opt_acceptable: /* empty */
