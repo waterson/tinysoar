@@ -1,51 +1,99 @@
-%{
+%{ /* -*- Mode: C; indent-tabs-mode: nil -*- */
+
+/*
+
+  Bison grammar for Soar productions
+
+  TO DO
+  -----
+
+  . Need to mark preferences with proper support (either o- or
+    i-support).
+
+  . Handle acceptable preference testing (needs work in the rete
+    network and elsewhere first).
+
+  . Implement `negated conjunctive conditions'.
+
+  . Clean up condition and condition_list stuff. I think the RHS stuff
+    worked out much more cleanly.
+
+  . Implement `dot attribute' for conditions.
+
+  . Implement semantic verification (e.g., Are there dangling
+    variables in the LHS? Does the RHS try to create disconnected
+    structure?).
+
+  . Error recovery and reporting.
+
+  . Fix O(n^2) list walking that's all over the place.
+
+*/
+
 #include "soar.h"
 #include "parser.h"
 #include "symtab.h"
 #include <stdlib.h>
 #include <string.h>
 
-/* So we'll get verbose error reporting */
+/*
+ * So we'll get verbose error reporting if YYERROR is defined
+ */
 #define YYERROR_VERBOSE 1
 
-/* So we'll have a parameter passed in to yyparse() */
+/*
+ * So we'll have a parameter passed in to yyparse(). This'll end up
+ *  being a `struct parser*'
+ */
 #define YYPARSE_PARAM yyparse_param
+#define YYLEX_PARAM   yyparse_param
 
+/*
+ * A fancier printing routine that's savvy to our symbol table.
+ */
 #if YYDEBUG != 0
 extern void yyprint();
 #define YYPRINT(stream, token, lval) \
     yyprint((struct parser*) yyparse_param, (stream), (token), (lval))
 #endif
 
-/* Prototypes to keep the compiler from whining */
+/*
+ * Prototypes to keep the compiler from whining
+ */
 extern void yyerror(char*);
-
-#define YYLEX_PARAM yyparse_param
-extern int yylex(void);
-
-struct condition_list {
-    struct condition head;
-    struct condition* tail;
-};
+extern int yylex(); /* Can't give it types, because we don't have
+                       YYLVAL defined yet. */
 %}
 
+/*
+ * Make it so we're re-entrant. This actually isn't so important as
+ * just being able to pass a parameter into yylex()!
+ */
 %pure_parser
 
+/*
+ * The YYSTYPE
+ */
 %union {
+    char*               name;
     char                context;
-    int                 int_constant;
     struct test         test;
     test_type_t         test_type;
-    symbol_t            symbol;
-    struct rhs_value    rhs_value;
-    struct symbol_list* symbol_list;
     struct test_list*   test_list;
     struct condition    condition;
     struct condition*   condition_list;
     bool_t              negated;
+    bool_t              acceptable;
+    symbol_t            symbol;
+    int                 int_constant;
+    struct rhs_value    rhs_value;
+    struct symbol_list* symbol_list;
     struct action       action;
     struct action*      action_list;
 }
+
+%token <name> NAME
+%type <name> name
 
 %token LEFT_ANGLE
 %token RIGHT_ANGLE
@@ -74,8 +122,22 @@ struct condition_list {
 
 %type <condition_list> cond_list
 
-%type <negated> opt_negated;
+%type <test> attr_test
+%type <test> conjunctive_test
+%type <test> disjunction_test
+%type <test> relational_test
+%type <test> simple_test
+%type <test> test
+%type <test> value_test
 
+%type <test_list> simple_test_list
+
+%type <test_type> relation
+
+%type <negated> opt_negated;
+%type <acceptable> opt_acceptable;
+
+%type <rhs_value> rhs_variable
 %type <rhs_value> rhs_value
 %type <action> preference_specifier;
 %type <action_list> preference_specifier_list;
@@ -91,21 +153,9 @@ struct condition_list {
 %type <symbol> single_test
 
 %type <symbol_list> constants
-
-%type <test> attr_test
-%type <test> conjunctive_test
-%type <test> disjunction_test
-%type <test> relational_test
-%type <test> simple_test
-%type <test> test
-%type <test> value_test
-
-%type <test_list> simple_test_list
-
-%type <test_type> relation
 %%
 
-rule: lhs ARROW rhs
+rule: name lhs ARROW rhs
     {
         struct parser* parser =
             (struct parser*) yyparse_param;
@@ -116,8 +166,21 @@ rule: lhs ARROW rhs
         production->conditions =
             (struct condition*) malloc(sizeof(struct condition));
 
-        *(production->conditions) = $1;
-        production->actions = $3;
+        *(production->conditions) = $2;
+        production->actions = $4;
+    }
+    ;
+
+name: NAME
+    {
+        struct parser* parser = 
+            (struct parser*) yyparse_param;
+
+        parser->parsed_name = 1;
+
+#ifdef DEBUG
+        parser->production->name = strdup($1);
+#endif
     }
     ;
 
@@ -133,6 +196,10 @@ lhs: cond cond_list
 
        cond->next = $2;
        $$ = $1;
+
+       /* XXX at this point, we should verify that the rule's
+          conditions form a tree, not a forest. (In other words, check
+          that there are no `disconnected' tests.) */
    }
    ;
 
@@ -272,10 +339,11 @@ attr_value_test_list: /* empty */
                     }
                     ;
 
-attr_value_test: opt_negated '^' attr_test dot_attr_list value_test
+attr_value_test: opt_negated '^' attr_test dot_attr_list value_test opt_acceptable
                {
                    /* XXX is this sufficient to handle negation? */
                    $$.type = $1 ? condition_type_negative : condition_type_positive;
+                   $$.acceptable = $6;
                    $$.data.simple.id_test.type = test_type_blank;
                    $$.data.simple.attr_test = $3;
                    $$.data.simple.value_test = $5;
@@ -302,15 +370,13 @@ dot_attr_list: /* empty */
 attr_test: test
          ;
 
-value_test: test opt_acceptable
+value_test: test
           ;
 
 opt_acceptable: /* empty */
+              { $$ = 0; }
               | '+'
-              {
-                  /* XXX */
-                  UNIMPLEMENTED();
-              }
+              { $$ = 1; }
               ;
 
 test: conjunctive_test
@@ -403,6 +469,31 @@ relation: /* empty */
         ;
 
 single_test: VARIABLE
+           {
+               /* Note that the variable appears in the LHS. */
+               struct parser* parser =
+                   (struct parser*) yyparse_param;
+
+               struct symbol_list* entry;
+               struct symbol_list** link;
+
+               for (entry = parser->lhs_vars, link = &parser->lhs_vars;
+                    entry != 0;
+                    link = &entry->next, entry = entry->next) {
+                   if (SYMBOLS_ARE_EQUAL(entry->symbol, $1))
+                       break;
+               }
+
+               if (! entry) {
+                   entry = (struct symbol_list*) malloc(sizeof(struct symbol_list));
+                   entry->symbol = $1;
+                   entry->next   = 0;
+
+                   *link = entry;
+               }
+
+               $$ = $1;
+           }
            | constant
            ;
 
@@ -430,7 +521,7 @@ rhs_action_list: /* empty */
                }
                ;
 
-rhs_action: '(' VARIABLE attr_value_make_list ')'
+rhs_action: '(' rhs_variable attr_value_make_list ')'
           {
               struct parser* parser =
                   (struct parser*) yyparse_param;
@@ -443,10 +534,8 @@ rhs_action: '(' VARIABLE attr_value_make_list ')'
                   YYERROR;
 
               /* Fill in the `id' slot for each of the actions */
-              for ( ; action != 0; action = action->next) {
-                  action->id.type = rhs_value_type_symbol;
-                  action->id.val.symbol = $2;
-              }
+              for ( ; action != 0; action = action->next)
+                  action->id = $2;
 
               $$ = $3;
           }
@@ -582,17 +671,67 @@ preference_specifier: '+'
                     { $$.preference_type = preference_type_worst; } %prec
                     ;
 
-rhs_value: VARIABLE
-         {
-             $$.type = rhs_value_type_symbol;
-             $$.val.symbol = $1;
-         }
+rhs_value: rhs_variable
          | constant
          {
              $$.type = rhs_value_type_symbol;
              $$.val.symbol = $1;
          }
          ;
+
+rhs_variable: VARIABLE
+            {
+                struct parser* parser =
+                    (struct parser*) yyparse_param;
+
+                struct symbol_list* entry;
+
+                /* Is this a bound variable from the lhs? */
+                for (entry = parser->lhs_vars; entry != 0; entry = entry->next) {
+                    if (SYMBOLS_ARE_EQUAL(entry->symbol, $1))
+                        break;
+                }
+
+                if (entry) {
+                    /* Yep, it's bound in the LHS. */
+                    $$.type = rhs_value_type_symbol;
+                    $$.val.symbol = $1;
+                }
+                else {
+                    /* It's unbound */
+                    unsigned index = 0;
+                    struct symbol_list** link;
+
+                    $$.type = rhs_value_type_unbound_variable;
+
+                    /* Is it an unbound RHS variable we already know
+                       about? */
+                    for (entry = parser->rhs_unbound_vars, link = &parser->rhs_unbound_vars;
+                         entry != 0;
+                         link = &entry->next, entry = entry->next) {
+                        if (SYMBOLS_ARE_EQUAL(entry->symbol, $1))
+                            break;
+
+                        ++index;
+                    }
+
+                    if (! entry) {
+                        /* Nope, we've never seen this variable
+                           before. Remember it. */
+                        ++parser->production->num_unbound_vars;
+
+                        entry = (struct symbol_list*) malloc(sizeof(struct symbol_list));
+                        entry->symbol = $1;
+                        entry->next = 0;
+
+                        *link = entry;
+                    }
+
+                    /* Whether new or not, `index' will contain the
+                       proper index for the unbound variable. */
+                    $$.val.unbound_variable = index;
+                }
+            }
 
 
 /*
@@ -609,7 +748,8 @@ constants: /* empty */
              new_entry->symbol = $2;
              new_entry->next = 0;
 
-             /* XXX do we care if these are maintained in order? */
+             /* XXX do we care if these are maintained in order? If
+                not, no need to walk the list. */
              if ($1) {
                  struct symbol_list* entry = $1;
                  while (entry->next)
