@@ -106,9 +106,12 @@ typedef struct variable_binding {
  * Preferences
  */
 
+#define SUPPORT_TYPE_BITS    2
+#define PREFERENCE_TYPE_BITS (BITS_PER_WORD - SUPPORT_TYPE_BITS)
+
 typedef enum preference_type {
-    preference_type_unary              =  0,
-    preference_type_binary             = -1,
+    preference_type_unary              = 0,
+    preference_type_binary             = 0 - (1 << (PREFERENCE_TYPE_BITS - 1)),
 
     preference_type_acceptable         = preference_type_unary + 0,
     preference_type_reject             = preference_type_unary + 1,
@@ -119,14 +122,10 @@ typedef enum preference_type {
     preference_type_prohibit           = preference_type_unary + 6,
     preference_type_require            = preference_type_unary + 7,
 
-    preference_type_binary_indifferent = preference_type_binary - 0,
-    preference_type_better             = preference_type_binary - 1,
-    preference_type_worse              = preference_type_binary - 2
+    preference_type_binary_indifferent = preference_type_binary + 0,
+    preference_type_better             = preference_type_binary + 1,
+    preference_type_worse              = preference_type_binary + 2
 } preference_type_t;
-
-#define SUPPORT_TYPE_BITS    2
-#define PREFERENCE_TYPE_BITS (BITS_PER_WORD - SUPPORT_TYPE_BITS)
-
 
 typedef enum support_type {
     support_type_isupport     = 0,
