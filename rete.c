@@ -1437,7 +1437,7 @@ rete_add_production(struct agent* agent, struct production* p)
             break;
 
         case condition_type_negative:
-            child = ensure_negative_condition_node(agent, cond, depth, parent, &bindings);
+            child = ensure_negative_condition_node(agent, cond, ++depth, parent, &bindings);
             break;
 
         case condition_type_conjunctive_negation:
