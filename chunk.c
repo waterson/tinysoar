@@ -51,6 +51,7 @@
 #endif
 
 #define DEBUG_CHUNKING
+#undef  SOAR_STRICT_COMPATIBILITY /* Define to avoid same-type restrictions in chunks. */
 
 struct preference_list {
     struct preference      *preference;
@@ -58,8 +59,15 @@ struct preference_list {
 };
 
 struct token_list {
-    struct token      *token;
-    struct token_list *next;
+    struct token          *token;
+    struct token_list     *next;
+};
+
+struct restriction {
+    test_type_t         type;
+    symbol_t            value;
+    symbol_t            referent;
+    struct restriction *next;
 };
 
 struct instantiation_list {
@@ -71,6 +79,7 @@ struct chunk {
     struct token_list         *grounds;
     struct token_list         *potentials;
     struct token_list         *nots;
+    struct restriction        *restrictions;
     struct instantiation_list *visited;
     int                        level;
     bool_t                     justification;
@@ -521,6 +530,87 @@ create_negative_node(struct agent                  *agent,
 }
 
 /*
+ * Return the field in the token that contains the specified value.
+ */
+static field_t
+get_field_with_value(struct token *token, symbol_t val)
+{
+    if (SYMBOLS_ARE_EQUAL(token->wme->slot->id, val))
+        return field_id;
+
+    if (SYMBOLS_ARE_EQUAL(token->wme->slot->attr, val))
+        return field_attr;
+
+    ASSERT(SYMBOLS_ARE_EQUAL(token->wme->value, val),
+           ("expected referent's value to match token!"));
+
+    return field_value;
+}
+
+/*
+ * See if we can apply any of the chunk's restrictions at the current
+ * node.
+ */
+static void
+apply_restrictions(struct chunk                 *chunk,
+                   struct variable_binding_list *bindings,
+                   struct token                 *token,
+                   struct beta_node             *node)
+{
+    struct restriction **link, *restriction;
+
+    do {
+        for (link = &chunk->restrictions; (restriction = *link) != 0; link = &restriction->next) {
+            variable_binding_t *value = get_variable_binding(bindings, restriction->value);
+
+            if (value) {
+                struct beta_test *test;
+                relational_type_t relational_type = relational_type_constant;
+
+                /* If the restriction's referent is an identifier,
+                   then we can only apply the restriction if we've
+                   bound the identifier at this node. */
+                if (GET_SYMBOL_TYPE(restriction->referent) == symbol_type_identifier) {
+                    if (! get_variable_binding(bindings, restriction->referent))
+                        continue;
+
+                    relational_type = relational_type_variable;
+                }
+
+                /* We have enough information to apply the restriction
+                   at this point. Augment the node with an additional
+                   test, and remove the restriction from the chunk. */
+
+#ifdef DEBUG_CHUNKING
+                printf("applying restriction: %s %s %s\n",
+                       debug_symbol_to_string(&symtab, restriction->value),
+                       debug_test_type_to_string(restriction->type),
+                       debug_symbol_to_string(&symtab, restriction->referent));
+#endif
+
+                test = (struct beta_test *) malloc(sizeof(struct beta_test));
+                test->type = restriction->type;
+                test->relational_type = relational_type;
+
+                test->field = get_field_with_value(token, restriction->value);
+
+                if (relational_type == relational_type_constant)
+                    test->data.constant_referent = restriction->referent;
+                else
+                    test->data.variable_referent = *value;
+
+                test->next = node->data.tests;
+
+                node->data.tests = test;
+
+                *link = restriction->next;
+                free(restriction);
+            }
+        }
+    } while (restriction);
+}
+
+/*
  * Build the production from the grounds, the `nots', and the results.
  */
 static void
@@ -643,6 +733,9 @@ make_production(struct agent           *agent,
                 support = support_type_osupport;
             }
         }
+
+        /* See if we can apply any of the restrictions. */
+        apply_restrictions(chunk, bindings, tokens->token, node);
 
         /* Propagate tokens downward. */
         rete_initialize_matches(agent, memory, parent);
@@ -781,6 +874,105 @@ add_to_grounds(struct token_list **link, struct token_list *ground)
 }
 
 /*
+ * Recursively scan the test list, adding any restrictions that may
+ * apply to the chunk.
+ */
+void
+collect_restrictions(struct restriction **link,
+                     struct token        *token,
+                     struct beta_test    *test)
+{
+    for ( ; test != 0; test = test->next) {
+        switch (test->type) {
+        case test_type_less:
+        case test_type_greater:
+        case test_type_less_or_equal:
+        case test_type_greater_or_equal:
+            /* XXX All these test types probably don't matter, because
+               the chunk won't generalize the numeric values. But do
+               them anyway, I guess? */
+
+#ifndef SOAR_STRICT_COMPATIBILITY
+        case test_type_same_type:
+            /* XXX Note that Soar8 doesn't actually handle this case,
+               and won't add this restriction to a chunk. */
+#endif
+
+        case test_type_not_equal: {
+            struct restriction *restriction;
+            symbol_t value, referent;
+
+            /* Resolve the value. */
+            switch (test->field) {
+            case field_id:    value = token->wme->slot->id;   break;
+            case field_attr:  value = token->wme->slot->attr; break;
+            case field_value: value = token->wme->value;      break;
+            }
+
+            /* Resolve the referent. */
+            referent = (test->relational_type == relational_type_variable)
+                ? rete_get_variable_binding(test->data.variable_referent, token)
+                : test->data.constant_referent;
+
+            /* Check for duplicates. */
+            for (restriction = *link;
+                 restriction != 0;
+                 restriction = restriction->next) {
+                if (restriction->type == test->type) {
+                    if ((restriction->value == value &&
+                         restriction->referent == referent) ||
+                        (restriction->value == referent &&
+                         restriction->referent == value)) {
+                        break;
+                    }
+                }
+            }
+
+            if (! restriction) {
+#ifdef DEBUG_CHUNKING
+                printf("collected restriction: %s %s %s\n",
+                       debug_symbol_to_string(&symtab, value),
+                       debug_test_type_to_string(test->type),
+                       debug_symbol_to_string(&symtab, referent));
+#endif
+
+                restriction = malloc(sizeof(struct restriction));
+
+                restriction->type     = test->type;
+                restriction->value    = value;
+                restriction->referent = referent;
+                restriction->next     = *link;
+
+                *link = restriction;
+            }
+
+            break;
+        }
+
+        case test_type_disjunctive:
+            /* Recursively copy the disjuncts.
+               XXX but won't these be effectively added as conjuncts? */
+            collect_restrictions(link, token, test->data.disjuncts);
+            break;
+
+        case test_type_conjunctive:
+        case test_type_blank:
+            ERROR(("unexpected test"));
+            /* Fall through here to make case generation easier on the
+               compiler. */
+
+#ifdef SOAR_STRICT_COMPATIBILITY
+        case test_type_same_type:
+#endif
+        case test_type_equality:
+        case test_type_goal_id:
+            /* Do nothing. */
+            break;
+        }
+    }
+}
+
+/*
  * Collect tokens from the specified instantiation. Add each token
  * either to the grounds or to the potentials. Move any potentials to
  * the grounds set that have become reachable from the grounds.
@@ -814,6 +1006,7 @@ collect(struct agent          *agent,
         struct wme *wme = token->wme;
         struct token_list *entry, **link;
 
+        /* If this token is already in the grounds, then skip it. */
         if (token_list_contains(chunk->grounds, token))
             continue;
 
@@ -823,6 +1016,8 @@ collect(struct agent          *agent,
         if (wme) {
             if ((agent_get_id_level(agent, wme->slot->id) < chunk->level)
                 && agent_is_goal(agent, wme->slot->id)) {
+                /* This condition tested a token for a higher-level
+                   goal. Add it to the grounds immediately. */
                 add_to_grounds(&chunk->grounds, entry);
 #ifdef DEBUG_CHUNKING
                 printf("  grounds += ");
@@ -832,19 +1027,26 @@ collect(struct agent          *agent,
                 continue;
             }
 
+            /* This condition tested something at the current goal
+               level. Collect restrictions from the node's tests. */
+            collect_restrictions(&chunk->restrictions, token,
+                                 token->node->parent->data.tests);
+
+            /* Add it to the potentials and backtrace it. */
             link = &chunk->potentials;
         }
         else if (token->parent
                  && token->parent->node->type == beta_node_type_negative
                  && !token_list_contains(chunk->nots, token)) {
+            /* This is a negative condition; add it to the nots. */
             link = &chunk->nots;
         }
         else {
             /* XXX why would we reach this? */
 #ifdef DEBUG_CHUNKING
-            printf("dropping ");
+            printf("(dropping ");
             debug_dump_token(&symtab, token);
-            printf(" on the floor.\n");
+            printf(" on the floor.)\n");
 #endif
             free(entry);
             continue;
@@ -940,9 +1142,9 @@ backtrace(struct agent *agent, struct chunk *chunk)
 #ifdef DEBUG_CHUNKING
                     printf("backtracing ");
                     debug_dump_wme(&symtab, wme);
-                    printf(" through ");
+                    printf(" through `");
                     debug_dump_preference(&symtab, pref);
-                    printf("\n");
+                    printf("'\n");
 #endif
 
                     /* This will push any new potentials to the start
@@ -973,6 +1175,7 @@ chunk(struct agent           *agent,
     chunk.grounds       = 0;
     chunk.potentials    = 0;
     chunk.nots          = 0;
+    chunk.restrictions  = 0;
     chunk.visited       = 0;
     chunk.level         = level;
     chunk.justification = 0;
@@ -1013,6 +1216,13 @@ chunk(struct agent           *agent,
     while (chunk.nots) {
         struct token_list *doomed = chunk.nots;
         chunk.nots = chunk.nots->next;
+        free(doomed);
+    }
+
+    /* Free any of the restrictions that weren't used in the chunk. */
+    while (chunk.restrictions) {
+        struct restriction *doomed = chunk.restrictions;
+        chunk.restrictions = chunk.restrictions->next;
         free(doomed);
     }
 }
