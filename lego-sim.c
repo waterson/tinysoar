@@ -65,7 +65,7 @@ sync_motor(unsigned motor, const unsigned char pattern[])
     struct wme *wme;
     symbol_t sym_output_link;
     symbol_t sym_motor_n;
-    motor_direction_t direction;
+    motor_direction_t direction = motor_direction_off;
 
     MAKE_SYMBOL(sym_output_link, symbol_type_identifier, 4 /*XXX*/);
     MAKE_SYMBOL(sym_motor_n, symbol_type_symbolic_constant, motor);
@@ -88,9 +88,6 @@ sync_motor(unsigned motor, const unsigned char pattern[])
         wme = wme->next;
     }
 
-    if (! wme)
-        direction = motor_direction_off;
-
     printf("direction = %08x\n", direction);
 }
 
@@ -102,14 +99,14 @@ main(int argc, char *argv[])
     heap_init(addrs, sizeof addrs / sizeof addrs[0]);
     agent_init(&agent);
 
-    while (1) {
+    do {
         agent_elaborate(&agent);
 
         sync_motor(SYM_MOTOR_A, dm_a_pattern);
         sync_motor(SYM_MOTOR_C, dm_c_pattern);
 
         sync_sensor_1(&sensor_1_pref);
-    }
+    } while (1);
 }
 
 const char *
