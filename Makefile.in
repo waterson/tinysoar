@@ -67,7 +67,7 @@ tinysoar.so: $(TINYSOAR_OBJS) $(PARSER_OBJS) $(RUNTIME_OBJS) $(SHARED_OBJS)
 	$(CC) -shared -o $@ $^ -ltcl
 
 clean:
-	rm -rf .deps rete-test parser-test tinysoar.so y.tab.* lex.yy.c *.o *~
+	rm -rf .deps rete-test parser-test tinysoar.so y.tab.* lex.yy.c *.o core *~
 
 distclean: clean
 	rm -f Makefile config.cache config.log config.status defs.h
