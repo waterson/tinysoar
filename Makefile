@@ -1,8 +1,10 @@
+ifdef BUILD_OPT
+# Optimized
+CFLAGS=-Wall -O -UDEBUG -DNDEBUG
+else
 # Debug
 CFLAGS=-Wall -g -DDEBUG -UNDEBUG
-
-# Optimized
-#CFLAGS=-Wall -O -UDEBUG -DNDEBUG
+endif
 
 MDDEPDIR=.deps
 
