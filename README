@@ -114,7 +114,7 @@ e.g., /usr/src/tinysoar/h8300-hitachi-hms.
 
   $ cd /usr/src/tinysoar/h8300-hitachi-hms
   $ CFLAGS="-O2 -fomit-frame-pointer" ../tinysoar/configure \
-  > --target=h8300-hitachi-hms --with-sizeof-int=2
+  > --target=h8300-hitachi-hms --with-sizeof-int=2 --without-rete-create
 
 Then, build the target environment:
 
