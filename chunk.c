@@ -914,6 +914,8 @@ collect_restrictions(struct restriction **link,
             case field_id:    value = token->wme->slot->id;   break;
             case field_attr:  value = token->wme->slot->attr; break;
             case field_value: value = token->wme->value;      break;
+            default:
+                UNREACHABLE();
             }
 
             /* Resolve the referent. */
@@ -1366,6 +1368,7 @@ chunk_if_results(struct agent         *agent,
     struct preference_list *results;
     struct preference *pref;
 
+    /* Collect the results. */
     results = 0;
     for (pref = inst->preferences; pref != 0; pref = pref->next_in_instantiation)
         append_if_result(agent, &results, level, pref);
