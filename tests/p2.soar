@@ -1,6 +1,20 @@
 package require TinySoar;
-sp {propose*move-forward
+sp {propose*find-line
     (state <s> ^superstate nil -^found-line t)
     -->
     (<s> ^operator <o> +)
-    (<o> ^name move-forward)}
+    (<o> ^name find-line)}
+
+
+sp {implement*find-line*move-forward
+    (state <s> ^operator <o> ^io <io>)
+    (<o> ^name find-line)
+    (<io> ^output-link <out>)
+    -->
+    (<out> ^motor-a 100 ^motor-c 100)}
+
+sp {find-line*reconsider
+    (state <s> ^operator <o>)
+    (<o> ^name find-line)
+    -->
+    (<s> ^operator <o> @)}
