@@ -11,10 +11,12 @@
 #include "alloc.h"
 #include "config.h"
 
-#if SIZEOF_INT >= 4
+#if SIZEOF_INT == 4
 #  define GOLDEN_RATIO 0x9E3779B9U
+#elif SIZEOF_INT == 2
+#  define GOLDEN_RATIO 0x9E37U
 #else
-#  define GOLDEN_RATIO 0x79B9U /* XXX is this right? */
+#  error "unsupported integer size"
 #endif
 
 /* The minimum number of buckets we'll allow a hashtable to have */
