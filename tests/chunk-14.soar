@@ -1,9 +1,7 @@
-# This test backs off from chunk-7.soar: specifically, we verify that
-# we'll include the tests in onc*build-chunk in the final chunk that's
-# built.
+# Here's a basic test of data chunking.
 
 package require TinySoar
-set cycles {4 4}
+set cycles {5 5}
 
 sp {top-state*elaborate
     (state <s> ^superstate nil)
@@ -58,11 +56,8 @@ sp {top-state*recognize*success
 
 set post {string compare [print chunk-1] \
 "chunk-1
-(state <v1> ^operator <v2> +)
-(<v1> ^operator { <v3> <> <v2> } +)
-(<v2> ^name one)
-(<v3> ^name two)
-(<v2> ^value 1)
-(<v3> ^value 2)
+(state <v1> ^stimulus one)
 -->
-(<v1> ^operator <v2> > <v3>)"}
+(<v1> ^operator <v2> +)
+(<v2> ^name response +)
+(<v2> ^value two +)"}
