@@ -34,18 +34,11 @@
  */
 
 /*
-
-  Working Memory
-
-
-  TO DO
-  -----
-
-  . Implement operator preference semantics (better, best, etc.)
-
-  . wmem_add_preference() needs to take a referent!
-
-*/
+ * Working Memory.
+ *
+ * TODO
+ * . wmem_add_preference() needs to take a referent!
+ */
 
 #include "soar.h"
 #include "alloc.h"

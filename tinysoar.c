@@ -34,15 +34,8 @@
  */
 
 /*
-
-  Tcl Interface
-
-  TODO
-
-  . Implement a `preferences' command that'll both display preferences
-    and let you whack 'em in (for testing and stuff).
-
-*/
+ * Tcl Interface.
+ */
 
 #include "tcl.h"
 #include "soar.h"

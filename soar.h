@@ -33,6 +33,9 @@
  *
  */
 
+/*
+ * Definitions common to most of the TinySoar code.
+ */
 #ifndef soar_h__
 #define soar_h__
 
@@ -301,7 +304,6 @@ struct rhs_value {
 /*
  * Actions
  */
-
 struct action {
     struct action    *next;
     preference_type_t preference_type;
@@ -334,7 +336,6 @@ struct production {
 /*
  * Alpha Memory
  */
-
 struct alpha_node {
     symbol_t id;
     symbol_t attr;

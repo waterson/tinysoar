@@ -1,5 +1,10 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
+Monday, December 17, 2001
+
+Added license headers, tidied up comments a bit.
+
+
 Sunday, December 16, 2001
 
 Got a proper run-loop for the RCX; i.e., one that actually pays

@@ -33,6 +33,9 @@
  *
  */
 
+/*
+ * A simple symbol table implementation.
+ */
 #ifndef symtab_h__
 #define symtab_h__
 

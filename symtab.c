@@ -33,6 +33,9 @@
  *
  */
 
+/*
+ * A simple symbol table implementation.
+ */
 #include "soar.h"
 #include "symtab.h"
 #include <stdlib.h>
