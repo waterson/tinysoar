@@ -782,13 +782,22 @@ do_left_addition(struct rete* net, struct beta_node* node, struct token* token, 
         }
         break;
 
+    case beta_node_type_production:
+        {
+            struct token* new_token = create_token(net, node, token, wme);
+            /* XXX uh, add to match set buffer? */
+        }
+        break;
+
     case beta_node_type_memory_positive_join:
     case beta_node_type_negative:
-    case beta_node_type_root:
     case beta_node_type_conjunctive_negative:
     case beta_node_type_conjunctive_negative_partner:
-    case beta_node_type_production:
         assert(0); /* XXX write me! */
+        break;
+
+    case beta_node_type_root:
+        assert(0); /* can't get left addition on this node */
         break;
     }
 }
