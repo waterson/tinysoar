@@ -34,11 +34,20 @@ typedef unsigned char bool_t;
 #  define UNIMPLEMENTED() ASSERT(0, ("unimplemented"))
 #  define UNREACHABLE()   ASSERT(0, ("unreachable"))
 
+#  ifdef _WIN32
+#    include <crtdbg.h>
+#    define VERIFY_HEAP() ASSERT(_CrtCheckMemory(), ("heap corruption"))
+#  endif
+
 #else
 #  define ASSERT(cond, args)
 #  define ERROR(args)
 #  define UNIMPLEMENTED()
 #  define UNREACHABLE()
+#endif
+
+#ifndef VERIFY_HEAP
+#define VERIFY_HEAP()
 #endif
 
 #endif /* config_h__ */

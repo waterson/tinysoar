@@ -1,5 +1,4 @@
 CFLAGS=/nologo /W3 /DWINDOWS
-LFLAGS=/nologo
 LINK=link
 
 # for debugging the rule grammar
@@ -11,7 +10,7 @@ CFLAGS=$(CFLAGS) /DYYDEBUG=1
 CFLAGS=$(CFLAGS) /O1 /DNDEBUG /UDEBUG
 LFLAGS=$(LFLAGS)
 !else
-CFLAGS=$(CFLAGS) /Zi /Od /UNDEBUG /DDEBUG
+CFLAGS=$(CFLAGS) /Zi /Od /UNDEBUG /DDEBUG /MDd
 LFLAGS=$(LFLAGS) /debug
 !endif
 
