@@ -60,9 +60,20 @@ symbol_to_string(symbol_t symbol)
 static void
 dump_wme(struct wme* wme)
 {
-    printf("%p(%s ", wme, symbol_to_string(wme->slot->id));
+    printf("wme@%p(%s ", wme, symbol_to_string(wme->slot->id));
     printf("^%s ", symbol_to_string(wme->slot->attr));
     printf("%s)", symbol_to_string(wme->value));
+}
+
+static void
+dump_token(struct token* token)
+{
+    printf("token@%p<parent=%p wme=", token, token->parent);
+    if (token->wme)
+        dump_wme(token->wme);
+    else
+        printf("(null)");
+    printf(">");
 }
 
 static void
@@ -104,14 +115,16 @@ dump_test(struct beta_test* test)
     case test_type_disjunctive:
         {
             struct beta_test* disjunct = test->data.disjuncts;
-            printf("( ");
             while (disjunct) {
+                printf("( ");
                 dump_test(disjunct);
-                if (disjunct->next)
-                    printf(" || ");
+                printf(")");
+
                 disjunct = disjunct->next;
+
+                if (disjunct)
+                    printf(" || ");
             }
-            printf(")");
         }
         return;
 
@@ -147,11 +160,11 @@ dump_test(struct beta_test* test)
 }
 
 static void
-dump_beta_node(struct beta_node* node, int nest)
+dump_beta_node(struct beta_node* node, int nest, int recur)
 {
     indent_by(nest);
 
-    printf("%p", node);
+    printf("beta-node@%p", node);
 
     switch (node->type) {
     case beta_node_type_memory:
@@ -187,68 +200,73 @@ dump_beta_node(struct beta_node* node, int nest)
         break;
     }
 
+    printf("<parent=%p", node->parent);
+
     switch (node->type) {
     case beta_node_type_positive_join:
     case beta_node_type_memory_positive_join:
     case beta_node_type_negative:
         {
-            struct beta_test* test = node->data.tests;
-            while (test) {
+            struct beta_test* test;
+            printf(" tests={");
+            for (test = node->data.tests; test != 0; test = test->next) {
                 printf(" ");
                 dump_test(test);
-                test = test->next;
             }
+            printf(" }");
         }
         break;
 
     case beta_node_type_production:
 #ifdef DEBUG
-        printf(" %s", node->data.production->name);
+        printf(" name=%s", node->data.production->name);
 #endif
         break;
     }
 
-    printf("\n");
+    printf(">\n");
 
-    switch (node->type) {
-    case beta_node_type_memory:
-    case beta_node_type_memory_positive_join:
-    case beta_node_type_negative:
-    case beta_node_type_production:
-        {
-            /* dump tokens at the node */
-            struct token* token;
-            for (token = node->tokens; token != 0; token = token->next) {
-                indent_by(nest + 2);
-                printf("+ ");
-                dump_wme(token->wme);
-                printf("\n");
+    if (recur) {
+        switch (node->type) {
+        case beta_node_type_memory:
+        case beta_node_type_memory_positive_join:
+        case beta_node_type_negative:
+        case beta_node_type_production:
+            {
+                /* dump tokens at the node */
+                struct token* token;
+                for (token = node->tokens; token != 0; token = token->next) {
+                    indent_by(nest + 2);
+                    printf("+ ");
+                    dump_token(token);
+                    printf("\n");
+                }
             }
+
+        default:
+            break;
         }
 
-    default:
-        break;
-    }
-
-    switch (node->type) {
-    case beta_node_type_negative:
-        {
-            /* dump blockers at the node */
-            struct token* token;
-            for (token = node->blockers; token != 0; token = token->next) {
-                indent_by(nest + 2);
-                printf("x ");
-                dump_wme(token->wme);
-                printf("\n");
+        switch (node->type) {
+        case beta_node_type_negative:
+            {
+                /* dump blocked tokens at the node */
+                struct token* token;
+                for (token = node->blocked; token != 0; token = token->next) {
+                    indent_by(nest + 2);
+                    printf("x ");
+                    dump_token(token);
+                    printf("\n");
+                }
             }
+
+        default:
+            break;
         }
 
-    default:
-        break;
+        for (node = node->children; node != 0; node = node->siblings)
+            dump_beta_node(node, nest + 1, 1);
     }
-
-    for (node = node->children; node != 0; node = node->siblings)
-        dump_beta_node(node, nest + 1);
 }
 
 /*
@@ -258,33 +276,35 @@ static int
 dump_rete_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
 {
     int i;
+
+    printf("\nALPHA NETWORK\n");
     for (i = 0; i < 16; ++i) {
         struct alpha_node* alpha = agent.alpha_nodes[i];
         while (alpha) {
-            struct beta_node* beta = alpha->children;
-            struct right_memory* rm = alpha->right_memories;
+            struct beta_node* beta;
+            struct right_memory* rm;
 
             printf("%s ", symbol_to_string(alpha->id));
             printf("^%s ", symbol_to_string(alpha->attr));
             printf("%s\n", symbol_to_string(alpha->value));
 
-            while (rm) {
+            for (rm = alpha->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
                 indent_by(2);
                 printf("+ ");
                 dump_wme(rm->wme);
                 printf("\n");
-
-                rm = rm->next_in_alpha_node;
             }
 
-            while (beta) {
-                dump_beta_node(beta, 1);
-                beta = beta->siblings;
-            }
+            for (beta = alpha->children; beta != 0; beta = beta->siblings)
+                dump_beta_node(beta, 1, 0);
 
             alpha = alpha->siblings;
         }
     }
+
+    printf("\nBETA NETWORK\n");
+    dump_beta_node(&agent.root_node, 0, 1);
+    printf("\n");
 
     return TCL_OK;
 }
