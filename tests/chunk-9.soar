@@ -1,11 +1,9 @@
-# This tests a couple things. First, it determines whether or not we
-# can backtrace through an attribute that's created by the
-# architecture; namely, the `^item' attribute. Second, it tests
-# whether or not we'll pick up the not-equal test when creating the
-# chunk.
+# This test backs off from chunk-7.soar: specifically, we verify that
+# we'll include the tests in onc*prefer*one in the final chunk that's
+# built.
 
-package require TinySoar;
-set cycles {3 4}
+package require TinySoar
+set cycles {4 4}
 
 sp {propose*one*two
     (state <s> ^superstate nil)
@@ -20,17 +18,23 @@ sp {implement*one
     (<out> ^success t)}
 
 sp {onc*prefer*one
-    (state <s> ^item <o1> ^item { <o2> <> <o1> } ^superstate <ss>)
+    (state <s> ^superstate <ss>)
+    (<ss> ^operator <o1> + ^operator { <o2> <> <o1> } +)
     (<o1> ^name one)
     (<o2> ^name two)
+    -->
+    (<s> ^prefer <o1> ^over <o2>)}
+
+sp {onc*build-chunk
+    (state <s> ^superstate <ss> ^prefer <o1> ^over <o2>)
     -->
     (<ss> ^operator <o1> > <o2>)}
 
 set post {string compare [print chunk-1] \
 "chunk-1
 (state <v1> ^operator <v2> +)
-(<v2> ^name one)
 (<v1> ^operator { <v3> <> <v2> } +)
+(<v2> ^name one)
 (<v3> ^name two)
 -->
 (<v1> ^operator <v2> > <v3>)"}
