@@ -79,7 +79,6 @@ $(BASE_LIBNAME): $(BASE_OBJS)
 RUNTIME		= rt
 RUNTIME_LIBNAME	= lib$(RUNTIME).a
 RUNTIME_OBJS 	= \
-		alloc.o \
 		agent.o \
 		rete.o \
 		wmem.o \
@@ -131,8 +130,20 @@ tinysoar.so: tinysoar.c libtinysoar.a $(PARSER_LIBNAME) $(RUNTIME_LIBNAME) $(BAS
 # A Soar agent from the Lego RCX.
 #
 
-lego.o: lego.c agent.inc
+LEGO_OBJS = \
+	alloc.o \
+	lego.o \
+	$(NULL)
 
-lego: lego.o $(RUNTIME_LIBNAME) $(BASE_LIBNAME)
-	$(CC) $< -nostdlib -Wl,-T$(srcdir)/h8300.lds -o $@ -L. -l$(RUNTIME) -l$(BASE) -lgcc
+lego: $(LEGO_OBJS) $(RUNTIME_LIBNAME) $(BASE_LIBNAME)
+	$(CC) $(LEGO_OBJS) -nostdlib -Wl,-Map -Wl,lego.map -Wl,-T$(srcdir)/h8300.lds -o $@ -L. -l$(RUNTIME) -l$(BASE) -lgcc
 
+LEGO_SIM_OBJS = \
+	alloc.o \
+	lego-sim.o \
+	$(NULL)
+
+lego-sim: $(LEGO_SIM_OBJS) $(RUNTIME_LIBNAME) $(BASE_LIBNAME)
+	$(CC) $(LEGO_SIM_OBJS) -o $@ -L. -l$(RUNTIME) -l$(BASE)
+
+test-alloc: test-alloc.c alloc.o debug.o
