@@ -417,12 +417,12 @@ do_left_removal(struct agent     *agent,
                    held by its child. */
                 *link = doomed->next;
 
-                if (! token_saved)
-                    free(doomed);
-                else {
+                if (token_saved) {
                     token->shared = 1;
                     doomed->next = 0;
                 }
+                else
+                    free(doomed);
 
                 break;
             }
@@ -481,12 +481,12 @@ do_left_removal(struct agent     *agent,
                        being held by its child. */
                     *link = doomed->next;
 
-                    if (! token_saved)
-                        free(doomed);
-                    else {
+                    if (token_saved) {
                         doomed->next = 0;
                         token->shared = 1;
                     }
+                    else
+                        free(doomed);
 
                     break;
                 }
@@ -522,8 +522,15 @@ do_left_removal(struct agent     *agent,
                we need to retract */
             struct instantiation *inst;
             for (inst = node->data.production->instantiations; inst != 0; inst = inst->next) {
-                if ((inst->token->wme == wme) && (inst->token->parent == token)) {
-                    /* See if this match is already on the retraction queue */
+                if (inst->token
+                    && (inst->token->wme == wme)
+                    && (inst->token->parent == token)) {
+                    /* See if this match is already on the retraction queue. */
+                    /* XXX Couldn't we just remove that instantiation
+                       from the production immediately so we don't
+                       need to check for existence on the retraction
+                       queue? (Would also eliminate `inst->token'
+                       test, above.) */
                     for (match = agent->retractions; match != 0; match = match->next) {
                         if (match->data.instantiation == inst)
                             break;
@@ -571,12 +578,12 @@ do_left_removal(struct agent     *agent,
                 if ((doomed->wme == wme) && (doomed->parent == token)) {
                     *link = doomed->next;
 
-                    if (! token_saved)
-                        free(doomed);
-                    else {
+                    if (token_saved) {
                         token->shared = 1;
                         doomed->next = 0;
                     }
+                    else
+                        free(doomed);
 
                     break;
                 }
