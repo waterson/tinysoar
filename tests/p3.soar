@@ -1,0 +1,6 @@
+package require TinySoar;
+
+sp {test-integer-comparison
+    (state <s> ^foo > 10)
+    -->
+    (<s> ^matched t)}
