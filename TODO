@@ -8,12 +8,6 @@
     we don't need to for chunking or some other reason. Plus, this
     would get a fair bit of code _out_ of rete.c)
 
-(5) Implement |resolve_operator_tie()|, which I think (at this point)
-    should probably be renamed to something like ``implement operator
-    preference semantics''.
-
-(6) Implement operator no-change.
-
 (7) Implement ``dot attribute'' notation for conditions in rule.y.
 
 (8) Implement conjunctive negative conditions.
@@ -21,4 +15,16 @@
 (9) Implement semantic verification in rule.y.
 
 (14) Implement the allocator for the runtime.
+
+(15) Fix operator preference semantics s.t. multiple ``worst''
+     operators don't end up getting culled.
+
+(16) Fix operator preference semantics s.t. conflicting ``better''
+     preferences actually end up creating an operator conflict
+     impasses.
+
+(17) Fix architecture s.t. operator tie doesn't repeatedly fire in the
+     top-state.
+
+(18) Implement operator conflict detection. It's no-op'd now!
 

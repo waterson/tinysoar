@@ -622,3 +622,18 @@ h8300:
 
 ---
 
+ops-1.soar   pass
+ops-2.soar   fail, culled too many candidates, expect select
+ops-3.soar   fail, culled too many candidates, expect o-conflict
+ops-4.soar   pass, but o-tie keeps firing in top state
+ops-5.soar   pass
+ops-6.soar   fail, culled too many candidates, expect o-conflict
+ops-7.soar   fail, expect o-tie, not select
+ops-8.soar   pass, but o-tie keeps firing in top state
+ops-9.soar   fail, expect o-tie, not select
+ops-10.soar  pass
+ops-11.soar  fail, culled too many candidates, expect o-conflict
+ops-12.soar  pass
+ops-13.soar  fail, culled too many candidates, expect select
+ops-14.soar  fail, expect select, not o-tie
+ops-15.soar  fail, culled too many candidates, expect o-tie
