@@ -12,12 +12,11 @@ static symbol_t symbols[] = {
     DECLARE_SYMBOL(0, 0),
     DECLARE_SYMBOL(0, 0),
 
-    DECLARE_SYMBOL(1, symbol_type_symbolic_constant),
-    DECLARE_SYMBOL(2, symbol_type_symbolic_constant),
-    DECLARE_SYMBOL(3, symbol_type_symbolic_constant),
-    DECLARE_SYMBOL(4, symbol_type_symbolic_constant),
-    DECLARE_SYMBOL(5, symbol_type_symbolic_constant),
-    DECLARE_SYMBOL(6, symbol_type_symbolic_constant)
+    DECLARE_SYMBOL(USER_CONSTANT_BASE + 0, symbol_type_symbolic_constant),
+    DECLARE_SYMBOL(USER_CONSTANT_BASE + 1, symbol_type_symbolic_constant),
+    DECLARE_SYMBOL(USER_CONSTANT_BASE + 2, symbol_type_symbolic_constant),
+    DECLARE_SYMBOL(USER_CONSTANT_BASE + 3, symbol_type_symbolic_constant),
+    DECLARE_SYMBOL(USER_CONSTANT_BASE + 4, symbol_type_symbolic_constant),
 };
 
 #define VARIABLE_BASE        0
@@ -32,9 +31,8 @@ static symbol_t symbols[] = {
 #define CONSTANT_SUPERSTATE  CONSTANT_BASE + 0
 #define CONSTANT_NIL         CONSTANT_BASE + 1
 #define CONSTANT_INPUT_LINK  CONSTANT_BASE + 2
-#define CONSTANT_OPERATOR    CONSTANT_BASE + 3
-#define CONSTANT_NAME        CONSTANT_BASE + 4
-#define CONSTANT_WAIT        CONSTANT_BASE + 5
+#define CONSTANT_NAME        CONSTANT_BASE + 3
+#define CONSTANT_WAIT        CONSTANT_BASE + 4
 
 static void
 init_symbols(struct agent* agent)
@@ -46,7 +44,7 @@ init_symbols(struct agent* agent)
 }
 
 static void
-init_productions()
+init_productions(struct agent* agent)
 {
     productions[0].conditions = &conditions[0];
     productions[0].actions    = &actions[0];
@@ -91,7 +89,7 @@ init_productions()
     actions[0].id.val.symbol = symbols[VARIABLE_STATE];
 
     actions[0].attr.type = rhs_value_type_symbol;
-    actions[0].attr.val.symbol = symbols[CONSTANT_OPERATOR];
+    actions[0].attr.val.symbol = agent->operator_symbol;
 
     actions[0].value.type = rhs_value_type_unbound_variable;
     actions[0].value.val.unbound_variable = 0;
@@ -118,13 +116,10 @@ main(int argc, char* argv[])
 {
     struct wme* wme;
 
-    wmem_init(&agent);
-    symtab_init(&agent);
-    rete_init(&agent);
-    pref_init(&agent);
+    agent_init(&agent);
 
     init_symbols(&agent);
-    init_productions();
+    init_productions(&agent);
     rete_add_production(&agent, &productions[0]);
 
     rete_push_goal_id(&agent, symbols[IDENTIFIER_S1]);

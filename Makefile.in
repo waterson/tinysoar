@@ -1,4 +1,3 @@
-# Generated automatically from Makefile.in by configure.
 ifdef BUILD_OPT
 # Optimized
 CFLAGS=-Wall -O -UDEBUG -DNDEBUG

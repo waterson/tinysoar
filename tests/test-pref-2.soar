@@ -1,0 +1,34 @@
+# More experimentation with preferences on non-operators.
+
+package require Soar
+
+sp {propose*foo
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^operator <o>)
+    (<o> ^name foo)}
+
+sp {propose*bar
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^operator <o>)
+    (<o> ^name bar)}
+
+# This production won't compile because binary preferences aren't
+# allowed for non-operators
+#sp {prefer*foo
+#    (state <s> ^operator <foo> + ^operator <bar> + ^io <i>)
+#    (<foo> ^name foo)
+#    (<bar> ^name bar)
+#    -->
+#    (<s> ^io <i> < <foo>)}
+
+
+# ...but this one will. At runtime, we'll end up with a useless
+# preference.
+sp {prefer*foo
+    (state <s> ^operator <foo> + ^operator <bar> + ^io <i>)
+    (<foo> ^name foo)
+    (<bar> ^name bar)
+    -->
+    (<s> ^operator <foo> > <i>)}

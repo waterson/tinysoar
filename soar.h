@@ -2,7 +2,8 @@
 #define soar_h__
 
 #include "config.h"
-#include "pool.h"
+#include "ht.h"
+
 /* ---------------------------------------------------------------------- */
 
 /*
@@ -45,6 +46,9 @@ typedef struct symbol {
 #define SYMBOLS_ARE_EQUAL(l, r) (*((unsigned*) &(l)) == *((unsigned*) &(r)))
 
 #define SYMBOL_IS_NIL(s)        (*((unsigned*) &(s)) == 0)
+
+#define OPERATOR_CONSTANT  1
+#define USER_CONSTANT_BASE 2
 
 struct symbol_list {
     symbol_t symbol;
@@ -149,9 +153,31 @@ struct preference {
 };
 
 struct instantiation {
-    struct instantiation*    next;
-    const struct production* production;
-    struct token*            token;
+    struct instantiation* next;
+    struct production*    production;
+    struct token*         token;
+    struct preference*    preferences;
+};
+
+/* ---------------------------------------------------------------------- */
+
+/*
+ * Temporary Memory
+ */
+
+struct slot {
+    symbol_t id;
+    symbol_t attr;
+};
+
+struct preference_list {
+    struct preference_list* next;
+    struct preference* preference;
+};
+
+struct slot_list {
+    struct slot slot;
+    struct slot_list* next;
 };
 
 
@@ -254,9 +280,10 @@ struct action {
  * Productions
  */
 struct production {
-    struct condition* conditions;
-    struct action*    actions;
-    unsigned          num_unbound_vars;
+    struct condition*     conditions;
+    struct action*        actions;
+    struct instantiation* instantiations;
+    unsigned              num_unbound_vars;
 };
 
 /*----------------------------------------------------------------------*/
@@ -372,7 +399,7 @@ struct beta_node {
         struct beta_test*        tests;
 
         /* if type == production, the the production that's been matched */
-        const struct production* production;
+        struct production* production;
     } data;
 };
 
@@ -395,7 +422,7 @@ struct token {
 
 
 struct match {
-    const struct production* production;
+    struct production* production;
     struct token* token;
     struct match* next;
 };
@@ -409,34 +436,23 @@ struct match {
 struct agent {
     /* For the symbol table */
     unsigned next_available_identifier;
+    symbol_t operator_symbol;
 
     /* For working memory */
-    struct pool wme_pool;
     struct wme* wmes;
 
     /* For the RETE network */
     struct beta_node    root_node;
     struct token        root_token;
-    struct pool         alpha_node_pool;
-    struct pool         right_memory_pool;
-    struct pool         beta_node_pool;
-    struct pool         beta_test_pool;
-    struct pool         variable_binding_list_pool;
-    struct pool         token_pool;
-    struct pool         goal_impasse_pool;
-    struct pool         match_pool;
     struct alpha_node*  alpha_nodes[16];
     struct symbol_list* goals;
     struct symbol_list* impasses;
     struct match*       assertions;
     struct match*       retractions;
 
-    /* For preference memory */
-    struct pool           instantiation_pool;
-    struct pool           preference_pool;
-    struct pool           symbol_list_pool;
-    struct instantiation* instantiations;
-    struct preference*    preferences;
+    /* For temporary memory */
+    struct ht slots;
+    struct slot_list* modified_slots;
 };
 
 /* ---------------------------------------------------------------------- */
@@ -466,6 +482,8 @@ rete_add_production(struct agent* agent, struct production* p);
 extern void
 rete_add_wme(struct agent* agent, struct wme* wme);
 
+extern void
+agent_init(struct agent* agent);
 
 extern void
 rete_push_goal_id(struct agent* agent, symbol_t goal_id);
@@ -488,5 +506,13 @@ symtab_init(struct agent* agent);
 extern symbol_t
 symtab_get_identifier(struct agent* agent);
 
+extern void
+tmem_init(struct agent* agent);
+
+extern void
+tmem_add_preference(struct agent* agent, struct preference* pref);
+
+extern struct preference_list*
+tmem_get_preferences_for_slot(struct agent* agent, struct slot* slot);
 
 #endif /* soar_h__ */

@@ -1,5 +1,5 @@
 #include "soar.h"
-#include "pool.h"
+#include "alloc.h"
 
 /*
  * Given a right-hand side value (i.e., an `rhs_value'), a token from
@@ -16,14 +16,19 @@ instantiate_rhs_value(struct rhs_value* value,
 
     switch (value->type) {
     case rhs_value_type_symbol:
+        /* If the rhs_value is a symbol, just return the symbol */
         result = value->val.symbol;
         break;
 
     case rhs_value_type_variable_binding:
+        /* If the rhs_value is a variable binding, then use the token
+           to compute the symbol that's bound. */
         result = rete_get_variable_binding(value->val.variable_binding, token);
         break;
         
     case rhs_value_type_unbound_variable:
+        /* If the rhs_value is an unbound variable, grovel through the
+           instantiated unbound variables to find an identifier. */
         {
             int index = (int) value->val.unbound_variable;
             while (--index > 0)
@@ -34,16 +39,23 @@ instantiate_rhs_value(struct rhs_value* value,
         break;
     }
 
+    /* Sanity check the result */
+    ASSERT(result.type != symbol_type_variable, ("rhs_value bound to variable"));
+
     return result;
 }
 
+/*
+ * Instantiate a production.
+ */
 static void
 create_instantiation(struct agent* agent,
-                     const struct production* production,
-                     struct token* token)
+                     struct production* production,
+                     struct token* token,
+                     struct instantiation** instantiations)
 {
     struct instantiation* inst =
-        (struct instantiation*) pool_alloc(&agent->instantiation_pool);
+        (struct instantiation*) malloc(sizeof(struct instantiation));
 
     struct symbol_list* unbound_vars = 0;
     struct action* action;
@@ -52,7 +64,7 @@ create_instantiation(struct agent* agent,
     /* generate identifiers for the unbound variables */
     for (count = (int) production->num_unbound_vars - 1; count >= 0; --count) {
         struct symbol_list* entry =
-            (struct symbol_list*) pool_alloc(&agent->symbol_list_pool);
+            (struct symbol_list*) malloc(sizeof(struct symbol_list));
 
         entry->symbol = symtab_get_identifier(agent);
         entry->next   = unbound_vars;
@@ -60,19 +72,20 @@ create_instantiation(struct agent* agent,
     }
 
     /* initialize the instantiation */
-    inst->production = production;
-    inst->token      = token;
-    inst->next       = agent->instantiations;
+    inst->next        = *instantiations;
+    inst->production  = production;
+    inst->token       = token;
+    inst->preferences = 0;
 
-    agent->instantiations = inst;
+    *instantiations = inst;
 
     /* process the right-hand side of the production */
     for (action = production->actions; action != 0; action = action->next) {
         struct preference* pref =
-            (struct preference*) pool_alloc(&agent->preference_pool);
+            (struct preference*) malloc(sizeof(struct preference));
 
-        pref->next = agent->preferences;
-        agent->preferences = pref;
+        pref->next = inst->preferences;
+        inst->preferences = pref;
 
         pref->support = 0; /*XXX*/
         pref->type    = action->preference_type;
@@ -82,6 +95,9 @@ create_instantiation(struct agent* agent,
         pref->value = instantiate_rhs_value(&action->value, token, unbound_vars);
 
         if (action->preference_type & preference_type_binary) {
+            ASSERT(SYMBOLS_ARE_EQUAL(pref->attr, agent->operator_symbol),
+                   ("binary preference on non-operator"));
+
             pref->referent = instantiate_rhs_value(&action->referent, token, unbound_vars);
         }
     }
@@ -90,28 +106,62 @@ create_instantiation(struct agent* agent,
     while (unbound_vars) {
         struct symbol_list* doomed = unbound_vars;
         unbound_vars = unbound_vars->next;
-        pool_free(&agent->symbol_list_pool, doomed);
+        free(doomed);
     }
 }
 
+/*
+ * Initialize preference data structures
+ */
 void
 pref_init(struct agent* agent)
 {
-    pool_init(&agent->instantiation_pool, sizeof(struct instantiation), 8);
-    pool_init(&agent->preference_pool,    sizeof(struct preference),    8);
-    pool_init(&agent->symbol_list_pool,   sizeof(struct symbol_list),   8);
-    agent->instantiations = 0;
-    agent->preferences    = 0;
 }
 
+/*
+ * Process new matches, adding instantiations for `assertions', and
+ * retracting them for `retractions'.
+ */
 void
 pref_process_matches(struct agent* agent)
 {
+    struct instantiation* inst = 0;
     struct match* match;
+    struct match* doomed;
 
-    for (match = agent->assertions; match != 0; match = match->next)
-        create_instantiation(agent, match->production, match->token);
+    /* create instantiations for assertions */
+    match = agent->assertions;
+    while (match) {
+        create_instantiation(agent, match->production, match->token, &inst);
 
-    for (match = agent->retractions; match != 0; match = match->next)
-        /* retract_instantiation(...) */;
+        doomed = match;
+        match = match->next;
+        free(doomed);
+    }
+
+    /* process each instantiation, adding new preferences to temporary
+       memory */
+    while (inst) {
+        struct instantiation* next = inst->next;
+        struct preference* pref;
+
+        /* transfer instantiation to the production that `owns' it */
+        inst->next = inst->production->instantiations;
+        inst->production->instantiations = inst;
+
+        for (pref = inst->preferences; pref != 0; pref = pref->next)
+            tmem_add_preference(agent, pref);
+
+        /* on to the next one */
+        inst = next;
+    }
+
+    match = agent->retractions;
+    while (match) {
+        /* retract_instantiation(...); */
+
+        doomed = match;
+        match = match->next;
+        free(doomed);
+    }
 }

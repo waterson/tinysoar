@@ -1,8 +1,9 @@
 #include <stdarg.h>
-#include <stdio.h>
 #include "config.h"
 
 #ifdef DEBUG
+#include <stdio.h>
+
 void
 runtime_assert(const char* fmtstr, ...)
 {

@@ -1,8 +1,8 @@
 /*
  * rete.c
  */
-#include "pool.h"
 #include "soar.h"
+#include "alloc.h"
 
 static void
 do_left_addition(struct agent* agent, struct beta_node* node, struct token* token, struct wme* wme);
@@ -17,19 +17,19 @@ struct variable_binding_list {
 };
 
 
-static INLINE struct beta_node*
+static inline struct beta_node*
 create_beta_node(struct agent* agent)
 {
-    return (struct beta_node*) pool_alloc(&agent->beta_node_pool);
+    return (struct beta_node*) malloc(sizeof(struct beta_node));
 }
 
 /*
  * Create a new beta_test object from the beta_test pool
  */
-static INLINE struct beta_test*
+static inline struct beta_test*
 create_beta_test(struct agent* agent)
 {
-    return (struct beta_test*) pool_alloc(&agent->beta_test_pool);
+    return (struct beta_test*) malloc(sizeof(struct beta_test));
 }
 
 /*
@@ -101,26 +101,26 @@ free_beta_tests(struct agent* agent, struct beta_test* tests)
     while (tests) {
         struct beta_test* doomed = tests;
         tests = tests->next;
-        pool_free(&agent->beta_test_pool, doomed);
+        free(doomed);
     }
 }
 
 /*
  * Create a new variable binding list
  */
-static INLINE struct variable_binding_list*
+static inline struct variable_binding_list*
 create_variable_binding_list(struct agent* agent)
 {
-    return (struct variable_binding_list*) pool_alloc(&agent->variable_binding_list_pool);
+    return (struct variable_binding_list*) malloc(sizeof(struct variable_binding_list));
 }
 
 /*
  * Create a new token
  */
-static INLINE struct token*
+static inline struct token*
 create_token(struct agent* agent, struct beta_node* node, struct token* parent, struct wme* wme)
 {
-    struct token* result = (struct token*) pool_alloc(&agent->token_pool);
+    struct token* result = (struct token*) malloc(sizeof(struct token));
     result->parent = parent;
     result->node = node;
     result->wme = wme;
@@ -135,7 +135,7 @@ create_token(struct agent* agent, struct beta_node* node, struct token* parent, 
 /*
  * Are the two tokens equal?
  */
-static INLINE bool_t
+static inline bool_t
 tokens_are_equal(struct token* left, struct token* right)
 {
     while (left && right) {
@@ -153,7 +153,7 @@ tokens_are_equal(struct token* left, struct token* right)
  * Given an id, attr, value, and alpha-type, determine which alpha
  * memory bucket a test should be in.
  */
-static INLINE short
+static inline short
 get_alpha_test_index(symbol_t id, symbol_t attr, symbol_t value, wme_type_t type)
 {
     return ((type == wme_type_acceptable_preference) ? 8 : 0) +
@@ -165,22 +165,32 @@ get_alpha_test_index(symbol_t id, symbol_t attr, symbol_t value, wme_type_t type
 /*
  * Select a field from the specified wme.
  */
-static INLINE symbol_t
+static symbol_t
 get_field_from_wme(struct wme* wme, field_t field)
 {
     ASSERT(wme != 0, ("null ptr"));
+
     switch (field) {
-    case field_id:     return wme->id;
-    case field_attr:   return wme->attr;
-    case field_value:  return wme->value;
+    case field_id:
+        return wme->id;
+
+    case field_attr:
+        return wme->attr;
+
+    default:
+        /* XXX gcc generates better code when we write the switch
+           statement this way. */
+        ASSERT(field == field_value, ("unexpected value for `field_t'"));
+        break;
     }
-    UNREACHABLE(); /* shouldn't get here */
+
+    return wme->value;
 }
 
 /*
  * Determine if a working memory element matches an alpha node
  */
-static INLINE bool_t
+static inline bool_t
 wme_matches_alpha_node(const struct wme* wme, const struct alpha_node* node)
 {
     return (SYMBOL_IS_NIL(node->id) || SYMBOLS_ARE_EQUAL(node->id, wme->id)) &&
@@ -194,7 +204,7 @@ wme_matches_alpha_node(const struct wme* wme, const struct alpha_node* node)
 static void
 add_wme_to_alpha_node(struct agent* agent, struct alpha_node* node, struct wme* wme)
 {
-    struct right_memory* rm = (struct right_memory*) pool_alloc(&agent->right_memory_pool);
+    struct right_memory* rm = (struct right_memory*) malloc(sizeof(struct right_memory));
     rm->wme = wme;
     rm->next_in_alpha_node = node->right_memories;
     node->right_memories = rm;
@@ -235,7 +245,7 @@ ensure_alpha_node(struct agent* agent, symbol_t id, symbol_t attr, symbol_t valu
         struct alpha_node* more_general_node;
         symbol_t nil;
 
-        result = (struct alpha_node*) pool_alloc(&agent->alpha_node_pool);
+        result = (struct alpha_node*) malloc(sizeof(struct alpha_node));
         result->id    = id;
         result->attr  = attr;
         result->value = value;
@@ -280,7 +290,7 @@ ensure_alpha_node(struct agent* agent, symbol_t id, symbol_t attr, symbol_t valu
  * Look through a variable binding list to find the binding for the
  * specified variable.
  */
-static INLINE const variable_binding_t*
+static inline const variable_binding_t*
 find_bound_variable(const struct variable_binding_list* bindings, const symbol_t variable)
 {
     for ( ; bindings != 0; bindings = bindings->next) {
@@ -578,7 +588,7 @@ check_beta_test(struct agent* agent, struct beta_test* test, struct token* token
 /*
  * Check a list of beta tests
  */
-static INLINE bool_t
+static inline bool_t
 check_beta_tests(struct agent* agent, struct beta_test* test, struct token* token, struct wme* wme)
 {
     for ( ; test != 0; test = test->next) {
@@ -675,7 +685,7 @@ create_positive_join_node(struct agent* agent,
 static struct beta_node*
 create_production_node(struct agent* agent,
                        struct beta_node* parent,
-                       const struct production* production)
+                       struct production* production)
 {
     struct beta_node* result;
 
@@ -841,14 +851,14 @@ do_left_addition(struct agent* agent, struct beta_node* node, struct token* toke
                 if (tokens_are_equal(match->token, new_token)) {
                     /* Yep. Remove from the retraction queue */
                     (*link)->next = match->next;
-                    pool_free(&agent->match_pool, match);
+                    free(match);
                     break;
                 }
             }
 
             /* Otherwise, allocate a new match and place on the firing
                queue */
-            match = (struct match*) pool_alloc(&agent->match_pool);
+            match = (struct match*) malloc(sizeof(struct match));
             match->token = new_token;
             match->production = node->data.production;
             match->next = agent->assertions;
@@ -925,15 +935,6 @@ rete_init(struct agent* agent)
     agent->root_token.wme    = 0;
     agent->root_token.next   = 0;
 
-    pool_init(&agent->alpha_node_pool, sizeof(struct alpha_node), 8);
-    pool_init(&agent->right_memory_pool, sizeof(struct right_memory), 8);
-    pool_init(&agent->beta_node_pool, sizeof(struct beta_node), 8);
-    pool_init(&agent->beta_test_pool, sizeof(struct beta_test), 8);
-    pool_init(&agent->variable_binding_list_pool, sizeof(struct variable_binding_list), 8);
-    pool_init(&agent->token_pool, sizeof(struct token), 8);
-    pool_init(&agent->goal_impasse_pool, sizeof(struct symbol_list), 8);
-    pool_init(&agent->match_pool, sizeof(struct match), 8);
-
     for (i = 0; i < (sizeof(agent->alpha_nodes) / sizeof(struct alpha_node *)); ++i)
         agent->alpha_nodes[i] = 0;
 
@@ -955,7 +956,7 @@ rete_add_production(struct agent* agent, struct production* p)
     /* Iterate through the conditions of the production, constructing the
        beta network as we do so. */
     for (cond = p->conditions; cond != 0; cond = cond->next) {
-        struct beta_node* child;
+        struct beta_node* child = 0;
 
         ++depth;
 
@@ -999,7 +1000,7 @@ rete_add_production(struct agent* agent, struct production* p)
     while (bindings) {
         struct variable_binding_list* doomed = bindings;
         bindings = bindings->next;
-        pool_free(&agent->variable_binding_list_pool, doomed);
+        free(doomed);
     }
 }
 
@@ -1039,7 +1040,7 @@ rete_remove_wme()
 void
 rete_push_goal_id(struct agent* agent, symbol_t goal_id)
 {
-    struct symbol_list* entry = (struct symbol_list*) pool_alloc(&agent->goal_impasse_pool);
+    struct symbol_list* entry = (struct symbol_list*) malloc(sizeof(struct symbol_list));
     entry->symbol = goal_id;
     entry->next = agent->goals;
     agent->goals = entry;
@@ -1053,7 +1054,7 @@ rete_pop_goal_id(struct agent* agent)
     ASSERT(doomed != 0, ("popped too many goals"));
     last = doomed->symbol;
     agent->goals = doomed->next;
-    pool_free(&agent->goal_impasse_pool, doomed);
+    free(doomed);
     return last;
 }
 
@@ -1066,3 +1067,4 @@ rete_get_variable_binding(variable_binding_t binding, struct token* token)
 
     return get_field_from_wme(token->wme, binding.field);
 }
+

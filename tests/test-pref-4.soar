@@ -1,0 +1,47 @@
+# Tests how i-support and o-support fight it out. In Soar8, the
+# o-supported reject preference for `^foo' will nuke the i-supported
+# acceptable preference; however, the o-supported acceptable
+# preference for `^baz' will oscillate with the i-supporeted reject
+# preference.
+
+package require Soar
+
+# An i-supported production that will add `^foo'
+sp {elaborate*assert-foo
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^foo bar)}
+
+# An i-supported production that will remove `^baz'
+sp {elaborate*remove-baz
+    (state <s> ^baz <b>)
+    -->
+    (<s> ^baz <b> -)}
+
+
+sp {propose*make-baz
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^operator <o>)
+    (<o> ^name make-baz)}
+
+# An o-supported production that will add `^baz'
+sp {implement*make-baz*assert-baz
+    (state <s> ^operator <o>)
+    (<o> ^name make-baz)
+    -->
+    (<s> ^baz bap)}
+
+# An o-supported production that will remove `^foo'
+sp {implement*make-baz*reject-foo
+    (state <s> ^operator <o> ^foo <f>)
+    (<o> ^name make-baz)
+    -->
+    (<s> ^foo <f> -)}
+
+sp {reconsider*make-baz
+    (state <s> ^operator <o>)
+    (<o> ^name make-baz)
+    -->
+    (<s> ^operator <o> @)}
+

@@ -1,0 +1,19 @@
+# In Soar8, binary preferences aren't allowed for non-operators. So
+# `prefer*foo*bar' is an illegal production.
+
+package require Soar
+
+sp {elaborate*foo*bar
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^foo bar)}
+
+sp {elaborate*foo*baz
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^foo baz)}
+
+sp {prefer*foo*bar
+    (state <s> ^foo bar ^foo baz)
+    -->
+    (<s> ^foo bar > baz)}

@@ -1,0 +1,14 @@
+# Reject wins out over acceptable
+
+package require Soar
+
+sp {elaborate*foo
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^foo bar)}
+
+sp {reject*foo
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^foo bar -)}
+

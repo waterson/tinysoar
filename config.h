@@ -1,11 +1,25 @@
 #ifndef config_h__
 #define config_h__
 
+#include "config-defs.h"
+
+/* How many bits per word are there? */
+#if SIZEOF_INT == 8
+#  define BITS_PER_WORD 64
+#elif SIZEOF_INT == 4
+#  define BITS_PER_WORD 32
+#elif SIZEOF_INT == 2
+#  define BITS_PER_WORD 16
+#endif
+
+/* Wrappers for macros */
 #define BEGIN_MACRO do {
 #define END_MACRO   } while (0)
 
+/* A type for booleans */
 typedef unsigned char bool_t;
 
+/* More verbose equivalents of `assert()' */
 #ifdef DEBUG
    extern void
    runtime_assert(const char* fmtstr, ...);
@@ -25,14 +39,6 @@ typedef unsigned char bool_t;
 #  define ERROR(args)
 #  define UNIMPLEMENTED()
 #  define UNREACHABLE()
-#endif
-
-#if defined(__i386) || (_M_IX86 >= 300)
-#  define BITS_PER_WORD 32
-#elif defined(__H8300__)
-#  define BITS_PER_WORD 16
-#else
-#  error "I can't tell what platform you're on"
 #endif
 
 #endif /* config_h__ */

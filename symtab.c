@@ -1,10 +1,10 @@
 #include "soar.h"
-#include "pool.h"
 
 void
 symtab_init(struct agent* agent)
 {
     agent->next_available_identifier = 1;
+    MAKE_SYMBOL(agent->operator_symbol, symbol_type_symbolic_constant, OPERATOR_CONSTANT);
 }
 
 symbol_t
