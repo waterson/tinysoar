@@ -947,6 +947,62 @@ chunk(struct agent           *agent,
 }
 
 /*
+ * Return `true' if the preference list contains the specified
+ * preference.
+ */
+static bool_t
+preference_list_contains(struct preference_list *list, struct preference *pref)
+{
+    for ( ; list != 0; list = list->next) {
+        if (list->preference == pref)
+            return 1;
+    }
+
+    return 0;
+}
+
+struct close_results_enum_data {
+    struct preference_list **results;
+    symbol_t                 id;
+    bool_t                   changed;
+};
+
+/*
+ * Hashtable enumeration callback that adds any live, acceptable,
+ * preferences with the same identifier to the result set.
+ */
+static ht_enumerator_result_t
+close_results_helper(struct ht_entry_header *entry, void *closure)
+{
+    struct close_results_enum_data *data =
+        (struct close_results_enum_data *) closure;
+
+    struct slot *slot = (struct slot *) HT_ENTRY_DATA(entry);
+
+    if (SYMBOLS_ARE_EQUAL(slot->id, data->id)) {
+        struct preference *pref;
+
+        for (pref = slot->preferences; pref != 0; pref = pref->next_in_slot) {
+            if ((pref->state == preference_state_live)
+                && (pref->type == preference_type_acceptable)
+                && !preference_list_contains(*(data->results), pref)) {
+                struct preference_list *entry = (struct preference_list *)
+                    malloc(sizeof(struct preference_list));
+
+                entry->preference = pref;
+                entry->next       = *(data->results);
+
+                *(data->results) = entry;
+
+                data->changed = 1;
+            }
+        }
+    }
+
+    return ht_enumerator_result_ok;
+}
+
+/*
  * Compute the transitive closure of the specified result set.
  */
 static void
@@ -954,6 +1010,32 @@ close_results(struct agent            *agent,
               int                      level,
               struct preference_list **results)
 {
+    struct close_results_enum_data data;
+    data.results = results;
+
+    do {
+        struct preference_list *list;
+
+        data.changed = 0;
+        
+        /* Scan the list of preferences. If an acceptable `value'
+           preference is made for an identifier at the current
+           (bottom-most) goal level, then add any preferences
+           reachable from the value's identifier. */
+        for (list = *results; list != 0; list = list->next) {
+            struct preference *pref = list->preference;
+            if ((pref->type == preference_type_acceptable)
+                && (GET_SYMBOL_TYPE(pref->value) == symbol_type_identifier)) {
+                /* The identifier's level may be zero if it's first
+                   created by this instantiation. */
+                int id_level = agent_get_id_level(agent, pref->value);
+                if (!id_level || (agent_get_id_level(agent, pref->value) == level)) {
+                    data.id = pref->value;
+                    ht_enumerate(&agent->slots, close_results_helper, &data);
+                }
+            }
+        }
+    } while (data.changed);
 }
 
 /*
