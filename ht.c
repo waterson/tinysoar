@@ -66,8 +66,9 @@ ht_init(struct ht* ht, ht_key_compare_t compare_keys)
 }
 
 void
-ht_finish(struct ht* ht)
+ht_finish(struct ht* ht, ht_enumerator_t entry_finalizer, void* closure)
 {
+    ht_enumerate(ht, entry_finalizer, closure);
     free(ht->buckets);
 }
 

@@ -34,9 +34,6 @@ struct ht {
 void
 ht_init(struct ht* ht, ht_key_compare_t compare_keys);
 
-void
-ht_finish(struct ht* ht);
-
 struct ht_entry_header**
 ht_lookup(struct ht* ht, unsigned hash, const void* key);
 
@@ -52,9 +49,12 @@ typedef enum ht_enumerator_result {
     ht_enumerator_result_delete
 } ht_enumerator_result_t;
 
-typedef ht_enumerator_result_t (*ht_enumerator_t)(struct ht_entry_header* entry, void* closure);
+typedef ht_enumerator_result_t (*ht_enumerator_t)(struct ht_entry_header* header, void* closure);
 
 void
 ht_enumerate(struct ht* ht, ht_enumerator_t enumerator, void* closure);
+
+void
+ht_finish(struct ht* ht, ht_enumerator_t entry_finalizer, void* closure);
 
 #endif /* ht_h__ */
