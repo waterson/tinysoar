@@ -2,7 +2,7 @@ AC_PREREQ(2.12)
 AC_INIT(soar.h)
 
 dnl Deal with cross-compilation.
-if test "$target" == "$host"; then
+if test "$target" = "$host"; then
   dnl We're doing a normal compile for the host architecture.
 
   dnl Save the CFLAGS because AC_PROG_CC wants to gnu-ify them.

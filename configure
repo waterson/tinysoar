@@ -526,7 +526,7 @@ fi
 
 
 
-if test "$target" == "$host"; then
+if test "$target" = "$host"; then
   
     SAVE_CFLAGS=$CFLAGS
   # Extract the first word of "gcc", so it can be a program name with args.
