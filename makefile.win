@@ -70,9 +70,6 @@ tinysoar.dll: $(TINYSOAR_OBJS) $(PARSER_OBJS) $(RUNTIME_OBJS) $(SHARED_OBJS)
 tinysoar.obj: tinysoar.c
         $(CC) /c $(CFLAGS) /I$(TCL_DIR)\include $**
 
-install: all
-        cp tinysoar.dll $(TCL_DIR)\lib\TinySoar
-
 alloc.obj: alloc.c alloc.h config.h defs.h
 agent.obj: agent.c soar.h alloc.h config.h defs.h
 ht.obj: ht.c ht.h alloc.h config.h defs.h

@@ -29,26 +29,6 @@ init_soar_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
 }
 
 /*
- * Helper for `print': prints the goal stack (which we need to
- * reverse).
- */
-static void
-print_goals(struct symbol_list* goal, int depth)
-{
-    int i;
-
-    if (! goal)
-        return;
-
-    print_goals(goal->next, depth + 1);
-
-    for (i = 0; i < depth; ++i)
-        printf("  ");
-
-    printf("[%d]\n", goal->symbol.val);
-}
-
-/*
  * wme enumerator callback for `print': if this is the id we wanna print,
  * then this'll dump the dope.
  */
@@ -97,7 +77,16 @@ print_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
     i = 1;
 
     if (strcmp(argv[i], "-stack") == 0) {
-        print_goals(agent.goals, 0);
+        struct symbol_list* goal;
+        int indent;
+        for (goal = agent.goals, indent = 0; goal != 0; goal = goal->next, ++indent) {
+            int j = indent;
+            while (--j > 0)
+                printf("  ");
+
+            printf("[%d]\n", goal->symbol.val);
+        }
+
         ++i;
     }
 

@@ -1,3 +1,19 @@
+Tuesday, January 16, 2001
+
+Got a crude stab at getting the operator decision logic implemented. I
+think I might be running into another RETE bug; can't seem to the the
+`reconsider' production to fire in `p1.soar'.
+
+
+Monday, January 15, 2001
+
+So the problem wasn't with propogating wmes into new rules: I was
+incorrectly getting some conditions marked randomly as `acceptable'
+tests (because I didn't initialize `acceptable' properly in the
+`id_test' reduction). Anyway, got past that, but now it seems I'm
+getting some token corruption while adding the wme to working memory.
+
+
 Sunday, January 14, 2001
 
 Seems like it might be a good thing to do away with `productions' in
@@ -6,6 +22,7 @@ them.
 
 It looks like the code that's supposed to propogate existing WMEs into
 new rules is broken. Gotta look at that.
+
 
 Monday, January 8, 2001
 

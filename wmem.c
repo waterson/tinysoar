@@ -173,6 +173,20 @@ get_preferences_for_slot(struct agent* agent, struct slot* slot)
     return 0;
 }
 
+struct preference*
+wmem_get_preferences(struct agent* agent, symbol_t id, symbol_t attr)
+{
+    struct slot* slot = find_slot(agent, id, attr, 0);;
+    return slot ? slot->preferences : 0;
+}
+
+struct wme*
+wmem_get_wmes(struct agent* agent, symbol_t id, symbol_t attr)
+{
+    struct slot* slot = find_slot(agent, id, attr, 0);
+    return slot ? slot->wmes : 0;
+}
+
 static bool_t
 is_context_slot(struct agent* agent, struct slot* slot)
 {
@@ -672,22 +686,167 @@ process_matches(struct agent* agent)
     }
 }
 
+
+static void
+operator_no_change(struct agent* agent, symbol_t goal)
+{
+    UNIMPLEMENTED();
+}
+
+
+static void
+state_no_change(struct agent* agent, symbol_t goal)
+{
+    UNIMPLEMENTED();
+}
+
+
+static bool_t
+resolve_operator_tie(struct agent* agent, symbol_t goal)
+{
+    UNIMPLEMENTED();
+    return 0;
+}
+
+
+static bool_t
+select_operator(struct agent* agent)
+{
+    /* We've reached quiescence. Has the previously selected
+       operated been reconsidered? */
+    struct symbol_list* goal;
+
+    for (goal = agent->goals; goal != 0; goal = goal->next) {
+        struct slot* slot =
+            find_slot(agent, goal->symbol, SYM(OPERATOR_CONSTANT), 0);
+
+        if (slot) {
+            struct wme* wme;
+            struct wme** link;
+            struct preference* pref;
+
+            /* Look for the operator */
+            for (wme = slot->wmes, link = &slot->wmes;
+                 wme != 0;
+                 link = &wme->next, wme = wme->next) {
+                if (wme->type == wme_type_normal)
+                    break;
+            }
+
+#ifdef DEBUG
+            /* Ensure there's only ever one operator selected! */
+            if (wme) {
+                struct wme* check;
+                for (check = wme->next; check != 0; check = check->next)
+                    ASSERT(check->type == wme_type_acceptable,
+                           ("more than one operator selected"));
+            }
+#endif
+
+            /* If there's *no* selected operator, then we don't need
+               to worry about finding a reconsider preference for it;
+               move on to the next goal. */
+            if (! wme)
+                continue;
+
+            /* Look for a reconsider preference */
+            for (pref  = slot->preferences; pref != 0; pref = pref->next_in_slot) {
+                if (pref->type == preference_type_reconsider)
+                    break;
+            }
+
+            if (pref) {
+                /* Found a reconsider preference. Remove the selected
+                   operator from the operator slot, and notify the
+                   rete network. */
+                rete_operate_wme(agent, wme, wme_operation_remove);
+                *link = wme->next;
+                free(wme);
+
+                if (goal->next) {
+                    /* we may have resolved an operator no-change
+                       impasse */
+                }
+            }
+            else if (! goal->next) {
+                /* we didn't find a reconsider preference at the
+                   bottom-most goal, so we're now at an operator
+                   no-change impasse */
+                operator_no_change(agent, goal->symbol);
+                return 0;
+            }
+        } 
+    }
+
+    /* Is a unique operator selected? */
+    for (goal = agent->goals; goal != 0; goal = goal->next) {
+        struct slot* slot = find_slot(agent, goal->symbol, SYM(OPERATOR_CONSTANT), 0);
+
+        if (slot) {
+            struct wme* wme;
+
+            for (wme = slot->wmes; wme != 0; wme = wme->next) {
+                if (wme->type == wme_type_acceptable)
+                    break;
+            }
+
+            if (wme) {
+                /* At least one acceptable operator exists. Are there
+                   more? */
+                struct wme* wme2;
+
+                for (wme2 = wme->next; wme2 != 0; wme2 = wme2->next) {
+                    if (wme2->type == wme_type_acceptable)
+                        break;
+                }
+
+                if (wme2) {
+                    return resolve_operator_tie(agent, goal->symbol);
+                }
+                else {
+                    /* There is a unique acceptable operator */
+                    if (goal->next) {
+                        /* We may have resolved an operator tie
+                           impasse */
+                    }
+                    else {
+                        struct wme* op = (struct wme*) malloc(sizeof(struct wme));
+                        op->slot  = slot;
+                        op->value = wme->value;
+                        op->type  = wme_type_normal;
+                        op->next  = slot->wmes;
+                        slot->wmes = op;
+
+                        rete_operate_wme(agent, wme, wme_operation_add);
+                        return 1;
+                    }
+                }
+            }
+            else if (! goal->next) {
+                /* No acceptable operators found in the bottom-most
+                   state; we're in a state no-change impasse */
+                state_no_change(agent, goal->symbol);
+                return 0;
+            }
+        }
+    }
+
+    UNREACHABLE();
+    return 0;
+}
+
+
 /*
  * Run an elaboration cycle: decide values for each modified slot, and
- * then process new matches if any exist. Returns `true' if quiescence
- * has been reached (that is, there are no matches to process).
+ * then process new matches if any exist.
  */
-bool_t
+void
 wmem_elaborate(struct agent* agent)
 {
     decide_slots(agent);
 
-    if (agent->assertions || agent->retractions) {
+    if (agent->assertions || agent->retractions || select_operator(agent))
         process_matches(agent);
-        return 0;
-    }
-
-    return 1;
 }
 
 

@@ -538,10 +538,13 @@ wmem_remove_preference(struct agent* agent,
                        symbol_t id, symbol_t attr, symbol_t value,
                        preference_type_t type);
 
-/*
- * Returns non-zero when quiescence is reached
- */
-bool_t
+extern struct preference*
+wmem_get_preferences(struct agent* agent, symbol_t id, symbol_t attr);
+
+extern struct wme*
+wmem_get_wmes(struct agent* agent, symbol_t id, symbol_t attr);
+
+extern void
 wmem_elaborate(struct agent* agent);
 
 typedef void (*wme_enumerator_t)(struct agent* agent, struct wme* wme, void* closure);

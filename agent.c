@@ -14,26 +14,45 @@
 /*
  * Constants meant for general use.
  */
+static bool_t constants_initialized = 0;
 symbol_t constants[USER_CONSTANT_BASE];
 
 static void
 push_goal_id(struct agent* agent, symbol_t goal_id)
 {
-    struct symbol_list* entry = (struct symbol_list*) malloc(sizeof(struct symbol_list));
+    struct symbol_list* entry =
+        (struct symbol_list*) malloc(sizeof(struct symbol_list));
+
+    struct symbol_list** link = &agent->goals;
+
     entry->symbol = goal_id;
     entry->next = agent->goals;
-    agent->goals = entry;
+
+    while (*link)
+        link = &((*link)->next);
+
+    *link = entry;
 }
 
 static symbol_t
 pop_goal_id(struct agent* agent)
 {
     struct symbol_list* doomed = agent->goals;
+    struct symbol_list** link = &agent->goals;
     symbol_t last;
+
     ASSERT(doomed != 0, ("popped too many goals"));
+
+    while (doomed->next) {
+        link = &doomed->next;
+        doomed = doomed->next;
+    }
+
     last = doomed->symbol;
-    agent->goals = doomed->next;
     free(doomed);
+
+    *link = 0;
+
     return last;
 
 }
@@ -65,13 +84,18 @@ init_top_state(struct agent* agent)
 void
 agent_init(struct agent* agent)
 {
-    int i;
+    if (! constants_initialized) {
+        /* Do one-time initialization */
+        int i;
+
+        constants_initialized = 1;
+
+        for (i = NCONSTANTS - 1; i >= 1; --i)
+            MAKE_SYMBOL(constants[i], symbol_type_symbolic_constant, i);
+    }
 
     rete_init(agent);
     wmem_init(agent);
-
-    for (i = NCONSTANTS - 1; i >= 1; --i)
-        MAKE_SYMBOL(constants[i], symbol_type_symbolic_constant, i);
 
     agent->goals = agent->impasses = 0;
 
@@ -119,10 +143,7 @@ void
 agent_elaborate(struct agent* agent)
 {
     ASSERT(agent->goals != 0, ("no top-state"));
-
-    if (wmem_elaborate(agent)) {
-        /* We've reached quiescence. */
-    }
+    wmem_elaborate(agent);
 }
 
 
