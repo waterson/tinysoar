@@ -25,25 +25,22 @@ sp {elaborate*snc
     (<s> ^count zero ^name count)}
 
 sp {propose*count*one
-    (state <s> ^name count ^superstate <ss> ^count zero)
+    (state <s> ^name count ^superstate <ss> ^count zero -^counted <b>)
     (<ss> ^ball <b>)
-   -(<s> ^counted <b>)
     -->
     (<s> ^operator <o> + =)
     (<o> ^name count ^object <b> ^value one)}
 
 sp {propose*count*two
-    (state <s> ^name count ^superstate <ss> ^count one)
+    (state <s> ^name count ^superstate <ss> ^count one -^counted <b>)
     (<ss> ^ball <b>)
-   -(<s> ^counted <b>)
     -->
     (<s> ^operator <o> + =)
     (<o> ^name count ^object <b> ^value two)}
 
 sp {propose*count*three
-    (state <s> ^name count ^superstate <ss> ^count two)
+    (state <s> ^name count ^superstate <ss> ^count two -^counted <b>)
     (<ss> ^ball <b>)
-   -(<s> ^counted <b>)
     -->
     (<s> ^operator <o> + =)
     (<o> ^name count ^object <b> ^value three)}
