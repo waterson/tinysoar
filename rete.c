@@ -336,7 +336,6 @@ do_left_addition(struct agent     *agent,
             struct token *new_token;
             struct right_memory *rm;
 
-            ASSERT(wme != 0, ("no wme in left-addition to negative node"));
             new_token = create_token(node, token, wme);
 
             /* Iterate through the right-memories to see if the token
