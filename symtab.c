@@ -144,9 +144,12 @@ struct predefined_symbol {
 struct predefined_symbol symbols[] = {
     { symbol_type_symbolic_constant, ATTRIBUTE_CONSTANT,   "attribute" },
     { symbol_type_symbolic_constant, CHOICES_CONSTANT,     "choices" },
+    { symbol_type_symbolic_constant, CONFLICT_CONSTANT,    "conflict" },
     { symbol_type_symbolic_constant, IMPASSE_CONSTANT,     "impasse" },
     { symbol_type_symbolic_constant, INPUT_LINK_CONSTANT,  "input-link" },
     { symbol_type_symbolic_constant, IO_CONSTANT,          "io" },
+    { symbol_type_symbolic_constant, ITEM_CONSTANT,        "item" },
+    { symbol_type_symbolic_constant, MULTIPLE_CONSTANT,    "multiple" },
     { symbol_type_symbolic_constant, NIL_CONSTANT,         "nil" },
     { symbol_type_symbolic_constant, NONE_CONSTANT,        "none" },
     { symbol_type_symbolic_constant, NO_CHANGE_CONSTANT,   "no-change" },

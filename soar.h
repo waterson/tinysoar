@@ -50,22 +50,25 @@ typedef struct symbol {
 /* Predefined symbols used by the architecture */
 #define ATTRIBUTE_CONSTANT      1
 #define CHOICES_CONSTANT        2
-#define IMPASSE_CONSTANT        3
-#define INPUT_LINK_CONSTANT     4
-#define IO_CONSTANT             5
-#define NIL_CONSTANT            6
-#define NONE_CONSTANT           7
-#define NO_CHANGE_CONSTANT      8
-#define OPERATOR_CONSTANT       9
-#define OUTPUT_LINK_CONSTANT   10
-#define QUIESCENCE_CONSTANT    11
-#define STATE_CONSTANT         12
-#define SUPERSTATE_CONSTANT    13
-#define TIE_CONSTANT           14
-#define TYPE_CONSTANT          15
-#define T_CONSTANT             16
+#define CONFLICT_CONSTANT       3
+#define IMPASSE_CONSTANT        4
+#define INPUT_LINK_CONSTANT     5
+#define IO_CONSTANT             6
+#define ITEM_CONSTANT           7
+#define MULTIPLE_CONSTANT       8
+#define NIL_CONSTANT            9
+#define NONE_CONSTANT          10
+#define NO_CHANGE_CONSTANT     11
+#define OPERATOR_CONSTANT      12
+#define OUTPUT_LINK_CONSTANT   13
+#define QUIESCENCE_CONSTANT    14
+#define STATE_CONSTANT         15
+#define SUPERSTATE_CONSTANT    16
+#define TIE_CONSTANT           17
+#define TYPE_CONSTANT          18
+#define T_CONSTANT             19
 
-#define NCONSTANTS             17
+#define NCONSTANTS             (T_CONSTANT + 1)
 #define USER_CONSTANT_BASE     NCONSTANTS
 
 extern symbol_t constants[NCONSTANTS];
@@ -511,6 +514,12 @@ agent_state_no_change(struct agent* agnet, symbol_t goal);
 
 extern void
 agent_operator_no_change(struct agent* agent, symbol_t goal);
+
+extern void
+agent_operator_conflict(struct agent* agent, symbol_t goal, struct symbol_list* operators);
+
+extern void
+agent_operator_tie(struct agent* agent, symbol_t goal, struct symbol_list* operators);
 
 extern void
 rete_push_goal_id(struct agent* agent, symbol_t goal_id);

@@ -179,3 +179,45 @@ agent_state_no_change(struct agent* agent, symbol_t goal)
     MAKE_ARCH_PREF(state, SYM(TYPE_CONSTANT),       SYM(STATE_CONSTANT));
 }
 
+void
+agent_operator_conflict(struct agent* agent, symbol_t goal, struct symbol_list* operators)
+{
+    symbol_t state = agent_get_identifier(agent);
+
+    push_goal_id(agent, state);
+
+#ifdef DEBUG
+    printf("operator-conflict => [%d]\n", state.val);
+#endif
+
+    MAKE_ARCH_PREF(state, SYM(SUPERSTATE_CONSTANT), goal);
+    MAKE_ARCH_PREF(state, SYM(TYPE_CONSTANT),       SYM(STATE_CONSTANT));
+    MAKE_ARCH_PREF(state, SYM(ATTRIBUTE_CONSTANT),  SYM(OPERATOR_CONSTANT));
+    MAKE_ARCH_PREF(state, SYM(IMPASSE_CONSTANT),    SYM(CONFLICT_CONSTANT));
+    MAKE_ARCH_PREF(state, SYM(QUIESCENCE_CONSTANT), SYM(T_CONSTANT));
+
+    for ( ; operators != 0; operators = operators->next)
+        MAKE_ARCH_PREF(state, SYM(ITEM_CONSTANT), operators->symbol);
+}
+
+void
+agent_operator_tie(struct agent* agent, symbol_t goal, struct symbol_list* operators)
+{
+    symbol_t state = agent_get_identifier(agent);
+
+    push_goal_id(agent, state);
+
+#ifdef DEBUG
+    printf("operator-conflict => [%d]\n", state.val);
+#endif
+
+    MAKE_ARCH_PREF(state, SYM(SUPERSTATE_CONSTANT), goal);
+    MAKE_ARCH_PREF(state, SYM(TYPE_CONSTANT),       SYM(STATE_CONSTANT));
+    MAKE_ARCH_PREF(state, SYM(ATTRIBUTE_CONSTANT),  SYM(OPERATOR_CONSTANT));
+    MAKE_ARCH_PREF(state, SYM(CHOICES_CONSTANT),    SYM(MULTIPLE_CONSTANT));
+    MAKE_ARCH_PREF(state, SYM(IMPASSE_CONSTANT),    SYM(TIE_CONSTANT));
+    MAKE_ARCH_PREF(state, SYM(QUIESCENCE_CONSTANT), SYM(T_CONSTANT));
+
+    for ( ; operators != 0; operators = operators->next)
+        MAKE_ARCH_PREF(state, SYM(ITEM_CONSTANT), operators->symbol);
+}

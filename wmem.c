@@ -120,8 +120,8 @@ mark_slot_modified(struct agent* agent, struct slot* slot)
  * Given a list of preferences, compute candidate symbol values.
  */
 static void
-decide_slot(struct preference* preferences,
-            struct symbol_list** candidates)
+collect_candidates(struct preference*   preferences,
+                   struct symbol_list** candidates)
 {
     struct preference* pref;
 
@@ -169,9 +169,6 @@ decide_slot(struct preference* preferences,
             }
         }
     }
-
-    /* If we were trying to decide the value for anything but an
-       ^operator slot (?), then we're done. */
 }
 
 static struct preference*
@@ -243,7 +240,7 @@ decide_slots(struct agent* agent)
             /* Okay, there are preferences in this slot. Compute the
                candidate values for the slot. */
             struct symbol_list* candidates = 0;
-            decide_slot(pref, &candidates);
+            collect_candidates(pref, &candidates);
 
             /* Add wmes that aren't in the slot */
             {
@@ -331,7 +328,10 @@ decide_slots(struct agent* agent)
  * Add the preference to the appropriate slot
  */
 static void
-hash_preference(struct agent* agent, symbol_t id, symbol_t attr, struct preference* pref)
+hash_preference(struct agent*      agent,
+                symbol_t           id,
+                symbol_t           attr,
+                struct preference* pref)
 {
     struct slot* slot = find_slot(agent, id, attr, 1);
 
@@ -350,10 +350,12 @@ hash_preference(struct agent* agent, symbol_t id, symbol_t attr, struct preferen
  * Add a new preference to working memory
  */
 struct preference*
-wmem_add_preference(struct agent* agent,
-                    symbol_t id, symbol_t attr, symbol_t value,
+wmem_add_preference(struct agent*     agent,
+                    symbol_t          id,
+                    symbol_t          attr,
+                    symbol_t          value,
                     preference_type_t type,
-                    support_type_t support)
+                    support_type_t    support)
 {
     struct preference* pref =
         (struct preference*) malloc(sizeof(struct preference));
@@ -462,8 +464,8 @@ wmem_enumerate_wmes(struct agent* agent,
  * value.
  */
 static symbol_t
-instantiate_rhs_value(struct rhs_value* value,
-                      struct token* token,
+instantiate_rhs_value(struct rhs_value*   value,
+                      struct token*       token,
                       struct symbol_list* unbound_vars)
 {
     symbol_t result;
@@ -503,9 +505,9 @@ instantiate_rhs_value(struct rhs_value* value,
  * Instantiate a production.
  */
 static void
-create_instantiation(struct agent* agent,
-                     struct production* production,
-                     struct token* token,
+create_instantiation(struct agent*       agent,
+                     struct production*  production,
+                     struct token*       token,
                      struct preference** o_rejects)
 {
     struct instantiation* inst =
@@ -730,11 +732,219 @@ process_matches(struct agent* agent)
     }
 }
 
-static bool_t
-resolve_operator_tie(struct agent* agent, symbol_t goal)
+/*
+ * The meat of the operator semantics code. Culls the list of
+ * candidate operators, pushing impasses if necessary.
+ */
+static symbol_t
+run_operator_semantics_on(struct agent*       agent,
+                          symbol_t            goal,
+                          struct preference*  preferences,
+                          struct symbol_list* candidates)
 {
-    UNIMPLEMENTED();
-    return 0;
+    struct symbol_list* conflicted = 0;
+    struct symbol_list* dominated = 0;
+    struct symbol_list* candidate;
+    struct symbol_list** link;
+    bool_t bests = 0;
+    bool_t worsts = 0;
+    symbol_t nil;
+
+    CLEAR_SYMBOL(nil);
+
+    /* Collect conflicted and dominated candidates */
+    for (link = &candidates, candidate = *link;
+         candidate != 0;
+         link = &candidate->next, candidate = *link) {
+        struct preference* p;
+        for (p = preferences; p != 0; p = p->next_in_slot) {
+            if ((p->type == preference_type_better || p->type == preference_type_worse)
+                && SYMBOLS_ARE_EQUAL(p->value, candidate->symbol)) {
+                struct symbol_list* referent;
+                for (referent = candidates; referent != 0; referent = referent->next) {
+                    struct symbol_list* entry;
+
+                    /* A candidate cannot conflict or dominate itself. */
+                    if (SYMBOLS_ARE_EQUAL(candidate->symbol, referent->symbol))
+                        continue;
+
+                    entry = (struct symbol_list*) malloc(sizeof(struct symbol_list));
+
+                    if (p->type == preference_type_better) {
+                        /* The candidate dominates its referent. */
+                        entry->symbol = referent->symbol;
+                    }
+                    else {
+                        /* The candidate is dominated by its referent. */
+                        entry->symbol = candidate->symbol;
+                    }
+
+                    entry->next = dominated;
+                    dominated = entry;
+
+                    if (SYMBOLS_ARE_EQUAL(p->referent, referent->symbol)) {
+                        struct preference* q;
+                        for (q = preferences; q != 0; q = q->next_in_slot) {
+                            /* XXX figure out if any are conflicted */
+                        }
+                    }
+                }
+            }
+            else if (p->type == preference_type_best) {
+                /* Remember we've seen a best preference. */
+                bests = 1;
+            }
+            else if (p->type == preference_type_worst) {
+                /* Remember we've seen a worst preference. */
+                worsts = 1;
+            }
+        }
+    }
+
+    if (conflicted) {
+        /* If there are conflicted candidates, then create an
+           operator-conflict impasse. */
+        agent_operator_conflict(agent, goal, conflicted);
+        
+        while (conflicted) {
+            struct symbol_list* doomed = conflicted;
+            conflicted = conflicted->next;
+            free(doomed);
+        }
+
+        return nil;
+    }
+
+    /* No conflicts, so remove dominated candidates from the
+       candidate list. */
+    while (dominated) {
+        struct symbol_list* doomed = dominated;
+        struct symbol_list** link = &candidates;
+        struct symbol_list* c = *link;
+
+        while (c) {
+            if (SYMBOLS_ARE_EQUAL(c->symbol, dominated->symbol)) {
+                *link = c->next;
+                free(c);
+            }
+            else
+                link = &c->next;
+
+            c = *link;
+        }
+
+        dominated = dominated->next;
+        free(doomed);
+    }
+
+    /* If we have any ``best'' candidates, cull out all others and
+       we'll just choose from amongst those. Similarly, if we have
+       any ``worst'' candidates, cull them out as well.
+
+       XXX this logic is pretty much the same as what appears in
+       Soar8's decide.c; however, Soar8 ends up with an
+       operator-tie if two worst preferences are proposed. I
+       suspect we'll end up with a state no-change. */
+    if (bests || worsts) {
+        link = &candidates;
+        candidate = *link;
+        while (candidate) {
+            bool_t best = 0;
+            bool_t worst = 0;
+            struct preference* p;
+            for (p = preferences; p != 0; p = p->next_in_slot) {
+                if (SYMBOLS_ARE_EQUAL(p->value, candidate->symbol)) {
+                    if (p->type == preference_type_best)
+                        best = 1;
+                    else if (p->type == preference_type_worst)
+                        worst = 1;                        
+                }
+            }
+
+            if ((bests && !best) || (worsts && worst)) {
+                *link = candidate->next;
+                free(candidate);
+            }
+            else
+                link = &candidate->next;
+
+            candidate = *link;
+        }
+    }
+
+    /* Are all the candidates we've got left indifferent? */
+    ASSERT(candidates != 0, ("culled too many candidates"));
+
+    for (candidate = candidates; candidate != 0; candidate = candidate->next) {
+        struct preference* p;
+        for (p = preferences; p != 0; p = p->next_in_slot) {
+            if (p->type == preference_type_unary_indifferent)
+                break;
+        }
+
+        if (! p) {
+            /* We couldn't find a unary-indifferent preference for the
+               candidate. Is it binary-indifferent to all the other
+               remaining candidates? */
+            struct symbol_list* referent;
+            for (referent = candidates; referent != 0; referent = referent->next) {
+                if (candidate == referent)
+                    continue;
+
+                for (p = preferences; p != 0; p = p->next_in_slot) {
+                    if ((p->type == preference_type_binary_indifferent)
+                        && (SYMBOLS_ARE_EQUAL(p->referent, referent)))
+                        break; /* Found a binary-indifferente for the referent! */
+                }
+
+                /* If we've looked through all the preferences and
+                   couldn't find a binary-indifferent for the
+                   referent, then there's at least one tie. */
+                if (! p)
+                    break;
+            }
+
+            /* If we broke out of the loop above early, then we found
+               a tie. */
+            if (referent)
+                break;
+        }
+    }
+
+    if (candidate) {
+        /* We found a tie. */
+        agent_operator_tie(agent, goal, candidates);
+        return nil;
+    }
+
+    return candidates->symbol;
+}
+
+/*
+ * This routine implements the oeprator preference semantics
+ */
+static symbol_t
+run_operator_semantics_for(struct agent* agent, symbol_t goal, struct slot* slot)
+{
+    struct preference* preferences = get_preferences_for_slot(agent, slot);
+    struct symbol_list* candidates = 0;
+    symbol_t result;
+
+    /* Re-collect the candidate operators.
+
+       XXX We could just collect the acceptable wme's and use those,
+       rather than re-do this work... */
+    collect_candidates(preferences, &candidates);
+
+    result = run_operator_semantics_on(agent, goal, preferences, candidates);
+
+    while (candidates) {
+        struct symbol_list* doomed = candidates;
+        candidates = candidates->next;
+        free(doomed);
+    }
+
+    return result;
 }
 
 static void
@@ -784,7 +994,7 @@ select_operator(struct agent* agent)
            no-change. */
         if (wme) {
             /* Look for a reconsider preference */
-            for (pref  = slot->preferences; pref != 0; pref = pref->next_in_slot) {
+            for (pref = slot->preferences; pref != 0; pref = pref->next_in_slot) {
                 if (pref->type == preference_type_reconsider)
                     break;
             }
@@ -822,8 +1032,9 @@ select_operator(struct agent* agent)
         }
 
         if (wme) {
-            /* Okay, at least one acceptable operator exists. Are
-               there more? */
+            /* Okay, at least one acceptable operator exists. Is there
+               more than one? */
+            symbol_t selected_op = wme->value;
             struct wme* wme2;
 
             for (wme2 = wme->next; wme2 != 0; wme2 = wme2->next) {
@@ -832,36 +1043,30 @@ select_operator(struct agent* agent)
             }
 
             if (wme2) {
-                /* There is at least one other acceptable operator. */
-                resolve_operator_tie(agent, goal->symbol);
-                return;
+                /* Okay, another acceptable was found. Run the
+                   operator preference semantics on the slot to choose
+                   one. If one can't be chosen, create a new
+                   impasse. */
+                selected_op = run_operator_semantics_for(agent, goal->symbol, slot);
             }
 
-            /* If we get here, then there is a unique acceptable
-               operator. */
-            if (goal->next) {
-                /* We may have resolved an operator tie
-                   impasse */
-            }
+            if (! SYMBOL_IS_NIL(selected_op)) {
+                struct wme* op;
 
 #ifdef DEBUG
-            {
                 /* XXX this should be done in a callback that the
                    embedding context handles. */
                 unsigned i;
                 for (i = 0; i < depth; ++i)
                     printf("  ");
 
-                printf("[%d]: %d", goal->symbol.val, wme->value.val);
+                printf("[%d]: %d", goal->symbol.val, selected_op.val);
                 printf("\n");
-            }
 #endif
 
-            {
-                struct wme* op;
                 op = (struct wme*) malloc(sizeof(struct wme));
                 op->slot  = slot;
-                op->value = wme->value;
+                op->value = selected_op;
                 op->type  = wme_type_normal;
                 op->next  = slot->wmes;
                 slot->wmes = op;
