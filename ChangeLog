@@ -1,5 +1,12 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
+Thursday, December 6, 2001
+
+Banged around with the Lego RCX a bit, checked in a bunch of test
+cases so I remember how to do stuff. Cleaned up makefiles so I can do
+`objdir'-style builds. Added a `lego' target for an RCX-based agent.
+
+
 Sunday, October 28, 2001
 
 Silly change to fix all the pointers from |void* foo| to |void
