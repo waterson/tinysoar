@@ -1,0 +1,31 @@
+# Tests if o-support is `shallow' (syntactically determined by looking
+# for the `operator' attribute) or `deep' (determined by the value in
+# the operator slot).
+
+package require Soar;
+
+sp {foo*propose
+    (state <s> ^superstate nil -^ran-foo)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name foo)}
+
+# If o-support testing were `deep', then (<s> ^bar bar) should get
+# o-support, because <foo> is really the operator.
+sp {foo*make-bar
+    (state <s> ^foo <foo>)
+    -->
+    (<s> ^bar bar)}
+
+sp {foo*make-ran-foo
+    (state <s> ^operator <o>)
+    (<o> ^name foo)
+    -->
+    (<s> ^ran-foo t)}
+
+sp {foo*reconsider
+    (state <s> ^operator <o>)
+    (<o> ^name foo)
+    -->
+    (<s> ^operator <o> @)}
+
