@@ -994,8 +994,23 @@ fix, since we re-collect the candidates in run_operator_semantics_for.
 
 chunk-15.soar doesn't work in TinySoar (this is basically just
 chunk-14.soar, but run once through) because we don't resolve the
-impasse in the top state. We don't resolve the impasse because we've
+impasse in the top state.  We don't resolve the impasse because we've
 got an operator-tie: we've proposed the "recognize" operator twice,
 once for the rule that builds the chunk in the substate, and once for
-the chunk itself. In other words, I think we've stumbled into the
+the chunk itself.  In other words, I think we've stumbled into the
 dreaded "refraction" problem.
+
+One thing that might work to avoid this problem would be to take the
+results from the production in the substate and copy them.  We could
+then assign the copies to the chunk, instead of firing the chunk: this
+would avoid creation of duplicates.  The down-side is that the chunk
+may immediately match other structures in the superstate, and if we
+fail to fire the chunk, the generalization may be lost: chunk-16.soar
+illustrates this.
+
+Another possible solution would be to splice the results from the
+production in the substate that created them, leaving only the chunk's
+results in the superstate.  We can do this trivially (I think) by
+added a call to wmem_remove_preference() as we clean up the results
+list in chunk().
+

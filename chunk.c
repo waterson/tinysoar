@@ -1371,6 +1371,12 @@ chunk_if_results(struct agent         *agent,
 
         do {
             doomed = results;
+
+            /* Remove the preference that was created as a result, as
+               it will be a duplicated ("refracted") by the
+               instantiation of the chunk itself. */
+            wmem_remove_preference(agent, doomed->preference, 0);
+
             results = results->next;
             free(doomed);
         } while (results);

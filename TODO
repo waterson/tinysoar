@@ -9,8 +9,6 @@
 
 . Chunking:
 
-  - Figure out why chunk-15.soar doesn't work: we end up with an
-    operator no-change.
   - justifications
   - figure out how to do bottom-up chunking (instead of all-goals)
   - figure out why the eight-puzzle isn't working
