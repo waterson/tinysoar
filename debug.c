@@ -282,7 +282,11 @@ debug_dump_rhs_value(struct symtab *symtab, struct rhs_value *value)
 }
 
 void
-debug_dump_beta_node(struct symtab *symtab, struct beta_node *node, int nest, int recur)
+debug_dump_beta_node(struct symtab    *symtab,
+                     struct beta_node *node,
+                     int               nest,
+                     int               recur,
+                     int               tokens)
 {
     debug_indent_by(nest);
 
@@ -385,7 +389,7 @@ debug_dump_beta_node(struct symtab *symtab, struct beta_node *node, int nest, in
         case beta_node_type_memory_positive_join:
         case beta_node_type_negative:
         case beta_node_type_production:
-            {
+            if (tokens) {
                 /* dump tokens at the node */
                 struct token *token;
                 for (token = node->tokens; token != 0; token = token->next) {
@@ -402,7 +406,7 @@ debug_dump_beta_node(struct symtab *symtab, struct beta_node *node, int nest, in
 
         switch (node->type) {
         case beta_node_type_negative:
-            {
+            if (tokens) {
                 /* dump blocked tokens at the node */
                 struct token *token;
                 for (token = node->blocked; token != 0; token = token->next) {
@@ -418,7 +422,7 @@ debug_dump_beta_node(struct symtab *symtab, struct beta_node *node, int nest, in
         }
 
         for (node = node->children; node != 0; node = node->siblings)
-            debug_dump_beta_node(symtab, node, nest + 1, 1);
+            debug_dump_beta_node(symtab, node, nest + 1, 1, tokens);
     }
 }
 
@@ -443,7 +447,7 @@ debug_dump_alpha_node(struct symtab *symtab, struct alpha_node *alpha, bool_t ac
     }
 
     for (beta = alpha->children; beta != 0; beta = beta->next_with_same_alpha_node)
-        debug_dump_beta_node(symtab, beta, 1, 0);
+        debug_dump_beta_node(symtab, beta, 1, 0, 1);
 
 }
 
@@ -510,6 +514,39 @@ debug_dump_preference(struct symtab *symtab, struct preference *pref)
         printf(" (%s)", pref->instantiation->production->name);
 }
 
+#ifdef DEBUG_GLIBC_MALLOC
+/*
+ * malloc and free wrappers that fill newly allocated and newly freed
+ * memory. Useful for detecting usage of uninitialized or deleted
+ * objects.
+ */
+extern __ptr_t __libc_malloc(size_t);
+extern void __libc_free(__ptr_t);
+
+__ptr_t
+malloc(size_t sz)
+{
+    __ptr_t p = __libc_malloc(sz);
+    if (p)
+        memset(p, 0xcd, sz);
+
+    return p;
+}
+
+void
+free(__ptr_t p)
+{
+    if (p) {
+        /* In glibc-2.2.4, malloc uses a two word block header: the
+           second word -- modulo the low bit -- is the size of the
+           current block. */
+        size_t sz = *(((size_t *) p) - 1) & ~0x1;
+        memset(p, 0xdd, sz - 4 /* XXX shrug! */);
+    }
+
+    __libc_free(p);
+}
+#endif
 
 #endif /* DEBUG */
 
