@@ -107,18 +107,22 @@ positive_cond: conds_for_one_id
              }
              ;
 
-cond_list: cond_list cond
+cond_list: /* empty */
+         { $$ = 0; }
+         | cond_list cond
          {
              struct condition* cond =
                  (struct condition*) malloc(sizeof(struct condition));
 
              *cond = $2;
              cond->next = 0;
-             $1->next = cond;
-             $$ = $1;
+
+             if ($1) {
+                 $1->next = cond;
+                 $$ = $1;
+             }
+             else $$ = cond;
          }
-         | /* empty */
-         { $$ = 0; }
          ;
 
 conds_for_one_id: '(' id_test attr_value_test_list ')'
@@ -164,7 +168,7 @@ attr_value_test_list: /* empty */
                     | attr_value_test_list attr_value_test
                     {
                         struct attr_value_test_list* entry =
-                            (struct attr_value_test_list*) malloc(sizeof(struct test_list));
+                            (struct attr_value_test_list*) malloc(sizeof(struct attr_value_test_list));
 
                         entry->tests = $2;
                         entry->next = 0;
@@ -173,9 +177,7 @@ attr_value_test_list: /* empty */
                             $1->next = entry;
                             $$ = $1;
                         }
-                        else {
-                            $$ = entry;
-                        }
+                        else $$ = entry;
                     }
                     ;
 
@@ -226,9 +228,11 @@ simple_test_list: simple_test_list simple_test
                     entry->test = $2;
                     entry->next = 0;
 
-                    $1->next = entry;
-
-                    $$ = $1;
+                    if ($1) {
+                        $1->next = entry;
+                        $$ = $1;
+                    }
+                    else $$ = entry;
                 }
                 | /* empty */
                 { $$ = 0; }
