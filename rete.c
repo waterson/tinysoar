@@ -153,7 +153,7 @@ get_alpha_test_index(symbol_t id,
                      symbol_t value,
                      wme_type_t type)
 {
-    return ((type == wme_type_acceptable_preference) ? 8 : 0) |
+    return ((type == wme_type_acceptable) ? 8 : 0) |
         (GET_SYMBOL_VALUE(id) ? 4 : 0) |
         (GET_SYMBOL_VALUE(attr) ? 2 : 0) |
         (GET_SYMBOL_VALUE(value) ? 1 : 0);
@@ -486,6 +486,9 @@ process_test(struct agent* agent,
 
     case test_type_disjunctive:
         UNIMPLEMENTED(); /* XXX just hit a test that needs writin' */
+
+    default:
+        ERROR(("shouldn't get here"));
     }
 
     if (beta_test) {
@@ -665,8 +668,9 @@ initialize_matches(struct agent* agent,
                    struct beta_node* child,
                    struct beta_node* parent)
 {
-    if (parent->type == beta_node_type_root)
+    if (parent->type == beta_node_type_root) {
         do_left_addition(agent, child, &agent->root_token, 0);
+    }
     else if (parent->type & beta_node_type_bit_positive) {
         struct beta_node* old_children = parent->children;
         struct beta_node* old_siblings = child->siblings;
@@ -840,7 +844,8 @@ ensure_positive_condition_node(struct agent* agent,
             /* If we didn't a matching positive-join node, make one
                now, parented by the memory node. */
             alpha_node =
-                ensure_alpha_node(agent, alpha_id, alpha_attr, alpha_value, 0 /*XXX wme vs. acceptable*/);
+                ensure_alpha_node(agent, alpha_id, alpha_attr, alpha_value,
+                                  cond->acceptable);
 
             return create_positive_join_node(agent, memory_node, alpha_node, tests);
         }
@@ -860,7 +865,7 @@ ensure_positive_condition_node(struct agent* agent,
     memory_node = create_memory_node(agent, parent);
 
     alpha_node =
-        ensure_alpha_node(agent, alpha_id, alpha_attr, alpha_value, 0 /*XXX wme vs. acceptable*/);
+        ensure_alpha_node(agent, alpha_id, alpha_attr, alpha_value, cond->acceptable);
 
     return create_positive_join_node(agent, memory_node, alpha_node, tests);
 }
@@ -1116,8 +1121,6 @@ rete_init(struct agent* agent)
     for (i = 0; i < (sizeof(agent->alpha_nodes) / sizeof(struct alpha_node *)); ++i)
         agent->alpha_nodes[i] = 0;
 
-    agent->goals = agent->impasses = 0;
-
     agent->assertions = agent->retractions = 0;
 }
 
@@ -1218,27 +1221,9 @@ rete_operate_wme(struct agent* agent, struct wme* wme, wme_operation_t op)
     }
 }
 
-void
-rete_push_goal_id(struct agent* agent, symbol_t goal_id)
-{
-    struct symbol_list* entry = (struct symbol_list*) malloc(sizeof(struct symbol_list));
-    entry->symbol = goal_id;
-    entry->next = agent->goals;
-    agent->goals = entry;
-}
-
-symbol_t
-rete_pop_goal_id(struct agent* agent)
-{
-    struct symbol_list* doomed = agent->goals;
-    symbol_t last;
-    ASSERT(doomed != 0, ("popped too many goals"));
-    last = doomed->symbol;
-    agent->goals = doomed->next;
-    free(doomed);
-    return last;
-}
-
+/*
+ * Extract the bound symbol from a variable binding and a token.
+ */
 symbol_t
 rete_get_variable_binding(variable_binding_t binding, struct token* token)
 {
@@ -1248,4 +1233,12 @@ rete_get_variable_binding(variable_binding_t binding, struct token* token)
 
     return get_field_from_wme(token->wme, binding.field);
 }
+
+
+void
+rete_finish(struct agent* agent)
+{
+    UNIMPLEMENTED();
+}
+
 
