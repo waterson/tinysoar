@@ -523,6 +523,8 @@ debug_dump_preference(struct symtab *symtab, struct preference *pref)
 extern __ptr_t __libc_malloc(size_t);
 extern void __libc_free(__ptr_t);
 
+static int live_blocks = 0;
+
 __ptr_t
 malloc(size_t sz)
 {
@@ -530,6 +532,7 @@ malloc(size_t sz)
     if (p)
         memset(p, 0xcd, sz);
 
+    ++live_blocks;
     return p;
 }
 
@@ -544,6 +547,7 @@ free(__ptr_t p)
         memset(p, 0xdd, sz - 4 /* XXX shrug! */);
     }
 
+    --live_blocks;
     __libc_free(p);
 }
 #endif
