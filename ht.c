@@ -19,18 +19,27 @@
 #  error "unsupported integer size"
 #endif
 
-/* The minimum number of buckets we'll allow a hashtable to have */
+/*
+ * The minimum number of buckets we'll allow a hashtable to have.
+ */
 #define MINBUCKETS_LOG2 3
 #define MINBUCKETS      (1 << MINBUCKETS_LOG2)
 
-/* Compute how many buckets the current table has */
+/*
+ * Compute how many buckets the current table has
+ */
 #define NBUCKETS(ht) (1 << (BITS_PER_WORD - (ht)->shift))
 
-/* Compute the maximum acceptable load for a table of size `n' */
+/*
+ * Compute the maximum acceptable load for a table of size `n'.
+ */
 #define MAX_LOAD(n)  ((n) - ((n) >> 3))
 
-/* Compute the minimum acceptable load for a table of size `n' */
+/*
+ * Compute the minimum acceptable load for a table of size `n'.
+ */
 #define MIN_LOAD(n)  (((n) > MINBUCKETS) ? ((n) >> 2) : 0)
+
 
 static void
 rehash(struct ht *ht, struct ht_entry_header **oldbuckets, unsigned noldbuckets)
@@ -100,7 +109,7 @@ ht_add(struct ht *ht, struct ht_entry_header **bucket, unsigned hash, struct ht_
     unsigned nbuckets = NBUCKETS(ht);
 
     if (ht->nentries > MAX_LOAD(nbuckets)) {
-        /* overloaded */
+        /* Overloaded. Grow the table. */
         struct ht_entry_header **oldbuckets = ht->buckets;
         int newnbuckets = 2 * nbuckets;
         int i;
@@ -109,19 +118,19 @@ ht_add(struct ht *ht, struct ht_entry_header **bucket, unsigned hash, struct ht_
         ht->buckets = malloc(newnbuckets * sizeof(struct ht_entry_header *));
         ASSERT(ht->buckets != 0, ("out of memory"));
 
-        /* zero the new table */
+        /* Zero the new table. */
         for (i = newnbuckets - 1; i >= 0; --i)
             ht->buckets[i] = 0;
 
-        /* re-hash old values */
+        /* Re-hash old values. */
         rehash(ht, oldbuckets, nbuckets);
         free(oldbuckets);
 
-        /* make sure `bucket' is sane */
+        /* Make sure `bucket' is sane. */
         bucket = ht_lookup(ht, hash, HT_ENTRY_DATA(entry));
     }
 
-    /* link the entry into the hashtable */
+    /* Link the entry into the hashtable. */
     entry->next = *bucket;
     entry->hash = hash;
     *bucket = entry;
@@ -138,7 +147,7 @@ ht_remove(struct ht *ht, struct ht_entry_header **entryp)
     *entryp = doomed->next;
 
     if (--ht->nentries < MIN_LOAD(nbuckets)) {
-        /* underloaded */
+        /* Underloaded. Shrink the table. */
         struct ht_entry_header **oldbuckets = ht->buckets;
         int newnbuckets = nbuckets / 2;
         int i;
@@ -147,11 +156,11 @@ ht_remove(struct ht *ht, struct ht_entry_header **entryp)
         ht->buckets = malloc(newnbuckets * sizeof(struct ht_entry_header *));
         ASSERT(ht->buckets != 0, ("out of memory"));
 
-        /* zero the new table */
+        /* Zero the new table. */
         for (i = 0; i < newnbuckets; ++i)
             ht->buckets[i] = 0;
 
-        /* rehash old values */
+        /* Rehash old values. */
         rehash(ht, oldbuckets, nbuckets);
         free(oldbuckets);
     }
