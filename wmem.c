@@ -740,7 +740,8 @@ static symbol_t
 run_operator_semantics_on(struct agent*        agent,
                           symbol_t             goal,
                           struct preference*   preferences,
-                          struct symbol_list** candidates)
+                          struct symbol_list** candidates,
+                          bool_t               can_make_new_impasse)
 {
     struct symbol_list* conflicted = 0;
     struct symbol_list* dominated = 0;
@@ -883,7 +884,8 @@ run_operator_semantics_on(struct agent*        agent,
     if (conflicted) {
         /* If there are conflicted candidates, then create an
            operator-conflict impasse. */
-        agent_operator_conflict(agent, goal, conflicted);
+        if (can_make_new_impasse)
+            agent_operator_conflict(agent, goal, conflicted);
         
         while (conflicted) {
             struct symbol_list* doomed = conflicted;
@@ -959,7 +961,9 @@ run_operator_semantics_on(struct agent*        agent,
         /* Punt and drop into a state no-change. This can occur when
            we have a non-trivial conflict, and this is how Soar8
            handles it. */
-        agent_state_no_change(agent, goal);
+        if (can_make_new_impasse)
+            agent_state_no_change(agent, goal);
+
         return nil;
     }
 
@@ -1002,7 +1006,9 @@ run_operator_semantics_on(struct agent*        agent,
 
     if (candidate) {
         /* We found a tie. */
-        agent_operator_tie(agent, goal, *candidates);
+        if (can_make_new_impasse)
+            agent_operator_tie(agent, goal, *candidates);
+
         return nil;
     }
 
@@ -1013,7 +1019,10 @@ run_operator_semantics_on(struct agent*        agent,
  * This routine implements the oeprator preference semantics
  */
 static symbol_t
-run_operator_semantics_for(struct agent* agent, symbol_t goal, struct slot* slot)
+run_operator_semantics_for(struct agent* agent,
+                           symbol_t      goal,
+                           struct slot*  slot,
+                           bool_t        can_make_new_impasse)
 {
     struct preference* preferences = get_preferences_for_slot(agent, slot);
     struct symbol_list* candidates = 0;
@@ -1025,7 +1034,7 @@ run_operator_semantics_for(struct agent* agent, symbol_t goal, struct slot* slot
        rather than re-do this work... */
     collect_candidates(preferences, &candidates);
 
-    result = run_operator_semantics_on(agent, goal, preferences, &candidates);
+    result = run_operator_semantics_on(agent, goal, preferences, &candidates, can_make_new_impasse);
 
     while (candidates) {
         struct symbol_list* doomed = candidates;
@@ -1097,8 +1106,9 @@ select_operator(struct agent* agent)
                 free(wme);
 
                 if (goal->next) {
-                    /* we may have resolved an operator no-change
+                    /* XXX We may have resolved an operator no-change
                        impasse */
+                    UNIMPLEMENTED();
                 }
             }
             else if (! goal->next) {
@@ -1121,25 +1131,28 @@ select_operator(struct agent* agent)
         }
 
         if (wme) {
-            /* Okay, at least one acceptable operator exists. Is there
-               more than one? */
+            /* At least one acceptable operator exists. */
+            bool_t can_make_new_impasse = (goal->next == 0);
             symbol_t selected_op = wme->value;
             struct wme* wme2;
 
+            /* Is there more than one? */
             for (wme2 = wme->next; wme2 != 0; wme2 = wme2->next) {
                 if (wme2->type == wme_type_acceptable)
                     break;
             }
 
             if (wme2) {
-                /* Okay, another acceptable was found. Run the
-                   operator preference semantics on the slot to choose
-                   one. If one can't be chosen, create a new
-                   impasse. */
-                selected_op = run_operator_semantics_for(agent, goal->symbol, slot);
+                /* At least one other acceptable operator is
+                   present. Run the operator preference semantics on
+                   the slot to choose one. If one can't be chosen,
+                   create a new impasse if we're in the bottom-most
+                   state. */
+                selected_op = run_operator_semantics_for(agent, goal->symbol, slot, can_make_new_impasse);
             }
 
             if (! SYMBOL_IS_NIL(selected_op)) {
+                /* We've got a single operator. */
                 struct wme* op;
 
 #ifdef DEBUG
@@ -1161,13 +1174,28 @@ select_operator(struct agent* agent)
                 slot->wmes = op;
 
                 rete_operate_wme(agent, op, wme_operation_add);
+
+                if (goal->next) {
+                    /* XXX We just resolved an impasse, so now we need
+                       to blow away any substates */
+                    UNIMPLEMENTED();
+                }
+
+                return;
             }
 
-            return;
+            /* If we get here, then we couldn't find a unique operator
+               for this state. If we used to be in the bottom state,
+               then we know that a new impasse just got pushed onto
+               the goal stack, so bail. */
+            if (can_make_new_impasse) {
+                ASSERT(goal->next, ("expected a new goal to have been pushed"));
+                return;
+            }
         }
 
-        /* If we get here, no acceptable operators were found in this
-           state. Continue on to the next goal. */
+        /* If we get here, no unique acceptable operator was found in
+           this state. Continue on to the next goal. */
     }
 
     /* If we get here, no acceptable operators were found in _any_

@@ -622,14 +622,17 @@ h8300:
 
 ---
 
+Wrote some tests for operator preference semantics. Here's a chart of
+how we do.
+
 ops-1.soar   pass
 ops-2.soar   pass
-ops-3.soar   pass, but o-conflict keeps firing in top state
-ops-4.soar   pass, but o-tie keeps firing in top state
+ops-3.soar   pass
+ops-4.soar   pass
 ops-5.soar   pass
-ops-6.soar   pass, but o-conflict keeps firing in top state
+ops-6.soar   pass
 ops-7.soar   fail, expect o-tie, not select
-ops-8.soar   pass, but o-tie keeps firing in top state
+ops-8.soar   pass
 ops-9.soar   fail, expect o-tie, not select
 ops-10.soar  pass
 ops-11.soar  pass
