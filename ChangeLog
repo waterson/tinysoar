@@ -5,6 +5,8 @@
 
 	* agent.inc, chunk.c, debug.c, export.c, prod.c, rete.c, soar.h, tinysoar.c:
 	  Get rid of bitfields in `struct beta_test'.
+
+	* Makefile.in: make `legosoar' target create MDDEPDIR.
 	
 2002-10-11  Chris Waterson  <waterson@maubi.net>
 
