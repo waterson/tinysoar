@@ -22,7 +22,17 @@ ifdef MDDEPFILES
 include $(MDDEPFILES)
 endif
 
-rete-test: rete-test.o pool.o pref.o rete.o wmem.o
+OBJS = \
+	pool.o \
+	pref.o \
+	rete-test.o \
+	rete.o \
+	runtime.o \
+	symtab.o \
+	wmem.o \
+	$(NULL)
+
+rete-test: $(OBJS)
 
 clean:
 	rm -rf .deps rete-test *.o *~

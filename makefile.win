@@ -1,17 +1,25 @@
-CFLAGS=/nologo /DINLINE=
+CFLAGS=/nologo /DINLINE= /DWINDOWS
 LFLAGS=/nologo
 LINK=link
 
 !ifdef BUILD_OPT
-CFLAGS=$(CFLAGS) /O1
+CFLAGS=$(CFLAGS) /O1 /DNDEBUG /UDEBUG
 LFLAGS=$(LFLAGS)
 !else
-CFLAGS=$(CFLAGS) /Zi /Od
+CFLAGS=$(CFLAGS) /Zi /Od /UNDEBUG /DDEBUG
 LFLAGS=$(LFLAGS) /debug
 !endif
 
 
-OBJS=rete-test.obj pool.obj rete.obj wmem.obj pref.obj
+OBJS = \
+	pool.obj \
+	pref.obj \
+	rete.obj \
+	runtime.obj \
+	symtab.obj \
+	wmem.obj \
+        rete-test.obj \
+        $(NULL)
 
 rete-test.exe: $(OBJS)
         $(LINK) $(LFLAGS) /out:$@ $(OBJS)
@@ -21,6 +29,8 @@ pool.obj: pool.c pool.h config.h
 rete.obj: rete.c soar.h pool.h config.h
 wmem.obj: wmem.c soar.h pool.h config.h
 pref.obj: pref.c soar.h pool.h config.h
+symtab.obj: symtab.c soar.h config.h
+runtime.obj: runtime.c config.h
 
 clean:
         del *.obj *.exe *.pdb *.ilk *~

@@ -2,22 +2,22 @@
 #include "pool.h"
 
 void
-wmem_init(struct wmem* wmem)
+wmem_init(struct agent* agent)
 {
-    pool_init(&wmem->wme_pool, sizeof(struct wme), 8);
-    wmem->wmes = 0;
+    pool_init(&agent->wme_pool, sizeof(struct wme), 8);
+    agent->wmes = 0;
 }
 
 
 struct wme*
-wmem_add(struct wmem* wmem, symbol_t id, symbol_t attr, symbol_t value, wme_type_t type)
+wmem_add(struct agent* agent, symbol_t id, symbol_t attr, symbol_t value, wme_type_t type)
 {
-    struct wme* wme = (struct wme*) pool_alloc(&wmem->wme_pool);
+    struct wme* wme = (struct wme*) pool_alloc(&agent->wme_pool);
     wme->id = id;
     wme->attr = attr;
     wme->value = value;
     SET_WME_TYPE(*wme, type);
-    SET_WME_NEXT(*wme, wmem->wmes);
-    wmem->wmes = wme;
+    SET_WME_NEXT(*wme, agent->wmes);
+    agent->wmes = wme;
     return wme;
 }

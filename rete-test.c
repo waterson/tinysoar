@@ -5,18 +5,19 @@ struct condition  conditions[2];
 struct action     actions[2];
 struct production productions[1];
 
-static symbol_t symtab[] = {
+static symbol_t symbols[] = {
     DECLARE_SYMBOL(1, symbol_type_variable),
     DECLARE_SYMBOL(2, symbol_type_variable),
 
-    DECLARE_SYMBOL(1, symbol_type_identifier),
-    DECLARE_SYMBOL(2, symbol_type_identifier),
+    DECLARE_SYMBOL(0, 0),
+    DECLARE_SYMBOL(0, 0),
 
     DECLARE_SYMBOL(1, symbol_type_symbolic_constant),
     DECLARE_SYMBOL(2, symbol_type_symbolic_constant),
     DECLARE_SYMBOL(3, symbol_type_symbolic_constant),
     DECLARE_SYMBOL(4, symbol_type_symbolic_constant),
     DECLARE_SYMBOL(5, symbol_type_symbolic_constant),
+    DECLARE_SYMBOL(6, symbol_type_symbolic_constant)
 };
 
 #define VARIABLE_BASE        0
@@ -36,6 +37,15 @@ static symbol_t symtab[] = {
 #define CONSTANT_WAIT        CONSTANT_BASE + 5
 
 static void
+init_symbols(struct agent* agent)
+{
+    int i;
+
+    for (i = IDENTIFIER_BASE; i < CONSTANT_BASE; ++i)
+        symbols[i] = symtab_get_identifier(agent);
+}
+
+static void
 init_productions()
 {
     productions[0].conditions = &conditions[0];
@@ -51,25 +61,25 @@ init_productions()
     test_list[0].next = &test_list[1];
 
     test_list[1].test.type = test_type_equality;
-    test_list[1].test.data.referent = symtab[VARIABLE_STATE];
+    test_list[1].test.data.referent = symbols[VARIABLE_STATE];
     test_list[1].next = 0;
 
     conditions[0].data.simple.attr_test.type = test_type_equality;
-    conditions[0].data.simple.attr_test.data.referent = symtab[CONSTANT_SUPERSTATE];
+    conditions[0].data.simple.attr_test.data.referent = symbols[CONSTANT_SUPERSTATE];
 
     conditions[0].data.simple.value_test.type = test_type_equality;
-    conditions[0].data.simple.value_test.data.referent = symtab[CONSTANT_NIL];
+    conditions[0].data.simple.value_test.data.referent = symbols[CONSTANT_NIL];
 
     conditions[0].next = &conditions[1];
 
     /* (<s> ^input-link <i1>) */
     conditions[1].type = condition_type_positive;
     conditions[1].data.simple.id_test.type = test_type_equality;
-    conditions[1].data.simple.id_test.data.referent = symtab[VARIABLE_STATE];
+    conditions[1].data.simple.id_test.data.referent = symbols[VARIABLE_STATE];
     conditions[1].data.simple.attr_test.type = test_type_equality;
-    conditions[1].data.simple.attr_test.data.referent = symtab[CONSTANT_INPUT_LINK];
+    conditions[1].data.simple.attr_test.data.referent = symbols[CONSTANT_INPUT_LINK];
     conditions[1].data.simple.value_test.type = test_type_equality;
-    conditions[1].data.simple.value_test.data.referent = symtab[VARIABLE_INPUT_LINK];
+    conditions[1].data.simple.value_test.data.referent = symbols[VARIABLE_INPUT_LINK];
     conditions[1].next = 0;
 
     /* (<s> ^operator <o> +) */
@@ -77,12 +87,11 @@ init_productions()
     actions[0].preference_type = preference_type_acceptable;
     actions[0].support_type    = support_type_isupport;
 
-    actions[0].id.type = rhs_value_type_variable_binding;
-    actions[0].id.val.variable_binding.depth = 2; /* XXX should be computed */
-    actions[0].id.val.variable_binding.field = field_id;
+    actions[0].id.type = rhs_value_type_symbol;
+    actions[0].id.val.symbol = symbols[VARIABLE_STATE];
 
     actions[0].attr.type = rhs_value_type_symbol;
-    actions[0].attr.val.symbol = symtab[CONSTANT_OPERATOR];
+    actions[0].attr.val.symbol = symbols[CONSTANT_OPERATOR];
 
     actions[0].value.type = rhs_value_type_unbound_variable;
     actions[0].value.val.unbound_variable = 0;
@@ -96,37 +105,37 @@ init_productions()
     actions[1].id.val.unbound_variable = 0;
 
     actions[1].attr.type = rhs_value_type_symbol;
-    actions[1].attr.val.symbol = symtab[CONSTANT_NAME];
+    actions[1].attr.val.symbol = symbols[CONSTANT_NAME];
 
     actions[1].value.type = rhs_value_type_symbol;
-    actions[1].value.val.symbol = symtab[CONSTANT_WAIT];
+    actions[1].value.val.symbol = symbols[CONSTANT_WAIT];
 }
 
-struct wmem wmem;
-struct rete net;
-struct prefmem prefmem;
+struct agent agent;
 
 int
 main(int argc, char* argv[])
 {
     struct wme* wme;
 
-    wmem_init(&wmem);
-    rete_init(&net, &wmem);
-    pref_init(&prefmem);
+    wmem_init(&agent);
+    symtab_init(&agent);
+    rete_init(&agent);
+    pref_init(&agent);
 
+    init_symbols(&agent);
     init_productions();
-    rete_add_production(&net, &productions[0]);
+    rete_add_production(&agent, &productions[0]);
 
-    rete_push_goal_id(&net, symtab[IDENTIFIER_S1]);
+    rete_push_goal_id(&agent, symbols[IDENTIFIER_S1]);
 
-    wme = wmem_add(&wmem, symtab[IDENTIFIER_S1], symtab[CONSTANT_SUPERSTATE], symtab[CONSTANT_NIL], wme_type_normal);
-    rete_add_wme(&net, wme);
+    wme = wmem_add(&agent, symbols[IDENTIFIER_S1], symbols[CONSTANT_SUPERSTATE], symbols[CONSTANT_NIL], wme_type_normal);
+    rete_add_wme(&agent, wme);
 
-    wme = wmem_add(&wmem, symtab[IDENTIFIER_S1], symtab[CONSTANT_INPUT_LINK], symtab[IDENTIFIER_I1], wme_type_normal);
-    rete_add_wme(&net, wme);
+    wme = wmem_add(&agent, symbols[IDENTIFIER_S1], symbols[CONSTANT_INPUT_LINK], symbols[IDENTIFIER_I1], wme_type_normal);
+    rete_add_wme(&agent, wme);
 
-    pref_process_matches(&prefmem, net.assertions, net.retractions);
+    pref_process_matches(&agent);
 
     return 0;
 }

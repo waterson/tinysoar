@@ -1,3 +1,15 @@
+Friday, December 29, 2000
+
+Hacked up basic symbol table stuff, but will need to expand later to
+cough up identifiers by `gc'-ing through live WMEs to find unused
+ids. Left off while debugging preferences.
+
+
+Thursday, December 28, 2000
+
+Fixed the action struct's depth foo as described below.
+
+
 Tuesday, December 26, 2000
 
 Kludged my way through getting preference memory started. Need to fix
@@ -9,10 +21,12 @@ and `field' values when the rhs_value is a variable binding. That'll
 need to move into the rule compilation. Maybe we can initialize with a
 variable symbol, and then resolve when making the p-node?
 
+
 Monday, December 25, 2000
 
 Debugged a single-condition production. Now I'm bombing in a
 production with two positive conditions. Gotta fix that.
+
 
 Tuesday, December 19, 2000
 
@@ -21,6 +35,7 @@ join nodes hooked up. I'm starting to go through debugging
 |rete_add_wme()|, and am bombing out in the right-addition routine
 because I'm not getting a binding for the `S1' stuff. Need to debug
 that.
+
 
 Tuesday, December 5, 2000
 

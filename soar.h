@@ -13,8 +13,8 @@
 #define SYMBOL_VALUE_BITS  SYMBOL_TYPE_SHIFT
 
 typedef enum symbol_type {
-    symbol_type_variable             =  0,
-    symbol_type_identifier           =  1,
+    symbol_type_identifier           =  0,
+    symbol_type_variable             =  1,
     symbol_type_symbolic_constant    = -2,
     symbol_type_integer_constant     = -1
 } symbol_type_t;
@@ -104,12 +104,6 @@ struct wme {
 #define GET_WME_NEXT(w)    ((struct wme*)((w).bits & WME_NEXT_MASK))
 #define SET_WME_NEXT(w, n) ((w).bits &= ((unsigned)(n)) | WME_TYPE_MASK)
 
-struct wmem {
-    struct wme* wmes;
-    struct pool wme_pool;
-};
-
-
 /* ---------------------------------------------------------------------- */
 
 /*
@@ -158,15 +152,6 @@ struct instantiation {
     struct instantiation*    next;
     const struct production* production;
     struct token*            token;
-};
-
-
-struct prefmem {
-    struct pool instantiation_pool;
-    struct pool preference_pool;
-    struct pool symbol_list_pool;
-    struct instantiation* instantiations;
-    struct preference*    preferences;
 };
 
 
@@ -415,10 +400,21 @@ struct match {
     struct match* next;
 };
 
+/* ---------------------------------------------------------------------- */
+
 /*
- * The Network
+ * An `agent', which is everything that's needed to maintain the state
+ * of a Soar process.
  */
-struct rete {
+struct agent {
+    /* For the symbol table */
+    unsigned next_available_identifier;
+
+    /* For working memory */
+    struct pool wme_pool;
+    struct wme* wmes;
+
+    /* For the RETE network */
     struct beta_node    root_node;
     struct token        root_token;
     struct pool         alpha_node_pool;
@@ -429,58 +425,68 @@ struct rete {
     struct pool         token_pool;
     struct pool         goal_impasse_pool;
     struct pool         match_pool;
-    struct wmem*        wmem;
     struct alpha_node*  alpha_nodes[16];
     struct symbol_list* goals;
     struct symbol_list* impasses;
     struct match*       assertions;
     struct match*       retractions;
+
+    /* For preference memory */
+    struct pool           instantiation_pool;
+    struct pool           preference_pool;
+    struct pool           symbol_list_pool;
+    struct instantiation* instantiations;
+    struct preference*    preferences;
 };
 
 /* ---------------------------------------------------------------------- */
 
 void
-pref_init(struct prefmem* prefmem);
+pref_init(struct agent* agent);
 
 void
-pref_process_matches(struct prefmem* prefmem,
-                     struct match* assertions,
-                     struct match* retractions);
+pref_process_matches(struct agent* agent);
 
 /*
  * Initialize the network
  */
 extern void
-rete_init(struct rete* net, struct wmem* wmem);
+rete_init(struct agent* agent);
 
 /*
  * Add a production to the network
  */
 extern void
-rete_add_production(struct rete* net, const struct production* p);
+rete_add_production(struct agent* agent, struct production* p);
 
 /*
  * Notify the network that a new working memory element has been
  * added.
  */
 extern void
-rete_add_wme(struct rete* net, struct wme* wme);
+rete_add_wme(struct agent* agent, struct wme* wme);
 
 
 extern void
-rete_push_goal_id(struct rete* net, symbol_t goal_id);
+rete_push_goal_id(struct agent* agent, symbol_t goal_id);
 
 extern symbol_t
-rete_pop_goal_id(struct rete* net);
+rete_pop_goal_id(struct agent* agent);
 
 extern symbol_t
 rete_get_variable_binding(variable_binding_t binding, struct token* token);
 
 extern void
-wmem_init(struct wmem* wmem);
+wmem_init(struct agent* agent);
 
 extern struct wme*
-wmem_add(struct wmem* wmem, symbol_t id, symbol_t attr, symbol_t value, wme_type_t type);
+wmem_add(struct agent* agent, symbol_t id, symbol_t attr, symbol_t value, wme_type_t type);
+
+extern void
+symtab_init(struct agent* agent);
+
+extern symbol_t
+symtab_get_identifier(struct agent* agent);
 
 
 #endif /* soar_h__ */

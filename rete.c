@@ -5,10 +5,10 @@
 #include "soar.h"
 
 static void
-do_left_addition(struct rete* net, struct beta_node* node, struct token* token, struct wme* wme);
+do_left_addition(struct agent* agent, struct beta_node* node, struct token* token, struct wme* wme);
 
 static void
-do_right_addition(struct rete* net, struct beta_node* node, struct wme* wme);
+do_right_addition(struct agent* agent, struct beta_node* node, struct wme* wme);
 
 struct variable_binding_list {
     symbol_t                      variable;
@@ -18,18 +18,18 @@ struct variable_binding_list {
 
 
 static INLINE struct beta_node*
-create_beta_node(struct rete* net)
+create_beta_node(struct agent* agent)
 {
-    return (struct beta_node*) pool_alloc(&net->beta_node_pool);
+    return (struct beta_node*) pool_alloc(&agent->beta_node_pool);
 }
 
 /*
  * Create a new beta_test object from the beta_test pool
  */
 static INLINE struct beta_test*
-create_beta_test(struct rete* net)
+create_beta_test(struct agent* agent)
 {
-    return (struct beta_test*) pool_alloc(&net->beta_test_pool);
+    return (struct beta_test*) pool_alloc(&agent->beta_test_pool);
 }
 
 /*
@@ -47,7 +47,7 @@ beta_tests_are_identical(struct beta_test* left, struct beta_test* right)
         case test_type_conjunctive:
             /* shouldn't hit this; conjunctive tests are converted
                into a list of single tests. */
-            assert(0);
+            ERROR(("unexpected conjunctive test"));
             break;
 
         case test_type_disjunctive:
@@ -96,12 +96,12 @@ beta_tests_are_identical(struct beta_test* left, struct beta_test* right)
  * Free a list of beta tests
  */
 static void
-free_beta_tests(struct rete* net, struct beta_test* tests)
+free_beta_tests(struct agent* agent, struct beta_test* tests)
 {
     while (tests) {
         struct beta_test* doomed = tests;
         tests = tests->next;
-        pool_free(&net->beta_test_pool, doomed);
+        pool_free(&agent->beta_test_pool, doomed);
     }
 }
 
@@ -109,18 +109,18 @@ free_beta_tests(struct rete* net, struct beta_test* tests)
  * Create a new variable binding list
  */
 static INLINE struct variable_binding_list*
-create_variable_binding_list(struct rete* net)
+create_variable_binding_list(struct agent* agent)
 {
-    return (struct variable_binding_list*) pool_alloc(&net->variable_binding_list_pool);
+    return (struct variable_binding_list*) pool_alloc(&agent->variable_binding_list_pool);
 }
 
 /*
  * Create a new token
  */
 static INLINE struct token*
-create_token(struct rete* net, struct beta_node* node, struct token* parent, struct wme* wme)
+create_token(struct agent* agent, struct beta_node* node, struct token* parent, struct wme* wme)
 {
-    struct token* result = (struct token*) pool_alloc(&net->token_pool);
+    struct token* result = (struct token*) pool_alloc(&agent->token_pool);
     result->parent = parent;
     result->node = node;
     result->wme = wme;
@@ -168,13 +168,13 @@ get_alpha_test_index(symbol_t id, symbol_t attr, symbol_t value, wme_type_t type
 static INLINE symbol_t
 get_field_from_wme(struct wme* wme, field_t field)
 {
-    assert(wme != 0);
+    ASSERT(wme != 0, ("null ptr"));
     switch (field) {
     case field_id:     return wme->id;
     case field_attr:   return wme->attr;
     case field_value:  return wme->value;
     }
-    assert(0); /* shouldn't get here */
+    UNREACHABLE(); /* shouldn't get here */
 }
 
 /*
@@ -192,9 +192,9 @@ wme_matches_alpha_node(const struct wme* wme, const struct alpha_node* node)
  * Add a wme to the specfieid alpha node's right memory
  */
 static void
-add_wme_to_alpha_node(struct rete* net, struct alpha_node* node, struct wme* wme)
+add_wme_to_alpha_node(struct agent* agent, struct alpha_node* node, struct wme* wme)
 {
-    struct right_memory* rm = (struct right_memory*) pool_alloc(&net->right_memory_pool);
+    struct right_memory* rm = (struct right_memory*) pool_alloc(&agent->right_memory_pool);
     rm->wme = wme;
     rm->next_in_alpha_node = node->right_memories;
     node->right_memories = rm;
@@ -207,9 +207,9 @@ add_wme_to_alpha_node(struct rete* net, struct alpha_node* node, struct wme* wme
  * Corresponds to find_alpha_mem() in rete.c from Soar8.
  */
 static struct alpha_node*
-find_alpha_node(struct rete* net, symbol_t id, symbol_t attr, symbol_t value, wme_type_t type)
+find_alpha_node(struct agent* agent, symbol_t id, symbol_t attr, symbol_t value, wme_type_t type)
 {
-    struct alpha_node* node = net->alpha_nodes[get_alpha_test_index(id, attr, value, type)];
+    struct alpha_node* node = agent->alpha_nodes[get_alpha_test_index(id, attr, value, type)];
     for ( ; node != 0; node = node->siblings) {
         if (SYMBOLS_ARE_EQUAL(id, node->id) &&
             SYMBOLS_ARE_EQUAL(attr, node->attr) &&
@@ -226,16 +226,16 @@ find_alpha_node(struct rete* net, symbol_t id, symbol_t attr, symbol_t value, wm
  * This corresponds to find_or_make_alpha_mem() in rete.c from Soar8.
  */
 static struct alpha_node*
-ensure_alpha_node(struct rete* net, symbol_t id, symbol_t attr, symbol_t value, wme_type_t type)
+ensure_alpha_node(struct agent* agent, symbol_t id, symbol_t attr, symbol_t value, wme_type_t type)
 {
     struct alpha_node* result;
 
-    if (! (result = find_alpha_node(net, id, attr, value, type))) {
-        struct alpha_node** head = &net->alpha_nodes[get_alpha_test_index(id, attr, value, type)];
+    if (! (result = find_alpha_node(agent, id, attr, value, type))) {
+        struct alpha_node** head = &agent->alpha_nodes[get_alpha_test_index(id, attr, value, type)];
         struct alpha_node* more_general_node;
         symbol_t nil;
 
-        result = (struct alpha_node*) pool_alloc(&net->alpha_node_pool);
+        result = (struct alpha_node*) pool_alloc(&agent->alpha_node_pool);
         result->id    = id;
         result->attr  = attr;
         result->value = value;
@@ -249,10 +249,10 @@ ensure_alpha_node(struct rete* net, symbol_t id, symbol_t attr, symbol_t value, 
         CLEAR_SYMBOL(nil);
 
         if (! SYMBOL_IS_NIL(id))
-            more_general_node = find_alpha_node(net, nil, attr, value, type);
+            more_general_node = find_alpha_node(agent, nil, attr, value, type);
 
         if (! more_general_node && ! SYMBOL_IS_NIL(value))
-            more_general_node = find_alpha_node(net, nil, attr, nil, type);
+            more_general_node = find_alpha_node(agent, nil, attr, nil, type);
 
         if (more_general_node) {
             /* Found a more general working memory; use it to fill in
@@ -260,15 +260,15 @@ ensure_alpha_node(struct rete* net, symbol_t id, symbol_t attr, symbol_t value, 
             struct right_memory* rm;
             for (rm = more_general_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
                 if (wme_matches_alpha_node(rm->wme, result))
-                    add_wme_to_alpha_node(net, result, rm->wme);
+                    add_wme_to_alpha_node(agent, result, rm->wme);
             }
         }
         else {
             /* Troll through *all* the wmes */
             struct wme* wme;
-            for (wme = net->wmem->wmes; wme != 0; wme = GET_WME_NEXT(*wme)) {
+            for (wme = agent->wmes; wme != 0; wme = GET_WME_NEXT(*wme)) {
                 if (wme_matches_alpha_node(wme, result))
-                    add_wme_to_alpha_node(net, result, wme);
+                    add_wme_to_alpha_node(agent, result, wme);
             }
         }
     }
@@ -303,7 +303,7 @@ find_bound_variable(const struct variable_binding_list* bindings, const symbol_t
  * before being stored in the beta_test struct.
  */
 static void
-bind_variables(struct rete* net,
+bind_variables(struct agent* agent,
                const struct test* test,
                unsigned depth,
                field_t field,
@@ -320,7 +320,7 @@ bind_variables(struct rete* net,
         if ((GET_SYMBOL_TYPE(test->data.referent) == symbol_type_variable) &&
             !find_bound_variable(*bindings, test->data.referent)) {
             struct variable_binding_list* entry =
-                create_variable_binding_list(net);
+                create_variable_binding_list(agent);
 
             entry->variable = test->data.referent;
             entry->binding.depth = depth;
@@ -334,12 +334,12 @@ bind_variables(struct rete* net,
         {
             struct test_list* tests;
             for (tests = test->data.conjuncts; tests != 0; tests = tests->next)
-                bind_variables(net, &tests->test, depth, field, bindings);
+                bind_variables(agent, &tests->test, depth, field, bindings);
         }
         break;
 
     case test_type_disjunctive:
-        assert(0); /* XXX write me! */
+        UNIMPLEMENTED(); /* XXX write me! */
         break;
 
     case test_type_goal_id:
@@ -358,7 +358,7 @@ bind_variables(struct rete* net,
  * This corresponds to add_rete_tests_for_test() from rete.c in Soar8.
  */
 static void
-process_test(struct rete* net,
+process_test(struct agent* agent,
              const struct test* test,
              unsigned depth,
              field_t field,
@@ -382,10 +382,10 @@ process_test(struct rete* net,
         if (GET_SYMBOL_TYPE(test->data.referent) == symbol_type_variable) {
             /* It's a variable. Make a variable relational test */
             const variable_binding_t* binding;
-            beta_test = create_beta_test(net);
+            beta_test = create_beta_test(agent);
 
             binding = find_bound_variable(bindings, test->data.referent);
-            assert(binding != 0);
+            ASSERT(binding != 0, ("null ptr"));
 
             beta_test->relational_type = relational_type_variable;
             beta_test->data.variable_referent = *binding;
@@ -402,7 +402,7 @@ process_test(struct rete* net,
                 *constant = test->data.referent;
             }
             else {
-                beta_test = create_beta_test(net);
+                beta_test = create_beta_test(agent);
                 beta_test->relational_type = relational_type_constant;                
                 beta_test->data.constant_referent = *constant;
             }
@@ -411,7 +411,7 @@ process_test(struct rete* net,
 
     case test_type_goal_id:
     case test_type_impasse_id:
-        beta_test = create_beta_test(net);
+        beta_test = create_beta_test(agent);
         break;
 
     case test_type_blank:
@@ -422,12 +422,12 @@ process_test(struct rete* net,
         {
             struct test_list* tests;
             for (tests = test->data.conjuncts; tests != 0; tests = tests->next)
-                process_test(net, &tests->test, depth, field, bindings, constant, beta_tests);
+                process_test(agent, &tests->test, depth, field, bindings, constant, beta_tests);
         }
         break;
 
     case test_type_disjunctive:
-        assert(0); /* XXX just hit a test that needs writin' */
+        UNIMPLEMENTED(); /* XXX just hit a test that needs writin' */
     }
 
     if (beta_test) {
@@ -442,7 +442,7 @@ process_test(struct rete* net,
  * Check a single beta test
  */
 static bool_t
-check_beta_test(struct rete* net, struct beta_test* test, struct token* token, struct wme* wme)
+check_beta_test(struct agent* agent, struct beta_test* test, struct token* token, struct wme* wme)
 {
     switch (test->type) {
     case test_type_equality:
@@ -521,14 +521,14 @@ check_beta_test(struct rete* net, struct beta_test* test, struct token* token, s
                         break;
 
                     default:
-                        assert(0); /* never reached */
+                        UNREACHABLE(); /* never reached */
                     }
                 }
 
                 break;
 
             default:
-                assert(0); /* never reached */
+                UNREACHABLE(); /* never reached */
             }
         }
         break;
@@ -536,7 +536,7 @@ check_beta_test(struct rete* net, struct beta_test* test, struct token* token, s
     case test_type_goal_id:
         {
             struct symbol_list* goal;
-            for (goal = net->goals; goal != 0; goal = goal->next) {
+            for (goal = agent->goals; goal != 0; goal = goal->next) {
                 if (SYMBOLS_ARE_EQUAL(goal->symbol, wme->id))
                     return 1;
             }
@@ -546,7 +546,7 @@ check_beta_test(struct rete* net, struct beta_test* test, struct token* token, s
     case test_type_impasse_id:
         {
             struct symbol_list* impasse;
-            for (impasse = net->impasses; impasse != 0; impasse = impasse->next) {
+            for (impasse = agent->impasses; impasse != 0; impasse = impasse->next) {
                 if (SYMBOLS_ARE_EQUAL(impasse->symbol, wme->id))
                     return 1;
             }
@@ -557,7 +557,7 @@ check_beta_test(struct rete* net, struct beta_test* test, struct token* token, s
         {
             struct beta_test* disjunct;
             for (disjunct = test->data.disjuncts; disjunct != 0; disjunct = disjunct->next) {
-                if (check_beta_test(net, disjunct, token, wme))
+                if (check_beta_test(agent, disjunct, token, wme))
                     return 1;
             }
         }
@@ -567,7 +567,7 @@ check_beta_test(struct rete* net, struct beta_test* test, struct token* token, s
     case test_type_blank:
         /* shouldn't ever hit this; conjunctive tests are
            converted into a list of single tests. */
-        assert(0);
+        ERROR(("unexpected test"));
         break;
     }
 
@@ -579,10 +579,10 @@ check_beta_test(struct rete* net, struct beta_test* test, struct token* token, s
  * Check a list of beta tests
  */
 static INLINE bool_t
-check_beta_tests(struct rete* net, struct beta_test* test, struct token* token, struct wme* wme)
+check_beta_tests(struct agent* agent, struct beta_test* test, struct token* token, struct wme* wme)
 {
     for ( ; test != 0; test = test->next) {
-        if (! check_beta_test(net, test, token, wme))
+        if (! check_beta_test(agent, test, token, wme))
             return 0;
     }
 
@@ -597,10 +597,10 @@ check_beta_tests(struct rete* net, struct beta_test* test, struct token* token, 
  * rete.c in Soar8.
  */
 static void
-initialize_matches(struct rete* net, struct beta_node* child, struct beta_node* parent)
+initialize_matches(struct agent* agent, struct beta_node* child, struct beta_node* parent)
 {
     if (parent->type == beta_node_type_root)
-        do_left_addition(net, child, &net->root_token, 0);
+        do_left_addition(agent, child, &agent->root_token, 0);
     else if (parent->type & beta_node_type_bit_positive) {
         struct beta_node* old_children = parent->children;
         struct beta_node* old_siblings = child->siblings;
@@ -610,13 +610,13 @@ initialize_matches(struct rete* net, struct beta_node* child, struct beta_node* 
         child->siblings = 0;
 
         for (rm = parent->alpha_node->right_memories; rm != 0; rm = rm->next_in_alpha_node)
-            do_right_addition(net, parent, rm->wme);
+            do_right_addition(agent, parent, rm->wme);
 
         parent->children = old_children;
         child->siblings = old_siblings;
     }
     else {
-        assert(0); /* XXX write me! */
+        UNIMPLEMENTED(); /* XXX write me! */
     }
 }
 
@@ -624,18 +624,18 @@ initialize_matches(struct rete* net, struct beta_node* child, struct beta_node* 
  * Create a beta memory node with the specified parent.
  */
 static struct beta_node*
-create_memory_node(struct rete* net, struct beta_node* parent)
+create_memory_node(struct agent* agent, struct beta_node* parent)
 {
     struct beta_node* result;
 
-    result = create_beta_node(net);
+    result = create_beta_node(agent);
     result->type       = beta_node_type_memory;
     result->parent     = parent;
     result->siblings   = parent->children;
     parent->children   = result;
     result->children   = 0;
 
-    initialize_matches(net, result, parent);
+    initialize_matches(agent, result, parent);
 
     return result;
 }
@@ -644,14 +644,14 @@ create_memory_node(struct rete* net, struct beta_node* parent)
  * Create a positive join node with the specified parent.
  */
 static struct beta_node*
-create_positive_join_node(struct rete* net,
+create_positive_join_node(struct agent* agent,
                           struct beta_node* parent,
                           struct alpha_node* alpha_node,
                           struct beta_test* tests)
 {
     struct beta_node* result;
 
-    result = create_beta_node(net);
+    result = create_beta_node(agent);
     result->type       = beta_node_type_positive_join;
     result->parent     = parent;
     result->siblings   = parent->children;
@@ -673,13 +673,13 @@ create_positive_join_node(struct rete* net,
  * Create a production node with the specified parent
  */
 static struct beta_node*
-create_production_node(struct rete* net,
+create_production_node(struct agent* agent,
                        struct beta_node* parent,
                        const struct production* production)
 {
     struct beta_node* result;
 
-    result = create_beta_node(net);
+    result = create_beta_node(agent);
     result->type       = beta_node_type_production;
     result->parent     = parent;
     result->siblings   = parent->children;
@@ -688,6 +688,36 @@ create_production_node(struct rete* net,
     result->data.production = production;
 
     return result;
+}
+
+
+/*
+ * Convert variable symbols into the corresponding variable binding.
+ */
+static void
+process_rhs_value(struct rhs_value* value,
+                  struct variable_binding_list* bindings,
+                  unsigned depth)
+{
+    if ((value->type == rhs_value_type_symbol) &&
+        (value->val.symbol.type == symbol_type_variable)) {
+        /* Look up the binding for the variable. There'd better be
+           one, or this trip'll end real quick. */
+        const variable_binding_t* binding =
+            find_bound_variable(bindings, value->val.symbol);
+
+        ASSERT(binding != 0, ("null ptr"));
+
+        /* Replace the symbol with an the variable binding */
+        value->type = rhs_value_type_variable_binding;
+        value->val.variable_binding = *binding;
+
+        /* Fix the depth (which was stored as an `absolute depth' in
+           the binding list) to be relative to the current depth of
+           the node in the rete network. */
+        value->val.variable_binding.depth =
+            depth - value->val.variable_binding.depth;
+    }
 }
 
 /*
@@ -699,7 +729,7 @@ create_production_node(struct rete* net,
  * Soar8.
  */
 static struct beta_node*
-ensure_positive_condition_node(struct rete* net,
+ensure_positive_condition_node(struct agent* agent,
                                const struct condition* cond,
                                unsigned depth,
                                struct beta_node* parent,
@@ -716,13 +746,13 @@ ensure_positive_condition_node(struct rete* net,
     CLEAR_SYMBOL(alpha_value);
 
     /* XXX gee, that's a lot of parameters. */
-    bind_variables(net, &cond->data.simple.id_test,    depth, field_id,    bindings);
-    bind_variables(net, &cond->data.simple.attr_test,  depth, field_attr,  bindings);
-    bind_variables(net, &cond->data.simple.value_test, depth, field_value, bindings);
+    bind_variables(agent, &cond->data.simple.id_test,    depth, field_id,    bindings);
+    bind_variables(agent, &cond->data.simple.attr_test,  depth, field_attr,  bindings);
+    bind_variables(agent, &cond->data.simple.value_test, depth, field_value, bindings);
 
-    process_test(net, &cond->data.simple.id_test,    depth, field_id,    *bindings, &alpha_id,    &tests);
-    process_test(net, &cond->data.simple.attr_test,  depth, field_attr,  *bindings, &alpha_attr,  &tests);
-    process_test(net, &cond->data.simple.value_test, depth, field_value, *bindings, &alpha_value, &tests);
+    process_test(agent, &cond->data.simple.id_test,    depth, field_id,    *bindings, &alpha_id,    &tests);
+    process_test(agent, &cond->data.simple.attr_test,  depth, field_attr,  *bindings, &alpha_attr,  &tests);
+    process_test(agent, &cond->data.simple.value_test, depth, field_value, *bindings, &alpha_value, &tests);
 
     /* See if there's a memory node we can use */
     for (memory_node = parent->children; memory_node != 0; memory_node = memory_node->siblings) {
@@ -744,14 +774,14 @@ ensure_positive_condition_node(struct rete* net,
             /* If we didn't a matching positive-join node, make one
                now, parented by the memory node. */
             alpha_node =
-                ensure_alpha_node(net, alpha_id, alpha_attr, alpha_value, 0 /*XXX wme vs. acceptable*/);
+                ensure_alpha_node(agent, alpha_id, alpha_attr, alpha_value, 0 /*XXX wme vs. acceptable*/);
 
-            return create_positive_join_node(net, memory_node, alpha_node, tests);
+            return create_positive_join_node(agent, memory_node, alpha_node, tests);
         }
 
         /* Hey, we found one. Free the tests we allocated and return
            the node we found. */
-        free_beta_tests(net, tests);
+        free_beta_tests(agent, tests);
         return result;
     }
 
@@ -761,27 +791,27 @@ ensure_positive_condition_node(struct rete* net,
        memory node with two positive-join children. */
 
     /* No memory node, so create one and attach a positive join node to it. */
-    memory_node = create_memory_node(net, parent);
+    memory_node = create_memory_node(agent, parent);
 
     alpha_node =
-        ensure_alpha_node(net, alpha_id, alpha_attr, alpha_value, 0 /*XXX wme vs. acceptable*/);
+        ensure_alpha_node(agent, alpha_id, alpha_attr, alpha_value, 0 /*XXX wme vs. acceptable*/);
 
-    return create_positive_join_node(net, memory_node, alpha_node, tests);
+    return create_positive_join_node(agent, memory_node, alpha_node, tests);
 }
 
 /* ---------------------------------------------------------------------- */
 
 static void
-do_left_addition(struct rete* net, struct beta_node* node, struct token* token, struct wme* wme)
+do_left_addition(struct agent* agent, struct beta_node* node, struct token* token, struct wme* wme)
 {
     switch (node->type) {
     case beta_node_type_memory:
         {
             /* Add a new token to the memory and notify children */
-            struct token* new_token = create_token(net, node, token, wme);
+            struct token* new_token = create_token(agent, node, token, wme);
             struct beta_node* child;
             for (child = node->children; child != 0; child = child->siblings)
-                do_left_addition(net, child, new_token, 0);
+                do_left_addition(agent, child, new_token, 0);
         }
         break;
 
@@ -789,10 +819,10 @@ do_left_addition(struct rete* net, struct beta_node* node, struct token* token, 
         {
             struct right_memory* rm;
             for (rm = node->alpha_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
-                if (check_beta_tests(net, node->data.tests, token, rm->wme)) {
+                if (check_beta_tests(agent, node->data.tests, token, rm->wme)) {
                     struct beta_node* child;
                     for (child = node->children; child != 0; child = child->siblings)
-                        do_left_addition(net, child, token, rm->wme);
+                        do_left_addition(agent, child, token, rm->wme);
                 }
             }
         }
@@ -800,29 +830,29 @@ do_left_addition(struct rete* net, struct beta_node* node, struct token* token, 
 
     case beta_node_type_production:
         {
-            struct token* new_token = create_token(net, node, token, wme);
+            struct token* new_token = create_token(agent, node, token, wme);
             struct match** link;
             struct match* match;
 
             /* See if this match had been retracted */
-            for (link = &net->retractions, match = net->retractions;
+            for (link = &agent->retractions, match = agent->retractions;
                  match != 0;
                  link = &match->next, match = match->next) {
                 if (tokens_are_equal(match->token, new_token)) {
                     /* Yep. Remove from the retraction queue */
                     (*link)->next = match->next;
-                    pool_free(&net->match_pool, match);
+                    pool_free(&agent->match_pool, match);
                     break;
                 }
             }
 
             /* Otherwise, allocate a new match and place on the firing
                queue */
-            match = (struct match*) pool_alloc(&net->match_pool);
+            match = (struct match*) pool_alloc(&agent->match_pool);
             match->token = new_token;
             match->production = node->data.production;
-            match->next = net->assertions;
-            net->assertions = match;
+            match->next = agent->assertions;
+            agent->assertions = match;
         }
         break;
 
@@ -830,28 +860,28 @@ do_left_addition(struct rete* net, struct beta_node* node, struct token* token, 
     case beta_node_type_negative:
     case beta_node_type_conjunctive_negative:
     case beta_node_type_conjunctive_negative_partner:
-        assert(0); /* XXX write me! */
+        UNIMPLEMENTED(); /* XXX write me! */
         break;
 
     case beta_node_type_root:
-        assert(0); /* can't get left addition on this node */
+        ERROR(("unexpected left addition")); /* can't get left addition on this node */
         break;
     }
 }
 
 
 static void
-do_right_addition(struct rete* net, struct beta_node* node, struct wme* wme)
+do_right_addition(struct agent* agent, struct beta_node* node, struct wme* wme)
 {
     switch (node->type) {
     case beta_node_type_positive_join:
         {
             struct token* token;
             for (token = node->parent->tokens; token != 0; token = token->next) {
-                if (check_beta_tests(net, node->data.tests, token, wme)) {
+                if (check_beta_tests(agent, node->data.tests, token, wme)) {
                     struct beta_node* child;
                     for (child = node->children; child != 0; child = child->siblings)
-                        do_left_addition(net, child, token, wme);
+                        do_left_addition(agent, child, token, wme);
                 }
             }
         }
@@ -859,7 +889,7 @@ do_right_addition(struct rete* net, struct beta_node* node, struct wme* wme)
 
     case beta_node_type_memory_positive_join:
     case beta_node_type_negative:
-        assert(0); /* XXX write me! */
+        UNIMPLEMENTED(); /* XXX write me! */
         break;
 
     case beta_node_type_conjunctive_negative:
@@ -867,7 +897,7 @@ do_right_addition(struct rete* net, struct beta_node* node, struct wme* wme)
     case beta_node_type_root:
     case beta_node_type_production:
     case beta_node_type_memory:
-        assert(0); /* can't get right addition on these nodes */
+        ERROR(("unexpected right addition")); /* can't get right addition on these nodes */
         break;
     }
 }
@@ -883,43 +913,41 @@ do_right_addition(struct rete* net, struct beta_node* node, struct wme* wme)
  * Initialize the rete network.
  */
 void
-rete_init(struct rete* net, struct wmem* wmem)
+rete_init(struct agent* agent)
 {
     int i;
 
-    net->root_node.type = beta_node_type_root;
-    net->root_node.tokens = &net->root_token;
+    agent->root_node.type = beta_node_type_root;
+    agent->root_node.tokens = &agent->root_token;
 
-    net->root_token.parent = 0;
-    net->root_token.node   = &net->root_node;
-    net->root_token.wme    = 0;
-    net->root_token.next   = 0;
+    agent->root_token.parent = 0;
+    agent->root_token.node   = &agent->root_node;
+    agent->root_token.wme    = 0;
+    agent->root_token.next   = 0;
 
-    pool_init(&net->alpha_node_pool, sizeof(struct alpha_node), 8);
-    pool_init(&net->right_memory_pool, sizeof(struct right_memory), 8);
-    pool_init(&net->beta_node_pool, sizeof(struct beta_node), 8);
-    pool_init(&net->beta_test_pool, sizeof(struct beta_test), 8);
-    pool_init(&net->variable_binding_list_pool, sizeof(struct variable_binding_list), 8);
-    pool_init(&net->token_pool, sizeof(struct token), 8);
-    pool_init(&net->goal_impasse_pool, sizeof(struct symbol_list), 8);
-    pool_init(&net->match_pool, sizeof(struct match), 8);
+    pool_init(&agent->alpha_node_pool, sizeof(struct alpha_node), 8);
+    pool_init(&agent->right_memory_pool, sizeof(struct right_memory), 8);
+    pool_init(&agent->beta_node_pool, sizeof(struct beta_node), 8);
+    pool_init(&agent->beta_test_pool, sizeof(struct beta_test), 8);
+    pool_init(&agent->variable_binding_list_pool, sizeof(struct variable_binding_list), 8);
+    pool_init(&agent->token_pool, sizeof(struct token), 8);
+    pool_init(&agent->goal_impasse_pool, sizeof(struct symbol_list), 8);
+    pool_init(&agent->match_pool, sizeof(struct match), 8);
 
-    for (i = 0; i < (sizeof(net->alpha_nodes) / sizeof(struct alpha_node *)); ++i)
-        net->alpha_nodes[i] = 0;
+    for (i = 0; i < (sizeof(agent->alpha_nodes) / sizeof(struct alpha_node *)); ++i)
+        agent->alpha_nodes[i] = 0;
 
-    net->wmem = wmem;
-    net->goals = net->impasses = 0;
+    agent->goals = agent->impasses = 0;
 
-    net->assertions = net->retractions = 0;
+    agent->assertions = agent->retractions = 0;
 }
 
 
 void
-rete_add_production(struct rete* net, const struct production* p)
+rete_add_production(struct agent* agent, struct production* p)
 {
     unsigned depth = 0;
-    struct beta_node* parent = &net->root_node;
-    struct beta_node* production_node;
+    struct beta_node* parent = &agent->root_node;
     struct condition* cond;
 
     struct variable_binding_list* bindings = 0;
@@ -929,29 +957,49 @@ rete_add_production(struct rete* net, const struct production* p)
     for (cond = p->conditions; cond != 0; cond = cond->next) {
         struct beta_node* child;
 
+        ++depth;
+
         switch (cond->type) {
         case condition_type_positive:
-            child = ensure_positive_condition_node(net, cond, ++depth, parent, &bindings);
+            child = ensure_positive_condition_node(agent, cond, depth, parent, &bindings);
             break;
 
         case condition_type_negative:
         case condition_type_conjunctive_negation:
         default:
-            child = 0;
+            UNIMPLEMENTED(); /* XXX write me */
             break;
         }
 
-        assert(child != 0);
         parent = child;
     }
 
-    production_node = create_production_node(net, parent, p);
-    initialize_matches(net, production_node, parent);
+
+    {
+        /* Build the production node at the tail of the party */
+        struct action* action;
+
+        struct beta_node* production_node =
+            create_production_node(agent, parent, p);
+
+        /* Convert any rhs_value's that are `variable' symbols into
+           variable bindings */
+        for (action = p->actions; action != 0; action = action->next) {
+            process_rhs_value(&action->id, bindings, depth);
+            process_rhs_value(&action->attr, bindings, depth);
+            process_rhs_value(&action->value, bindings, depth);
+
+            if (action->preference_type & preference_type_binary)
+                process_rhs_value(&action->referent, bindings, depth);
+        }
+
+        initialize_matches(agent, production_node, parent);
+    }
 
     while (bindings) {
         struct variable_binding_list* doomed = bindings;
         bindings = bindings->next;
-        pool_free(&net->variable_binding_list_pool, doomed);
+        pool_free(&agent->variable_binding_list_pool, doomed);
     }
 }
 
@@ -961,7 +1009,7 @@ rete_remove_production()
 }
 
 void
-rete_add_wme(struct rete* net, struct wme* wme)
+rete_add_wme(struct agent* agent, struct wme* wme)
 {
     int offset;
     int i;
@@ -970,13 +1018,13 @@ rete_add_wme(struct rete* net, struct wme* wme)
     for (i = 0; i < 8; ++i) {
         struct alpha_node* alpha;
 
-        for (alpha = net->alpha_nodes[i + offset]; alpha != 0; alpha = alpha->siblings) {
+        for (alpha = agent->alpha_nodes[i + offset]; alpha != 0; alpha = alpha->siblings) {
             if (wme_matches_alpha_node(wme, alpha)) {
                 struct beta_node* beta;
-                add_wme_to_alpha_node(net, alpha, wme);
+                add_wme_to_alpha_node(agent, alpha, wme);
 
                 for (beta = alpha->children; beta != 0; beta = beta->next_with_same_alpha_node)
-                    do_right_addition(net, beta, wme);
+                    do_right_addition(agent, beta, wme);
             }
         }
     }
@@ -989,23 +1037,23 @@ rete_remove_wme()
 
 
 void
-rete_push_goal_id(struct rete* net, symbol_t goal_id)
+rete_push_goal_id(struct agent* agent, symbol_t goal_id)
 {
-    struct symbol_list* entry = (struct symbol_list*) pool_alloc(&net->goal_impasse_pool);
+    struct symbol_list* entry = (struct symbol_list*) pool_alloc(&agent->goal_impasse_pool);
     entry->symbol = goal_id;
-    entry->next = net->goals;
-    net->goals = entry;
+    entry->next = agent->goals;
+    agent->goals = entry;
 }
 
 symbol_t
-rete_pop_goal_id(struct rete* net)
+rete_pop_goal_id(struct agent* agent)
 {
-    struct symbol_list* doomed = net->goals;
+    struct symbol_list* doomed = agent->goals;
     symbol_t last;
-    assert(doomed != 0);
+    ASSERT(doomed != 0, ("popped too many goals"));
     last = doomed->symbol;
-    net->goals = doomed->next;
-    pool_free(&net->goal_impasse_pool, doomed);
+    agent->goals = doomed->next;
+    pool_free(&agent->goal_impasse_pool, doomed);
     return last;
 }
 

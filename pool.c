@@ -13,10 +13,10 @@ void
 pool_init(struct pool* pool, unsigned entry_size, unsigned block_size)
 {
     /* Must be at least as big as a pointer */
-    assert(entry_size >= sizeof(struct free_entry));
+    ASSERT(entry_size >= sizeof(struct free_entry), ("entry size too small"));
 
     /* Must be alignable to pointer */
-    assert(entry_size % sizeof(void*) == 0);
+    ASSERT(entry_size % sizeof(void*) == 0, ("entry size not alignable"));
 
     pool->entry_size = entry_size;
     pool->block_size = block_size;
