@@ -630,6 +630,9 @@ create_instantiation(struct agent       *agent,
     struct symbol_list *unbound_vars = 0;
     struct action *action;
     int count;
+#ifdef CONF_SOAR_CHUNKING
+    int level;
+#endif
 
     /* Initialize the instantiation. */
     inst = (struct instantiation *) malloc(sizeof(struct instantiation));
@@ -639,6 +642,10 @@ create_instantiation(struct agent       *agent,
     inst->preferences  = 0;
 
     production->instantiations = inst;
+
+#ifdef CONF_SOAR_CHUNKING
+    level = rete_get_instantiation_level(agent, inst);
+#endif
 
     /* Generate identifiers for the unbound variables. */
     agent_reserve_identifiers(agent, production->num_unbound_vars);
@@ -662,12 +669,6 @@ create_instantiation(struct agent       *agent,
 
         pref->type = action->preference_type;
 
-        /* Reconsider preferences must be i-supported, otherwise we'd
-           never be able to get rid of them! */
-        pref->support = (pref->type == preference_type_reconsider)
-            ? support_type_isupport
-            : production->support;
-
         id          = instantiate_rhs_value(&action->id,    token, unbound_vars);
         attr        = instantiate_rhs_value(&action->attr,  token, unbound_vars);
         pref->value = instantiate_rhs_value(&action->value, token, unbound_vars);
@@ -678,6 +679,20 @@ create_instantiation(struct agent       *agent,
 
             pref->referent = instantiate_rhs_value(&action->referent, token, unbound_vars);
         }
+
+        /* Give the preference the support that the production
+           warrants, except for two cases. First, reconsider
+           preferences must be i-supported, otherwise we'd never be
+           able to get rid of them. Second, if the preference is being
+           made for a higher-level identifier, give it i-support. */
+        if ((pref->type == preference_type_reconsider)
+#ifdef CONF_SOAR_CHUNKING
+            || (agent_get_id_level(agent, id) < level)
+#endif
+            )
+            pref->support = support_type_isupport;
+        else
+            pref->support = production->support;
 
         if ((pref->type == preference_type_reject) &&
             (pref->support == support_type_osupport)) {
@@ -728,7 +743,7 @@ create_instantiation(struct agent       *agent,
     }
 
 #ifdef CONF_SOAR_CHUNKING
-    chunk_if_results(agent, inst, *o_rejects);
+    chunk_if_results(agent, inst, *o_rejects, level);
 #endif
 }
 

@@ -656,7 +656,8 @@ agent_set_id_level(struct agent *agent, symbol_t id, int level);
 extern void
 chunk_if_results(struct agent         *agent,
                  struct instantiation *inst,
-                 struct preference    *o_rejects);
+                 struct preference    *o_rejects,
+                 int                   level);
 #endif
 
 #endif /* soar_h__ */
