@@ -50,6 +50,8 @@
 #include <stdio.h>
 #endif
 
+#define DEBUG_CHUNKING
+
 struct preference_list {
     struct preference      *preference;
     struct preference_list *next;
@@ -485,10 +487,8 @@ create_negative_node(struct agent                  *agent,
 
     /* Create a negative node and link it into the beta network. */
     node = (struct beta_node *) malloc(sizeof(struct beta_node));
+    memset(node, 0, sizeof *node);
     node->type     = beta_node_type_negative;
-    node->blocked  = 0;
-    node->tokens   = 0;
-    node->children = 0;
     node->parent   = parent;
     node->siblings = parent->children;
 
@@ -502,14 +502,11 @@ create_negative_node(struct agent                  *agent,
         node->next_with_same_alpha_node = node->alpha_node->children;
         node->alpha_node->children = node;
     }
-    else
-        node->next_with_same_alpha_node = 0;
 
     /* Copy the tests. We'd better not be adding any new
        bindings in a negated test, so we won't bother forcing
        the referents to be bound.
        XXX it'd be nice to assert that. */
-    node->data.tests = 0;
     copy_tests(&node->data.tests, orig->parent->data.tests, bindings,
                depth, token);
 
@@ -744,6 +741,46 @@ token_list_contains(struct token_list *list,
 }
 
 /*
+ * Returns `true' if the `parent' token is a parent of the `child' token.
+ */
+static bool_t
+is_parent_of(struct token *child, struct token *parent)
+{
+    for ( ; child != 0; child = child->parent) {
+        if (child == parent)
+            return 1;
+    }
+
+    return 0;
+}
+
+/*
+ * Insert the token into the grounds. We want to make sure that we
+ * maintain the grounds such that parent tokens always appear before
+ * their children.
+ */
+static void
+add_to_grounds(struct token_list **link, struct token_list *ground)
+{
+    struct token_list *entry;
+
+    /* We'll insert to the new ground token at the end, unless we find
+       another token that is a child of the new ground token. */
+    while ((entry = *link) != 0 && !is_parent_of(entry->token, ground->token))
+        link = &entry->next;
+
+    ground->next = entry;
+    *link = ground;
+
+#ifdef DEBUG
+    /* Make sure that we don't have a cycle! */
+    for (entry = ground->next; entry != 0; entry = entry->next)
+        ASSERT(!is_parent_of(ground->token, entry->token),
+               ("cycle in the grounds"));
+#endif
+}
+
+/*
  * Collect tokens from the specified instantiation. Add each token
  * either to the grounds or to the potentials. Move any potentials to
  * the grounds set that have become reachable from the grounds.
@@ -768,9 +805,11 @@ collect(struct agent          *agent,
     visited->next = chunk->visited;
     chunk->visited = visited;
 
-    /* Iterate through each token in the instantiation: if it's a
-       higher-level goal, then add it to the grounds. Otherwise, note
-       that it is a potential that needs to be backtraced. */
+    /* Iterate through each token in the instantiation. For a positive
+       condition, check if it's a higher-level goal: if so, then add
+       it to the grounds. Otherwise, note that it is a potential that
+       needs to be backtraced. Add negative conditions to the `nots'
+       list. */
     for (token = inst->token; token != 0; token = token->parent) {
         struct wme *wme = token->wme;
         struct token_list *entry, **link;
@@ -778,33 +817,44 @@ collect(struct agent          *agent,
         if (token_list_contains(chunk->grounds, token))
             continue;
 
+        entry = (struct token_list *) malloc(sizeof(struct token_list));
+        entry->token = token;
+
         if (wme) {
             if ((agent_get_id_level(agent, wme->slot->id) < chunk->level)
                 && agent_is_goal(agent, wme->slot->id)) {
-                link = &chunk->grounds;
+                add_to_grounds(&chunk->grounds, entry);
+#ifdef DEBUG_CHUNKING
+                printf("  grounds += ");
+                debug_dump_token(&symtab, token);
+                printf("\n");
+#endif
+                continue;
             }
-            else {
-                link = &chunk->potentials;
-            }
+
+            link = &chunk->potentials;
         }
         else if (token->parent
                  && token->parent->node->type == beta_node_type_negative
                  && !token_list_contains(chunk->nots, token)) {
             link = &chunk->nots;
         }
-        else
+        else {
+            /* XXX why would we reach this? */
+#ifdef DEBUG_CHUNKING
+            printf("dropping ");
+            debug_dump_token(&symtab, token);
+            printf(" on the floor.\n");
+#endif
+            free(entry);
             continue;
-
-        entry = (struct token_list *) malloc(sizeof(struct token_list));
-        entry->token = token;
+        }
 
         entry->next = *link;
         *link = entry;
 
 #ifdef DEBUG_CHUNKING
-        if (link == &chunk->grounds)
-            printf("  grounds += ");
-        else if (link == &chunk->potentials)
+        if (link == &chunk->potentials)
             printf("  potentials += ");
         else
             printf("  nots += ");
@@ -822,8 +872,7 @@ collect(struct agent          *agent,
         for ( ; (potential = *link) != 0; link = &potential->next) {
             if (token_is_reachable(chunk->grounds, potential->token)) {
                 *link = potential->next;
-                potential->next = chunk->grounds;
-                chunk->grounds = potential;
+                add_to_grounds(&chunk->grounds, potential);
 
 #ifdef DEBUG_CHUNKING
                 debug_dump_token(&symtab, potential->token);
@@ -944,24 +993,6 @@ chunk(struct agent           *agent,
         struct instantiation_list *doomed = chunk.visited;
         chunk.visited = chunk.visited->next;
         free(doomed);
-    }
-
-    /* Sort the grounds s.t. parents appear before their children. */
-    {
-        struct token_list *i, *j;
-        for (i = chunk.grounds; i != 0; i = i->next) {
-            for (j = i->next; j != 0; j = j->next) {
-                struct token *token;
-                for (token = i->token; token != 0; token = token->parent) {
-                    if (token->wme && token->wme->value == j->token->wme->slot->id) {
-                        token = j->token;
-                        j->token = i->token;
-                        i->token = token;
-                        break;
-                    }
-                }
-            }
-        }
     }
 
 #ifdef DEBUG_CHUNKING

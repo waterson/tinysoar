@@ -1,0 +1,27 @@
+# This tests backs off from chunk-7.soar. It only tests whether or not
+# we'll pick up the not-equal test when creating the chunk.
+
+package require TinySoar;
+
+sp {propose*one*two
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^operator <o1> + ^operator <o2> +)
+    (<o1> ^name one)
+    (<o2> ^name two)}
+
+sp {implement*one
+    (state <s> ^io.output-link <out> ^operator.name one)
+    -->
+    (<out> ^success t)}
+
+sp {onc*prefer*one
+    (state <s> ^superstate <ss>)
+    (<ss> ^operator <o1> + ^operator { <o2> <> <o1> } +)
+    (<o1> ^name one)
+    (<o2> ^name two)
+    -->
+    (<ss> ^operator <o1> > <o2>)}
+
+
+    
