@@ -613,9 +613,9 @@ value_make: rhs_value preference_specifier_list
                      that we'll create a default `acceptable'
                      preference action */
                   $$ = (struct action*) malloc(sizeof(struct action));
-                  $$->next  = 0;
+                  $$->next            = 0;
                   $$->preference_type = preference_type_acceptable;
-                  $$->support_type    = 0; /* XXX */
+                  $$->support_type    = 0; /* XXX o-support? i-support? */
                   $$->value           = $1;
               }
           }
