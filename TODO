@@ -10,7 +10,8 @@
 . Chunking:
 
   - figure out how to do bottom-up chunking (instead of all-goals)
-  - clean up the horror that is make_production
+  - figure out why the eight-puzzle isn't working
+  - justifications
   - look for leaks
 
 . Implement conjunctive negative conditions.
