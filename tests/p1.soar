@@ -1,3 +1,5 @@
+# Basic architecture test. Propose a wait operator that does nothing.
+
 package require TinySoar;
 
 sp {propose*wait

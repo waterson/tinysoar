@@ -1,3 +1,5 @@
+# Test o-support semantics.
+
 package require TinySoar;
 
 # Drive forward until we find the line.

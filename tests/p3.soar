@@ -1,3 +1,5 @@
+# Test integer comparison
+
 package require TinySoar;
 
 sp {test-integer-comparison

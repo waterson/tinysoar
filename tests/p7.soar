@@ -1,3 +1,5 @@
+# Test to see if variablization is conservative or liberal.
+
 package require Soar;
 
 sp {elaborate*top-state
