@@ -1,4 +1,6 @@
 package require TinySoar;
+
+# Drive forward until we find the line.
 sp {propose*find-line
     (state <s> ^superstate nil -^found-line t)
     -->
@@ -26,5 +28,18 @@ sp {implement*find-line*detect-line
 sp {find-line*reconsider
     (state <s> ^operator <o>)
     (<o> ^name find-line)
+    -->
+    (<s> ^operator <o> @)}
+
+# Once we've found the line, just wait.
+sp {propose*wait
+    (state <s> ^superstate nil ^found-line t)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name wait)}
+
+sp {reconsider*wait
+    (state <s> ^operator <o>)
+    (<o> ^name wait)
     -->
     (<s> ^operator <o> @)}
