@@ -828,10 +828,12 @@ rete_initialize_matches(struct agent     *agent,
                         struct beta_node *child,
                         struct beta_node *parent)
 {
-    if (parent->type == beta_node_type_root) {
+    switch (parent->type) {
+    case beta_node_type_root:
         do_left_addition(agent, child, &agent->root_token, 0);
-    }
-    else if (parent->type & beta_node_type_bit_positive) {
+        break;
+
+    case beta_node_type_positive_join: {
         /* Temporarily splice out all of parent's children except
            `child', then call the right-addition routine, and restore
            parent's children. */
@@ -847,14 +849,30 @@ rete_initialize_matches(struct agent     *agent,
 
         parent->children = old_children;
         child->siblings = old_siblings;
+        break;
     }
-    else if (parent->type & beta_node_type_bit_negative) {
+
+    case beta_node_type_negative: {
         struct token *token;
         for (token = parent->tokens; token != 0; token = token->next)
-            do_left_addition(agent, parent, token, 0); /* XXX not right */
+            do_left_addition(agent, child, token, 0);
+
+        break;
     }
-    else {
-        UNIMPLEMENTED(); /* XXX write me! */
+
+    case beta_node_type_production:
+    case beta_node_type_memory:
+        /* We shouldn't be directly initializing matches on these
+           sorts of nodes. */
+        UNREACHABLE();
+        break;
+
+    case beta_node_type_memory_positive_join:
+    case beta_node_type_conjunctive_negative:
+    case beta_node_type_conjunctive_negative_partner:
+        /* These node types don't exist yet. */
+        UNIMPLEMENTED();
+        break;
     }
 }
 
@@ -886,6 +904,31 @@ rete_get_instantiation_level(struct agent *agent, struct instantiation *inst)
     return level;
 }
 
+/*
+ * Find an existing alpha node that is appropriate for testing the
+ * specified fields.
+ *
+ * Corresponds to find_alpha_mem() in rete.c from Soar8.
+ */
+struct alpha_node *
+rete_find_alpha_node(struct agent *agent,
+                     symbol_t      id,
+                     symbol_t      attr,
+                     symbol_t      value,
+                     wme_type_t    type)
+{
+    struct alpha_node *node =
+        agent->alpha_nodes[get_alpha_test_index(id, attr, value, type)];
+
+    for ( ; node != 0; node = node->siblings) {
+        if (SYMBOLS_ARE_EQUAL(id, node->id) &&
+            SYMBOLS_ARE_EQUAL(attr, node->attr) &&
+            SYMBOLS_ARE_EQUAL(value, node->value))
+            return node;
+    }
+    return 0;
+}
+
 void
 rete_operate_wme(struct agent *agent, struct wme *wme, wme_operation_t op)
 {
@@ -896,7 +939,7 @@ rete_operate_wme(struct agent *agent, struct wme *wme, wme_operation_t op)
     extern struct symtab symtab;
     static void dump_wme(struct symtab *symtab, struct wme *wme);
     printf("%c ", (op == wme_operation_add ? '+' : '-'));
-    dump_wme(&symtab, wme);
+    debug_dump_wme(&symtab, wme);
     printf("\n");
 #endif
 
