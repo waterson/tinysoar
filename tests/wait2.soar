@@ -1,0 +1,11 @@
+# This is just a silly file that selects the `wait' operator
+# over and over. But...it uses the Soar8 operator semantics.
+
+package require TinySoar
+
+sp {wait
+    (state <s> ^superstate nil -^operator)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name wait)}
+
