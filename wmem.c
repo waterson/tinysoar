@@ -1,3 +1,27 @@
+/* -*- Mode: C; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+
+/*
+
+  Working Memory
+
+
+  TO DO
+  -----
+
+  . Figure out why `clearing' working memory (e.g., `init-soar')
+    causes corruption and death.
+
+    - I think that this might be happening on p1.soar because of
+      reconsider has several instantiations for the same
+      operator. Specifically, we should see `reconsider*wait' retract
+      as well as fire for each instantiation, I think.
+
+  . Implement operator preference semantics (better, best, etc.)
+
+  . Implement o-support
+
+*/
+
 #include "soar.h"
 #include "alloc.h"
 #include "ht.h"
@@ -715,13 +739,13 @@ resolve_operator_tie(struct agent* agent, symbol_t goal)
 static bool_t
 select_operator(struct agent* agent)
 {
-    /* We've reached quiescence. Has the previously selected
-       operated been reconsidered? */
+    unsigned depth = 0;
     struct symbol_list* goal;
 
     ASSERT(agent->goals != 0, ("empty goal stack"));
 
-    for (goal = agent->goals; goal != 0; goal = goal->next) {
+    for (goal = agent->goals; goal != 0; goal = goal->next, ++depth) {
+        /* Has the previously selected operated been reconsidered? */
         struct slot* slot =
             find_slot(agent, goal->symbol, SYM(OPERATOR_CONSTANT), 0);
 
@@ -805,21 +829,35 @@ select_operator(struct agent* agent)
             }
             else {
                 /* There is a unique acceptable operator */
+                struct wme* op;
+
                 if (goal->next) {
                     /* We may have resolved an operator tie
                        impasse */
                 }
-                else {
-                    struct wme* op = (struct wme*) malloc(sizeof(struct wme));
-                    op->slot  = slot;
-                    op->value = wme->value;
-                    op->type  = wme_type_normal;
-                    op->next  = slot->wmes;
-                    slot->wmes = op;
 
-                    rete_operate_wme(agent, op, wme_operation_add);
-                    return 1;
+#ifdef DEBUG
+                {
+                    /* XXX this should be done in a callback that the
+                       embedding context handles. */
+                    unsigned i;
+                    for (i = 0; i < depth; ++i)
+                        printf("  ");
+
+                    printf("[%d]: %d", goal->symbol.val, wme->value.val);
+                    printf("\n");
                 }
+#endif
+
+                op = (struct wme*) malloc(sizeof(struct wme));
+                op->slot  = slot;
+                op->value = wme->value;
+                op->type  = wme_type_normal;
+                op->next  = slot->wmes;
+                slot->wmes = op;
+
+                rete_operate_wme(agent, op, wme_operation_add);
+                return 1;
             }
         }
         else if (! goal->next) {
@@ -909,6 +947,8 @@ slot_finalizer(struct ht_entry_header* header, void* closure)
 void
 wmem_finish(struct agent* agent)
 {
+    struct slot_list* entry;
+
     /* First, remove *all* wmes. This will clean up the rete network
        properly */
     ht_enumerate(&agent->slots, slot_wme_finalizer, agent);
@@ -924,8 +964,18 @@ wmem_finish(struct agent* agent)
        through the rete network) because we don't store productions or
        instantiations anywhere else. */
 
-    /* Now, clobber the slots. */
+    /* Now, clobber the slots... */
     ht_finish(&agent->slots, slot_finalizer, agent);
+
+    /* ...and clean up the (no longer valid) list of modified slots */
+    entry = agent->modified_slots;
+    while (entry) {
+        struct slot_list* doomed = entry;
+        entry = entry->next;
+        free(doomed);
+    }
+
+    agent->modified_slots = 0;
 }
 
 
