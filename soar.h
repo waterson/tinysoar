@@ -135,21 +135,21 @@ typedef enum support_type {
 } support_type_t;
 
 struct preference {
-    struct preference* next_in_instantiation;
+    struct slot*       slot;
     struct preference* next_in_slot;
+    struct preference* next_in_instantiation;
+    struct preference* prev_in_instantiation;
     preference_type_t  type    : PREFERENCE_TYPE_BITS;
     support_type_t     support : SUPPORT_TYPE_BITS;
-    symbol_t           id;    /* XXX could be shared with slot? */
-    symbol_t           attr;  /* XXX could be shared with slot? */
     symbol_t           value;
     symbol_t           referent;
 };
 
 struct instantiation {
-    struct instantiation* next;
     struct production*    production;
     struct token*         token;
-    struct preference*    preferences;
+    struct preference     preferences;
+    struct instantiation* next;
 };
 
 /* ---------------------------------------------------------------------- */
@@ -526,16 +526,14 @@ wmem_finish(struct agent* agent);
 extern void
 wmem_clear(struct agent* agent);
 
-extern void
+extern struct preference*
 wmem_add_preference(struct agent* agent,
                     symbol_t id, symbol_t attr, symbol_t value,
                     preference_type_t type,
                     support_type_t support);
 
 extern void
-wmem_remove_preference(struct agent* agent,
-                       symbol_t id, symbol_t attr, symbol_t value,
-                       preference_type_t type);
+wmem_remove_preference(struct agent* agent, struct preference* pref);
 
 extern struct preference*
 wmem_get_preferences(struct agent* agent, symbol_t id, symbol_t attr);
