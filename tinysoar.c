@@ -21,6 +21,274 @@
 static struct agent agent;
 static struct symtab symtab;
 
+static void
+indent_by(int nest)
+{
+    int i;
+    for (i = 0; i < nest; ++i)
+        printf("  ");
+}
+
+static const char*
+symbol_to_string(symbol_t symbol)
+{
+    static char buf[16];
+
+    if (SYMBOL_IS_NIL(symbol))
+        return "*";
+
+    switch (symbol.type) {
+    case symbol_type_symbolic_constant:
+        return symtab_find_name(&symtab, symbol);
+
+    case symbol_type_identifier:
+        sprintf(buf, "[%d]", symbol.val);
+        break;
+
+    case symbol_type_integer_constant:
+        sprintf(buf, "%d", symbol.val);
+        break;
+
+    case symbol_type_variable:
+        sprintf(buf, "<%d>", symbol.val);
+        break;
+    }
+
+    return buf;
+}
+
+static void
+dump_wme(struct wme* wme)
+{
+    printf("%p(%s ", wme, symbol_to_string(wme->slot->id));
+    printf("^%s ", symbol_to_string(wme->slot->attr));
+    printf("%s)", symbol_to_string(wme->value));
+}
+
+static void
+dump_test(struct beta_test* test)
+{
+    switch (test->type) {
+    case test_type_blank:
+        printf("0");
+        break;
+
+    case test_type_equality:
+        printf("==");
+        break;
+
+    case test_type_not_equal:
+        printf("!=");
+        break;
+
+    case test_type_less:
+        printf("<");
+        break;
+
+    case test_type_greater:
+        printf(">");
+        break;
+
+    case test_type_less_or_equal:
+        printf("<=");
+        break;
+
+    case test_type_greater_or_equal:
+        printf(">=");
+        break;
+
+    case test_type_same_type:
+        printf("<=>");
+        break;
+
+    case test_type_disjunctive:
+        {
+            struct beta_test* disjunct = test->data.disjuncts;
+            printf("( ");
+            while (disjunct) {
+                dump_test(disjunct);
+                if (disjunct->next)
+                    printf(" || ");
+                disjunct = disjunct->next;
+            }
+            printf(")");
+        }
+        return;
+
+    case test_type_conjunctive:
+        /* shouldn't ever hit this; conjunctive tests are
+           converted into a list of single tests. */
+        ERROR(("unexpected test"));
+        break;
+
+    case test_type_goal_id:
+        printf("G");
+        return;
+
+    case test_type_impasse_id:
+        printf("I");
+        return;
+    }
+
+    if (test->relational_type == relational_type_constant) {
+        printf("%s", symbol_to_string(test->data.constant_referent));
+    }
+    else {
+        printf("<%d,", test->data.variable_referent.depth);
+        switch (test->data.variable_referent.field) {
+        case field_id:      printf("id");     break;
+        case field_attr:    printf("attr");   break;
+        case field_value:   printf("value");  break;
+        default:
+            break;
+        }
+        printf(">");
+    }
+}
+
+static void
+dump_beta_node(struct beta_node* node, int nest)
+{
+    indent_by(nest);
+
+    printf("%p", node);
+
+    switch (node->type) {
+    case beta_node_type_memory:
+        printf("(m)");
+        break;
+
+    case beta_node_type_positive_join:
+        printf("(pos)");
+        break;
+
+    case beta_node_type_memory_positive_join:
+        printf("(mpos)");
+        break;
+
+    case beta_node_type_negative:
+        printf("(neg)");
+        break;
+
+    case beta_node_type_root:
+        printf("(root)");
+        break;
+
+    case beta_node_type_conjunctive_negative:
+        printf("(cneg)");
+        break;
+
+    case beta_node_type_conjunctive_negative_partner:
+        printf("(cnp)");
+        break;
+
+    case beta_node_type_production:
+        printf("(prod)");
+        break;
+    }
+
+    switch (node->type) {
+    case beta_node_type_positive_join:
+    case beta_node_type_memory_positive_join:
+    case beta_node_type_negative:
+        {
+            struct beta_test* test = node->data.tests;
+            while (test) {
+                printf(" ");
+                dump_test(test);
+                test = test->next;
+            }
+        }
+        break;
+
+    case beta_node_type_production:
+#ifdef DEBUG
+        printf(" %s", node->data.production->name);
+#endif
+        break;
+    }
+
+    printf("\n");
+
+    switch (node->type) {
+    case beta_node_type_memory:
+    case beta_node_type_memory_positive_join:
+    case beta_node_type_negative:
+    case beta_node_type_production:
+        {
+            /* dump tokens at the node */
+            struct token* token;
+            for (token = node->tokens; token != 0; token = token->next) {
+                indent_by(nest + 2);
+                printf("+ ");
+                dump_wme(token->wme);
+                printf("\n");
+            }
+        }
+
+    default:
+        break;
+    }
+
+    switch (node->type) {
+    case beta_node_type_negative:
+        {
+            /* dump blockers at the node */
+            struct token* token;
+            for (token = node->blockers; token != 0; token = token->next) {
+                indent_by(nest + 2);
+                printf("x ");
+                dump_wme(token->wme);
+                printf("\n");
+            }
+        }
+
+    default:
+        break;
+    }
+
+    for (node = node->children; node != 0; node = node->siblings)
+        dump_beta_node(node, nest + 1);
+}
+
+/*
+ * `dump-rete'.
+ */
+static int
+dump_rete_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
+{
+    int i;
+    for (i = 0; i < 16; ++i) {
+        struct alpha_node* alpha = agent.alpha_nodes[i];
+        while (alpha) {
+            struct beta_node* beta = alpha->children;
+            struct right_memory* rm = alpha->right_memories;
+
+            printf("%s ", symbol_to_string(alpha->id));
+            printf("^%s ", symbol_to_string(alpha->attr));
+            printf("%s\n", symbol_to_string(alpha->value));
+
+            while (rm) {
+                indent_by(2);
+                printf("+ ");
+                dump_wme(rm->wme);
+                printf("\n");
+
+                rm = rm->next_in_alpha_node;
+            }
+
+            while (beta) {
+                dump_beta_node(beta, 1);
+                beta = beta->siblings;
+            }
+
+            alpha = alpha->siblings;
+        }
+    }
+
+    return TCL_OK;
+}
+
 /*
  * `elaborate'. Run the agent one elaboration cycle.
  */
@@ -330,6 +598,7 @@ Tinysoar_Init(Tcl_Interp* interp)
     agent_init(&agent);
     symtab_init(&symtab);
 
+    Tcl_CreateCommand(interp, "dump-rete",   dump_rete_command,   0, 0);
     Tcl_CreateCommand(interp, "elaborate",   elaborate_command,   0, 0);
     Tcl_CreateCommand(interp, "init-soar",   init_soar_command,   0, 0);
     Tcl_CreateCommand(interp, "preferences", preferences_command, 0, 0);
