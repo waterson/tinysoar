@@ -17,6 +17,7 @@
  * Copyright (C) 2000 Christopher R. Waterson. All Rights Reserved.
  *
  * Contributor(s):
+ *   Christopher R. Waterson <waterson@maubi.net>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or 
