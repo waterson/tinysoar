@@ -1050,9 +1050,16 @@ run_operator_semantics_on(struct agent        *agent,
                     continue;
 
                 for (p = preferences; p != 0; p = p->next_in_slot) {
-                    if ((p->type == preference_type_binary_indifferent)
-                        && (SYMBOLS_ARE_EQUAL(p->referent, referent->symbol)))
-                        break; /* Found a binary-indifferente for the referent! */
+                    if (p->type == preference_type_binary_indifferent) {
+                        if ((SYMBOLS_ARE_EQUAL(p->value, candidate->symbol)
+                             && SYMBOLS_ARE_EQUAL(p->referent, referent->symbol))
+                            || (SYMBOLS_ARE_EQUAL(p->value, referent->symbol)
+                                && SYMBOLS_ARE_EQUAL(p->referent, candidate->symbol))) {
+                            /* Found a binary-indifferent for the
+                               candidate and the referent! */
+                            break;
+                        }
+                    }
                 }
 
                 /* If we've looked through all the preferences and
