@@ -198,7 +198,7 @@ LEGO_OBJS = \
 	rcx.o \
 	$(NULL)
 
-legosoar: $(LEGO_OBJS) $(RUNTIME_LIBNAME) $(BASE_LIBNAME)
+legosoar: $(MDDEPDIR) $(LEGO_OBJS) $(RUNTIME_LIBNAME) $(BASE_LIBNAME)
 	$(CC) $(LEGO_OBJS) -nostdlib -Wl,-Map -Wl,legosoar.map -Wl,-T$(srcdir)/h8300.lds -o $@ -L. -l$(RUNTIME) -l$(BASE) -lgcc
 
 # ----------------------------------------------------------------------
