@@ -369,6 +369,49 @@ ensure_variable_for(struct variable_binding_list **bindings,
 }
 
 /*
+ * Print a symbolic constance.
+ */
+static void
+print_constant(char **result, size_t *sz, symbol_t sym)
+{
+    switch (GET_SYMBOL_TYPE(sym)) {
+    case symbol_type_symbolic_constant:
+        vsmcatf(result, sz, "%s", symtab_find_name(&symtab, sym));
+        break;
+
+    case symbol_type_integer_constant:
+        vsmcatf(result, sz, "%d", GET_SYMBOL_VALUE(sym));
+        break;
+
+    case symbol_type_identifier:
+    case symbol_type_variable:
+        ERROR(("unexpected symbol"));
+        break;
+    }
+}
+
+/*
+ * Return the proper string for an inequality.
+ */
+static const char *
+inequality_to_string(test_type_t inequality)
+{
+    switch (inequality) {
+    case test_type_not_equal:        return "<>";
+    case test_type_less:             return "<";
+    case test_type_greater:          return ">";
+    case test_type_less_or_equal:    return "<=";
+    case test_type_greater_or_equal: return ">=";
+    case test_type_same_type:        return "<=>";
+    default:
+        break;
+    }
+
+    UNREACHABLE();
+    return 0;
+}
+
+/*
  * Print the LHS tests associated with the specified beta node and
  * field.
  */
@@ -383,9 +426,11 @@ print_tests(char                         **result,
 {
     struct beta_test *test;
     symbol_t variable = 0;
+    symbol_t referent = 0;
     symbol_t constant = 0;
     bool_t goal = 0;
     bool_t acceptable = 0;
+    test_type_t inequality;
 
     /* Look for a constant binding in the alpha network. */
     if (node->alpha_node) {
@@ -436,11 +481,18 @@ print_tests(char                         **result,
             case test_type_disjunctive:
                 break;
 
-            default:
+            case test_type_equality:
                 ASSERT(test->relational_type == relational_type_variable,
                        ("expected constant test to be in alpha node"));
 
                 variable = ensure_variable_for(bindings, test->data.variable_referent, depth);
+                break;
+
+            default:
+                /* An inequality. */
+                /* XXX there could be more than one here. */
+                inequality = test->type;
+                referent = ensure_variable_for(bindings, test->data.variable_referent, depth);
                 break;
             }
         }
@@ -467,14 +519,12 @@ print_tests(char                         **result,
                 ASSERT(disjunct->relational_type == relational_type_constant,
                        ("expected constant value in disjunct"));
 
-                vsmcatf(result, sz, " %s",
-                        symtab_find_name(&symtab,
-                                         disjunct->data.constant_referent));
+                print_constant(result, sz, disjunct->data.constant_referent);
             }
 
             /* This would be really degenerate, but it's possible. */
             if (constant)
-                vsmcatf(result, sz, " %s", symtab_find_name(&symtab, constant));
+                print_constant(result, sz, constant);
 
             vsmcatf(result, sz, " >> }");
 
@@ -486,17 +536,20 @@ print_tests(char                         **result,
     }
 
     if (variable && constant) {
-        vsmcatf(result, sz, "{ %s<v%d> %s }",
+        vsmcatf(result, sz, "{ %s<v%d> ",
                 (goal ? "state " : ""), /* Degenerate, but possible. */
-                GET_SYMBOL_VALUE(variable),
-                symtab_find_name(&symtab, constant));
+                GET_SYMBOL_VALUE(variable));
+
+        print_constant(result, sz, constant);
+
+        vsmcatf(result, sz, " }");
     }
     else {
         if (goal)
             vsmcatf(result, sz, "state ");
 
         if (constant)
-            vsmcatf(result, sz, "%s", symtab_find_name(&symtab, constant));
+            print_constant(result, sz, constant);
         else {
             if (!variable && field == field_value) {
                 variable_binding_t binding;
@@ -504,7 +557,28 @@ print_tests(char                         **result,
                 variable = ensure_variable_for(bindings, binding, depth);
             }
 
+            if (referent)
+                vsmcatf(result, sz, "{ ");
+
             vsmcatf(result, sz, "<v%d>", GET_SYMBOL_VALUE(variable));
+
+            if (referent) {
+                vsmcatf(result, sz, " %s ", inequality_to_string(inequality));
+
+                switch (GET_SYMBOL_TYPE(referent)) {
+                case symbol_type_variable:
+                case symbol_type_identifier:
+                    vsmcatf(result, sz, "<v%d>", GET_SYMBOL_VALUE(referent));
+                    break;
+
+                case symbol_type_integer_constant:
+                case symbol_type_symbolic_constant:
+                    print_constant(result, sz, referent);
+                    break;
+                }
+
+                vsmcatf(result, sz, " }");
+            }
         }
     }
 
@@ -524,7 +598,7 @@ print_rhs_value(char                         **result,
 {
     switch (value->type) {
     case rhs_value_type_symbol:
-        vsmcatf(result, sz, "%s", symtab_find_name(&symtab, value->val.symbol));
+        print_constant(result, sz, value->val.symbol);
         break;
 
     case rhs_value_type_variable_binding:
