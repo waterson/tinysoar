@@ -106,10 +106,22 @@ if test "$RETE_CREATE" = "yes"; then
   AC_DEFINE(CONF_SOAR_RETE_CREATE)
 fi
 
+CHUNKING="yes"
+AC_ARG_WITH(chunking,
+[  --without-chunking      Do not include chunking code],
+[  if test "$withval" = "no"; then
+     CHUNKING="no"
+   fi ])
+
+if test "$CHUNKING" = "yes"; then
+  AC_DEFINE(CONF_SOAR_CHUNKING)
+fi
+
 AC_SUBST(AR)
 AC_SUBST(CC)
 AC_SUBST(LD)
 AC_SUBST(RANLIB)
+AC_SUBST(CHUNKING)
 
 AC_CONFIG_HEADER(defs.h)
 

@@ -47,6 +47,8 @@ YACC	= @YACC@
 CFLAGS	= @CFLAGS@ -Wall @DEFS@ -I$(srcdir) -I.
 LDFLAGS	= @LDFLAGS@
 
+CHUNKING = @CHUNKING@
+
 # ----------------------------------------------------------------------
 #
 # Top-level targets
@@ -117,6 +119,10 @@ RUNTIME_OBJS 	= \
 		rete.o \
 		wmem.o \
 		$(NULL)
+
+ifeq ($(CHUNKING),yes)
+RUNTIME_OBJS    += chunk.o
+endif
 
 $(RUNTIME_LIBNAME): $(RUNTIME_OBJS)
 

@@ -627,4 +627,11 @@ agent_get_id_level(struct agent *agent, symbol_t id);
 extern void
 agent_set_id_level(struct agent *agent, symbol_t id, int level);
 
+#ifdef CONF_SOAR_CHUNKING
+extern void
+chunk_if_results(struct agent         *agent,
+                 struct instantiation *inst,
+                 struct preference    *o_rejects);
+#endif
+
 #endif /* soar_h__ */

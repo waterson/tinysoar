@@ -701,6 +701,10 @@ create_instantiation(struct agent       *agent,
         unbound_vars = unbound_vars->next;
         free(doomed);
     }
+
+#ifdef CONF_SOAR_CHUNKING
+    chunk_if_results(agent, inst, *o_rejects);
+#endif
 }
 
 /*

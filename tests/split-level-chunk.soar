@@ -1,0 +1,25 @@
+# this should create the following chunk:
+#
+# sp {chunk-1*d2*snochange*1
+#     :chunk
+#     (state <s1> ^foo bar)
+#     -->
+#     (<s1> ^blar blot +)
+# }
+
+
+package require Soar;
+
+sp {elaborate*foo
+    (state <s>)
+    -->
+    (<s> ^foo bar)}
+
+sp {chunky*chunker
+    (state <s> ^superstate <ss>)
+    (<ss> ^foo bar ^superstate <sss>)
+    (<sss> ^foo bar)
+    -->
+    (<ss> ^blah blaz)
+    (<sss> ^blar blot)}
+
