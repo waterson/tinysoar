@@ -1,3 +1,18 @@
+Monday, February 5, 2001
+
+Tinkered with making it so that an instantiation remembers the list of
+unbound variables. When the time comes for an instantiation to be
+removed, we just ``run the instantiation backwards'', removing all the
+preferences that the instantiation created by re-evaluating the RHS
+action.
+
+This almost works, except for one problem. The WMEs in the
+instantiation's token may very well be gone by the time you're ready
+to remove the instantiation!
+
+That doubly-linked list is starting to smell better...
+
+
 Sunday, February 4, 2001
 
 Spent some time debugging the mysterious crash on Win32. Added the
