@@ -790,17 +790,19 @@ process_matches(struct agent *agent)
     printf("Firing:\n");
 #endif
 
-    /* create instantiations for assertions */
-    match = agent->assertions;
-    while (match) {
+    /* Create instantiations for assertions. Note that creation of an
+       instantiation may lead to chunks being built, and new
+       assertions being prepended to the set of assertions. */
+    while (agent->assertions) {
+        match = agent->assertions;
+        agent->assertions = match->next;
+
 #ifdef DEBUG
         printf("  %s\n", match->production->name);
 #endif
         create_instantiation(agent, match->production, match->data.token, &o_rejects);
 
-        doomed = match;
-        match = match->next;
-        free(doomed);
+        free(match);
     }
 
     /* The assertions have now been processed */
