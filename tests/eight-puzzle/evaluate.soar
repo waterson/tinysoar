@@ -1,0 +1,190 @@
+# -*- Mode: Tcl -*-
+
+# Detect an operator-tie impasse and elaborate it as the `evaluate'
+# problem-space.
+sp {evaluate*elaborate*problem-space
+    (state <s> ^attribute operator ^impasse tie)
+    -->
+    (<s> ^problem-space <p>)
+    (<p> ^name evaluate)
+}
+
+# Mark the problem-space as being `in-progress' so long as there is an
+# operator from the superstate that hasn't yet been evaluated.
+sp {evaluate*elaborate*in-progress
+    (state <s> ^problem-space.name evaluate ^item <o> -^evaluated <o>)
+    (<p> ^name evaluate)
+    -->
+    (<p> ^in-progress t)
+}
+
+
+# Create the `evaluation' structure where we'll try out the move.
+
+sp {evaluate*propose*create-evaluation
+    (state <s> ^problem-space.name evaluate ^item <move> -^evaluated <move>)
+    (<move> ^name slide-tile)
+    -->
+    (<s> ^operator <o> + = <)
+    (<o> ^name create-evaluation ^move <move>)
+}
+
+sp {evaluate*implement*create-evaluation*elaborate-state
+    (state <s> ^problem-space.name evaluate ^operator <o>)
+    (<o> ^name create-evaluation ^move <move>)
+    -->
+    (<s> ^evaluation <e>)
+    (<e> ^move <move> ^puzzle <p> ^value 0)
+}
+
+sp {evaluate*implement*create-evaluation*copy-puzzle
+    (state <s> ^problem-space.name evaluate ^operator <o> ^evaluation <e>
+               ^superstate.puzzle <old*p>)
+
+    (<o> ^name create-evaluation ^move <move>)
+    (<e> ^move <move> ^puzzle <new*p>)
+
+    (<old*p> ^<cell> <tile>)
+    -->
+    (<new*p> ^<cell> <tile>)
+}
+
+sp {evaluate*terminate*create-evaluation
+    (state <s> ^problem-space.name evaluate ^operator <o> ^evaluation <e>)
+    (<o> ^name create-evaluation ^move <move>)
+    (<e> ^move <move>)
+    -->
+    (<s> ^operator <o> @)
+}
+
+
+# Slide the tile
+
+sp {evaluate*propose*slide-tile
+    (state <s> ^problem-space.name evaluate ^evaluation <e>)
+    (<e> ^puzzle <puzzle> ^move <move>)
+    (<move> ^name slide-tile ^to <to> ^from <from>)
+    (<puzzle> ^<to> 0 ^<from> <tile>)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name slide-tile ^puzzle <puzzle> ^to <to> ^from <from> ^tile <tile>)
+}
+
+sp {evaluate*implement*slide-tile
+    (state <s> ^problem-space.name evaluate ^operator <o>)
+    (<o> ^name slide-tile ^puzzle <puzzle> ^to <to> ^from <from> ^tile <tile>)
+    -->
+    (<puzzle> ^<to> 0 -
+              ^<to> <tile> +
+              ^<from> <tile> -
+              ^<from> 0 +)
+}
+
+
+# Compute the evaluation
+
+# Create the counting rules.
+for {set count 0} {$count < [expr $rows * $cols]} {incr count 1} {
+    sp "evaluate*propose*compute-evaluation*[expr $count + 1]
+        (state <s> ^problem-space.name evaluate ^evaluation <e>
+                   ^superstate.goal <goal>)
+
+        (<e> ^puzzle <puzzle> ^move <move>)
+        (<move> ^from <from>)
+        (<puzzle> ^<from> 0)
+
+        (<puzzle> ^<cell> <tile>)
+        (<goal> ^<cell> <tile>)
+
+        (<e> -^counted <cell> ^value $count)
+        -->
+        (<s> ^operator <o> + =)
+        (<o> ^name compute-evaluation ^evaluation <e> ^cell <cell> ^value [expr $count + 1])"
+}
+
+sp {evaluate*implement*compute-evaluation*mark-cell-counted
+    (state <s> ^problem-space.name evaluate ^operator <o>)
+    (<o> ^name compute-evaluation ^evaluation <e> ^cell <cell>)
+    -->
+    (<e> ^counted <cell>)
+}
+
+sp {evaluate*implement*compute-evaluation*increment-evaluation
+    (state <s> ^problem-space.name evaluate ^operator <o>)
+    (<o> ^name compute-evaluation ^evaluation <e> ^value <new*count>)
+    (<e> ^value { <old*count> <> <new*count> })
+    -->
+    (<e> ^value <old*count> - ^value <new*count> +)
+}
+
+
+# Mark the move as having been evaluated.
+
+sp {evaluate*propose*mark-evaluated
+    (state <s> ^problem-space.name evaluate ^evaluation <e>
+               ^item <move> -^evaluated <move>)
+
+    (<e> ^value <v> ^move <move> ^puzzle <puzzle>)
+
+    (<move> ^from <from>)
+    (<puzzle> ^<from> 0)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name mark-evaluated ^move <move>)
+}
+
+sp {evaluate*prefer*compute-evaluation*over*mark-evaluated
+    (state <s> ^problem-space.name evaluate ^operator <o1> + ^operator <o2> +)
+    (<o1> ^name compute-evaluation ^evaluation.move <move>)
+    (<o2> ^name mark-evaluated ^move <move>)
+    -->
+    (<s> ^operator <o1> > <o2>)
+}
+
+sp {evaluate*implement*mark-evaluated
+    (state <s> ^problem-space.name evaluate ^operator <o>)
+    (<o> ^name mark-evaluated ^move <move>)
+    -->
+    (<s> ^evaluated <move>)
+}
+
+
+# Return the best evaluation to the superstate.
+
+sp {evaluate*propose*return-evaluations
+    (state <s> ^problem-space <p>)
+    (<p> ^name evaluate -^in-progress t)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name return-evaluations)
+}
+
+sp {evaluate*implement*return-evaluations*better
+    (state <s> ^problem-space.name evaluate ^operator <o> ^superstate <ss>
+               ^evaluation <e1> ^evaluation { <e2> <> <e1> })
+
+    (<o> ^name return-evaluations)
+    (<e1> ^move <m1> ^value <v1>)
+    (<e2> ^move <m2> ^value { <v2> < <v1> })
+    -->
+    (<ss> ^operator <m1> > <m2>)
+}
+
+sp {evaluate*implement*return-evaluations*indifferent
+    (state <s> ^problem-space.name evaluate ^operator <o> ^superstate <ss>
+               ^evaluation <e1> ^evaluation { <e2> <> <e1> })
+
+    (<o> ^name return-evaluations)
+    (<e1> ^move <m1> ^value <value>)
+    (<e2> ^move <m2> ^value <value>)
+    -->
+    (<ss> ^operator <m1> = <m2>)
+}
+
+sp {evaluate*terminate*return-evaluations
+    (state <s> ^problem-space.name evaluate ^operator <o>)
+    (<o> ^name return-evaluations)
+    -->
+    (<s> ^operator <o> @)
+}
+

@@ -1,0 +1,85 @@
+# -*- Mode: Tcl -*-
+
+# Create proposals for the `slide-tile' operator.
+for {set row 0} {$row < $rows} {incr row 1} {
+    for {set col 0} {$col < $cols} {incr col 1} {
+        set rule "propose*slide-tile*cell-$row*$col
+        (state <s> ^puzzle <p>)
+        (<p> ^cell-$row*$col 0)
+        -->"
+
+        set n 0
+
+        if {$row > 0} {
+            incr n 1
+
+            set rule "$rule
+            (<o$n> ^name slide-tile ^to cell-$row*$col ^from cell-[expr $row - 1]*$col)"
+        }
+
+        if {$row < [expr $rows - 1]} {
+            incr n 1
+
+            set rule "$rule
+            (<o$n> ^name slide-tile ^to cell-$row*$col ^from cell-[expr $row + 1]*$col)"
+        }
+
+        if {$col > 0} {
+            incr n 1
+
+            set rule "$rule
+            (<o$n> ^name slide-tile ^to cell-$row*$col ^from cell-$row*[expr $col - 1])"
+        }
+
+        if {$col < [expr $cols - 1]} {
+            incr n 1
+
+            set rule "$rule
+            (<o$n> ^name slide-tile ^to cell-$row*$col ^from cell-$row*[expr $col + 1])"
+        }
+
+        set rule "$rule
+        (<s> "
+
+        for {set i 1} {$i <= $n} {incr i 1} {
+            set rule "$rule ^operator <o$i> +"
+        }
+
+        set rule "$rule)"
+
+        #tk_dialog .error Rule $rule error 0 Ok
+        sp $rule
+    }
+}
+
+sp {top-state*implement*slide-tile*clear-old-to
+    (state <s> ^superstate nil ^operator <o> ^io.output-link <out>)
+    (<o> ^name slide-tile ^to <to>)
+    (<out> ^to { <old*to> <> <to> })
+    -->
+    (<out> ^to <old*to> -)
+}
+
+sp {top-state*implement*slide-tile*clear-old-from
+    (state <s> ^superstate nil ^operator <o> ^io.output-link <out>)
+    (<o> ^name slide-tile ^from <from>)
+    (<out> ^from { <old*from> <> <from> })
+    -->
+    (<out> ^from <old*from> -)
+}
+
+sp {top-state*implement*slide-tile
+    (state <s> ^superstate nil ^operator <o> ^io.output-link <out>)
+    (<o> ^name slide-tile ^to <to> ^from <from>)
+    -->
+    (<out> ^to <to> ^from <from>)
+}
+
+# XXX build this into the proposal.
+sp {top-state*reconsider*slide-tile
+    (state <s> ^superstate nil ^operator <o> ^io.output-link <out>)
+    (<o> ^name slide-tile ^to <to> ^from <from>)
+    (<out> ^to <to> ^from <from>)
+    -->
+    (<s> ^operator <o> @)
+}

@@ -1,0 +1,202 @@
+# -*- Mode: Tcl -*-
+
+package require TinySoar
+
+# Slide the tile at ($row, $col) to the hole, if possible.
+proc slide_tile {row col} {
+    global hole_row hole_col
+
+    set dx [expr $row - $hole_row];
+    set dy [expr $col - $hole_col];
+
+    if {($dx == 0 && ($dy == 1 || $dy == -1)) || ($dy == 0 && ($dx == 1 || $dx == -1))} {
+        .$hole_row.$hole_col configure -text [.$row.$col cget -text]
+        .$row.$col configure -text " "
+        set hole_row $row
+        set hole_col $col
+    }
+}
+
+# Create the buttons
+proc create_buttons {initial_rows initial_cols initial_tiles} {
+    global rows cols tiles prefs hole_row hole_col 
+
+    set rows $initial_rows
+    set cols $initial_cols
+
+    for {set row 0} {$row < $rows} {incr row 1} {
+        frame .$row
+        pack .$row -side top -expand yes -fill both
+
+        for {set col 0} {$col < $cols} {incr col 1} {
+            set tile [lindex $initial_tiles 0]
+            button .$row.$col -text $tile -command [list slide_tile $row $col] -height 1 -width 1
+            set initial_tiles [lreplace $initial_tiles 0 0]
+
+            if {[string compare $tile " "] == 0} {
+                set hole_row $row
+                set hole_col $col
+            }
+
+            pack .$row.$col -side left -expand yes -fill both
+
+            lappend tiles -1
+            lappend prefs 0
+        }
+    }
+}
+
+create_buttons 3 3 [list 1 2 3 4 5 6 7 8 " "]
+#create_buttons 4 4 [list 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 " "]
+
+proc sync_input_link {} {
+    global rows cols tiles prefs input_link
+
+    for {set row 0} {$row < $rows} {incr row 1} {
+        for {set col 0} {$col < $cols} {incr col 1} {
+            set button [.$row.$col cget -text]
+            if {[string compare $button " "] == 0} {
+                # Store the blank button as a zero in the state array.
+                set button 0
+            }
+
+            set index [expr $row * $rows + $col]
+            set pref [lindex $prefs $index]
+            set tile [lindex $tiles $index]
+
+            if {$tile != $button} {
+                set tiles [lreplace $tiles $index $index $button]
+                if {$pref != 0} {
+                    preferences -remove $pref
+                }
+                set pref [preferences -add $input_link ^cell-$row*$col +$button +]
+                set prefs [lreplace $prefs $index $index $pref]
+            }
+        }
+    }
+}
+
+proc sync_output_link {} {
+    global rows cols tiles prefs output_link
+
+    # Create an array of attributes on the output link.
+    array set attrs [lreplace [split [print $output_link]] 0 0]
+
+    # Get and parse the ^from attribute, which ought to look like `cell-row*col'.
+    set from [lindex [array get attrs ^from] 1]
+
+    if {[string compare $from {}] == 0} {
+        return
+    }
+
+    # Isolate the `row*col' part.
+    set from [lindex [split $from -] 1]
+
+    # Turn it into a list, and grab the row and column.
+    set from [split $from *]
+    set row [lindex $from 0]
+    set col [lindex $from 1]
+
+    if {[string compare $row {}] != 0 && [string compare $col {}] != 0} {
+        # Move it!
+        .$row.$col flash
+        .$row.$col invoke
+    }
+}
+
+
+sp {top-state*elaborate*puzzle
+    (state <s> ^superstate nil ^io)
+    -->
+    (<s> ^puzzle <p>)
+}
+
+sp {top-state*elaborate*copy-input-link
+    (state <s> ^io.input-link <in> ^puzzle <p>)
+    (<in> ^<cell> <tile>)
+    -->
+    (<p> ^<cell> <tile>)
+}
+
+
+# Define the goal state.
+
+sp {top-state*elaborate*goal
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^goal <g>)
+    (<g> ^cell-0*0 1 ^cell-0*1 2 ^cell-0*2 3
+         ^cell-1*0 4 ^cell-1*1 5 ^cell-1*2 6
+         ^cell-2*0 7 ^cell-2*1 0 ^cell-2*2 8)
+}
+
+
+# Determine if we've reached the goal state.
+
+sp {top-state*elaborate*working
+    (state <s> ^superstate nil ^io.input-link <in> ^goal <g>)
+    (<in> ^<cell> <tile>)
+    (<g> ^<cell> { <> <tile> })
+    -->
+    (<s> ^working t)
+}
+
+
+# If we've reached the goal, then just wait.
+
+sp {top-state*propose*wait
+    (state <s> ^superstate nil -^working t)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name wait)
+}
+
+sp {top-state*prefer*wait*over*slide-tile
+    (state <s> ^superstate nil ^operator <o1> + ^operator <o2> +)
+    (<o1> ^name wait)
+    (<o2> ^name slide-tile)
+    -->
+    (<s> ^operator <o1> > <o2>)
+}
+
+sp {top-state*terminate*wait
+    (state <s> ^superstate nil ^operator <o>)
+    (<o> ^name wait)
+    -->
+    (<s> ^operator <o> @)
+}
+
+
+# Clear the output link once the move has completed.
+
+sp {top-state*propose*clear-output-link
+    (state <s> ^superstate nil ^io <io>)
+    (<io> ^input-link <in> ^output-link <out>)
+    (<out> ^from <from> ^to <to>)
+    (<in> ^<from> 0)
+    -->
+    (<s> ^operator <o> + >)
+    (<o> ^name clear-output-link ^from <from> ^to <to>)
+}
+
+sp {top-state*implement*clear-output-link
+    (state <s> ^superstate nil ^operator <o> ^io.output-link <out>)
+    (<o> ^name clear-output-link ^from <from> ^to <to>)
+    -->
+    (<out> ^from <from> - ^to <to> -)
+}
+
+source slide-tile.soar
+source evaluate.soar
+
+# Hack!
+set input_link 3
+set output_link 4
+
+proc run {count} {
+    while {[incr count -1] >= 0} {
+        sync_input_link
+        elaborate
+        sync_output_link
+    }
+}
