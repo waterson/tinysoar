@@ -1,5 +1,11 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
+Sunday, October 28, 2001
+
+Silly change to fix all the pointers from |void* foo| to |void
+*foo|. I bored!
+
+
 Monday, June 11, 2001
 
 Need to make sure that o-support works. I've enhanced p2.soar a bit so
