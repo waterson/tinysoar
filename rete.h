@@ -108,5 +108,10 @@ do_right_addition(struct agent     *agent,
                   struct beta_node *node,
                   struct wme       *wme);
 
+void
+initialize_matches(struct agent     *agent,
+                   struct beta_node *parent,
+                   struct beta_node *child);
+
 #endif /* rete_h__ */
 

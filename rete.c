@@ -748,6 +748,47 @@ rete_init(struct agent *agent)
     }
 }
 
+/*
+ * Propagate matches from the parent node to its child.
+ *
+ * This corresponds to update_node_with_matches_from_above() from
+ * rete.c in Soar8.
+ */
+void
+initialize_matches(struct agent     *agent,
+                   struct beta_node *child,
+                   struct beta_node *parent)
+{
+    if (parent->type == beta_node_type_root) {
+        do_left_addition(agent, child, &agent->root_token, 0);
+    }
+    else if (parent->type & beta_node_type_bit_positive) {
+        /* Temporarily splice out all of parent's children except
+           `child', then call the right-addition routine, and restore
+           parent's children. */
+        struct beta_node *old_children = parent->children;
+        struct beta_node *old_siblings = child->siblings;
+        struct right_memory *rm;
+
+        parent->children = child;
+        child->siblings = 0;
+
+        for (rm = parent->alpha_node->right_memories; rm != 0; rm = rm->next_in_alpha_node)
+            do_right_addition(agent, parent, rm->wme);
+
+        parent->children = old_children;
+        child->siblings = old_siblings;
+    }
+    else if (parent->type & beta_node_type_bit_negative) {
+        struct token *token;
+        for (token = parent->tokens; token != 0; token = token->next)
+            do_left_addition(agent, parent, token, 0); /* XXX not right */
+    }
+    else {
+        UNIMPLEMENTED(); /* XXX write me! */
+    }
+}
+
 void
 rete_operate_wme(struct agent *agent, struct wme *wme, wme_operation_t op)
 {
@@ -859,7 +900,7 @@ dump_wme(struct symtab *symtab, struct wme *wme)
     printf(")");
 }
 
-static void
+void
 dump_token(struct symtab *symtab, struct token *token)
 {
     printf("token@%p<parent=%p wme=", token, token->parent);
@@ -1073,7 +1114,16 @@ dump_beta_node(struct symtab *symtab, struct beta_node *node, int nest, int recu
         break;
     }
 
-    printf(">\n");
+    printf(">");
+
+    if (node->alpha_node) {
+        printf(" (%s ^%s %s)",
+               symbol_to_string(symtab, node->alpha_node->id),
+               symbol_to_string(symtab, node->alpha_node->attr),
+               symbol_to_string(symtab, node->alpha_node->value));
+    }
+
+    printf("\n");
 
     if (node->type == beta_node_type_production) {
         /* Dump the RHS actions. */
