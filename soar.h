@@ -33,6 +33,9 @@ typedef struct symbol {
 #define DECLARE_SYMBOL(v, t) \
   { (v), (t) }
 
+#define DECLARE_NIL_SYMBOL \
+  { 0, 0 }
+
 #define MAKE_SYMBOL(s, t, v)     \
   BEGIN_MACRO                    \
   (s).type = (t); (s).val = (v); \
@@ -46,6 +49,8 @@ typedef struct symbol {
 #define SYMBOLS_ARE_EQUAL(l, r) (*((unsigned*) &(l)) == *((unsigned*) &(r)))
 
 #define SYMBOL_IS_NIL(s)        (*((unsigned*) &(s)) == 0)
+
+#define SYMBOL_TO_WORD(v, t)    (((t) << SYMBOL_TYPE_SHIFT) | (v))
 
 /* Predefined symbols used by the architecture */
 #define ATTRIBUTE_CONSTANT      1
@@ -102,7 +107,7 @@ typedef struct variable_binding {
 
 #define VARIABLE_BINDINGS_ARE_EQUAL(l, r)  (*((unsigned*)&(l)) == *((unsigned*)&(r)))
 
-
+#define VARIABLE_BINDING_TO_WORD(f, d) (((f) << BINDING_FIELD_SHIFT) | (d))
 
 /* ---------------------------------------------------------------------- */
 
@@ -213,7 +218,7 @@ typedef enum test_type {
 struct test {
     test_type_t type;
     union {
-        symbol_t referent;
+        symbol_t          referent;
         struct test_list* conjuncts;
         struct test_list* disjuncts;
     } data;
@@ -265,9 +270,9 @@ typedef enum rhs_value_type {
 struct rhs_value {
     rhs_value_type_t type;
     union {
+        unsigned           unbound_variable;
         symbol_t           symbol;
         variable_binding_t variable_binding;
-        unsigned           unbound_variable;
     } val;
 };
 
@@ -342,9 +347,10 @@ struct beta_test {
     relational_type_t relational_type : RELATIONAL_TYPE_BITS;
     field_t           field           : BETA_TEST_FIELD_BITS;
     union {
+        unsigned           raw;
+        symbol_t           constant_referent;
         variable_binding_t variable_referent;
-        symbol_t constant_referent;
-        struct beta_test* disjuncts;
+        struct beta_test*  disjuncts;
     } data;
     struct beta_test* next;
 };
@@ -440,7 +446,7 @@ struct token {
 struct match {
     struct production* production;
     union {
-        struct token* token; /* for assertions */
+        struct token*         token;         /* for assertions */
         struct instantiation* instantiation; /* for retractions */
     } data;
     struct match* next;

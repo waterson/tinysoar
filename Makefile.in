@@ -50,6 +50,7 @@ PARSER_OBJS = \
 
 TINYSOAR_OBJS = \
 	tinysoar.o \
+	export.o \
 	$(NULL)
 
 all: tinysoar.so

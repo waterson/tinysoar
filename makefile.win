@@ -35,6 +35,7 @@ PARSER_OBJS = \
 
 TINYSOAR_OBJS = \
         tinysoar.obj \
+        export.obj \
         $(NULL)
 
 all: tinysoar.dll
@@ -61,6 +62,7 @@ tinysoar.obj: tinysoar.c soar.h symtab.h parser.h alloc.h config.h defs.h
 
 alloc.obj: alloc.c alloc.h config.h defs.h
 agent.obj: agent.c soar.h alloc.h config.h defs.h
+export.obj: export.c soar.h ht.h symtab.h alloc.h config.h defs.h
 ht.obj: ht.c ht.h alloc.h config.h defs.h
 prod.obj: prod.c soar.h rete.h alloc.h config.h defs.h
 rete.obj: rete.c soar.h rete.h alloc.h config.h defs.h

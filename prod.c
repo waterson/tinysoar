@@ -227,6 +227,8 @@ create_memory_node(struct agent* agent, struct beta_node* parent)
     result->siblings   = parent->children;
     parent->children   = result;
     result->children   = 0;
+    result->alpha_node = 0;
+    result->next_with_same_alpha_node = 0;
     result->tokens     = 0;
 
     initialize_matches(agent, result, parent);
@@ -309,6 +311,8 @@ create_production_node(struct agent* agent,
     result->siblings   = parent->children;
     parent->children   = result;
     result->children   = 0;
+    result->alpha_node = 0;
+    result->next_with_same_alpha_node = 0;
     result->tokens     = 0;
     result->data.production = production;
 
@@ -407,6 +411,8 @@ process_test(const struct test* test,
     case test_type_goal_id:
     case test_type_impasse_id:
         beta_test = (struct beta_test*) malloc(sizeof(struct beta_test));
+        beta_test->relational_type = relational_type_constant;
+        CLEAR_SYMBOL(beta_test->data.constant_referent);
         break;
 
     case test_type_blank:

@@ -334,6 +334,30 @@ elaborate_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
 }
 
 /*
+ * `export'. Dump the RETE network as a set of C structs.
+ */
+static int
+export_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
+{
+    extern void soar_export(FILE* file, struct agent* agent, struct symtab* symtab); /*XXX*/
+    FILE* file = stdout;
+
+    if (argc > 1)
+        file = fopen(argv[1], "w");
+
+    if (! file) {
+        interp->result = "failed to open file";
+        return TCL_ERROR;
+    }
+
+    soar_export(file, &agent, &symtab);
+    if (file != stdout)
+        fclose(file);
+
+    return TCL_OK;
+}
+
+/*
  * `init-soar'. Re-initialize the agent.
  */
 static int
@@ -638,6 +662,7 @@ Tinysoar_Init(Tcl_Interp* interp)
 
     Tcl_CreateCommand(interp, "dump-rete",   dump_rete_command,   0, 0);
     Tcl_CreateCommand(interp, "elaborate",   elaborate_command,   0, 0);
+    Tcl_CreateCommand(interp, "export",      export_command,      0, 0);
     Tcl_CreateCommand(interp, "init-soar",   init_soar_command,   0, 0);
     Tcl_CreateCommand(interp, "preferences", preferences_command, 0, 0);
     Tcl_CreateCommand(interp, "print",       print_command,       0, 0);
