@@ -1,9 +1,5 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
-(2) Get acceptable preference testing to work. I think it's
-    implemented properly in rule.y, and just needs to be made to work
-    right in rete.c.
-
 (3) Figure out how to do chunking and/or justification.
 
 (4) Depending on (3), get rid of intermediate data production data
@@ -23,4 +19,6 @@
 (8) Implement conjunctive negative conditions.
 
 (9) Implement semantic verification in rule.y.
+
+(14) Implement the allocator for the runtime.
 
