@@ -275,6 +275,12 @@ bind_variables(struct rete* net,
 {
     switch (test->type) {
     case test_type_equality:
+    case test_type_not_equal:
+    case test_type_less:
+    case test_type_greater:
+    case test_type_less_or_equal:
+    case test_type_greater_or_equal:
+    case test_type_same_type:
         if ((GET_SYMBOL_TYPE(test->data.referent) == symbol_type_variable) &&
             !find_bound_variable(*bindings, test->data.referent)) {
             struct variable_binding_list* entry = create_variable_binding_list(net);
@@ -294,8 +300,14 @@ bind_variables(struct rete* net,
         }
         break;
 
-    default:
-        /* do nothing */
+    case test_type_disjunctive:
+        assert(0); /* XXX write me! */
+        break;
+
+    case test_type_goal_id:
+    case test_type_impasse_id:
+    case test_type_blank:
+        /* XXX do nothing? */
         break;
     }
 }
@@ -322,8 +334,14 @@ process_test(struct rete* net,
 
     switch (test->type) {
     case test_type_equality:
+    case test_type_not_equal:
+    case test_type_less:
+    case test_type_greater:
+    case test_type_less_or_equal:
+    case test_type_greater_or_equal:
+    case test_type_same_type:
         if (GET_SYMBOL_TYPE(test->data.referent) == symbol_type_variable) {
-            /* It's a variable. Make a variable equality test */
+            /* It's a variable. Make a variable relational test */
             const variable_binding_t* binding;
             beta_test = create_beta_test(net);
 
@@ -348,7 +366,12 @@ process_test(struct rete* net,
         break;
 
     case test_type_goal_id:
+    case test_type_impasse_id:
         beta_test = create_beta_test(net);
+        break;
+
+    case test_type_blank:
+        /* do nothing */
         break;
 
     case test_type_conjunctive:
@@ -359,7 +382,7 @@ process_test(struct rete* net,
         }
         break;
 
-    default:
+    case test_type_disjunctive:
         assert(0); /* XXX just hit a test that needs writin' */
     }
 
