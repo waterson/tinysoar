@@ -443,19 +443,30 @@ process_test(const struct test* test,
              struct beta_test** beta_tests)
 {
     struct beta_test* beta_test = 0;
+    symbol_type_t symbol_type;
 
     if (test->type == test_type_blank)
         return;
 
+    symbol_type = GET_SYMBOL_TYPE(test->data.referent);
+
     switch (test->type) {
     case test_type_equality:
+        if (symbol_type != symbol_type_variable && !constant->val) {
+            /* It's a constant, and we can install an alpha test */
+            *constant = test->data.referent;
+            break;
+        }
+
+        /* otherwise, fall through */
+
     case test_type_not_equal:
     case test_type_less:
     case test_type_greater:
     case test_type_less_or_equal:
     case test_type_greater_or_equal:
     case test_type_same_type:
-        if (GET_SYMBOL_TYPE(test->data.referent) == symbol_type_variable) {
+        if (symbol_type == symbol_type_variable) {
             /* It's a variable. Make a variable relational test */
             const variable_binding_t* binding;
             beta_test = (struct beta_test*) malloc(sizeof(struct beta_test));
@@ -473,18 +484,11 @@ process_test(const struct test* test,
                 depth - beta_test->data.variable_referent.depth;
         }
         else {
-            /* It's a constant. Install an alpha test if possible;
-               otherwise, create a beta test node */
-            if (! constant->val) {
-                *constant = test->data.referent;
-            }
-            else {
-                beta_test =
-                    (struct beta_test*) malloc(sizeof(struct beta_test));
+            beta_test =
+                (struct beta_test*) malloc(sizeof(struct beta_test));
 
-                beta_test->relational_type = relational_type_constant;
-                beta_test->data.constant_referent = *constant;
-            }
+            beta_test->relational_type = relational_type_constant;
+            beta_test->data.constant_referent = test->data.referent;
         }
         break;
 
@@ -515,8 +519,8 @@ process_test(const struct test* test,
     if (beta_test) {
         beta_test->type  = test->type;
         beta_test->field = field;
-        beta_test->next = *beta_tests;
-        *beta_tests = beta_test;
+        beta_test->next  = *beta_tests;
+        *beta_tests      = beta_test;
     }
 }
 

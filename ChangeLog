@@ -13,6 +13,13 @@ Also, I could spend some time figuring out why the
 |^sensor-a|'s value is changed. (I suspect that I punted on integer
 comparison somewhere!)
 
+                             * * *
+
+Spent a bit more time digging into the numeric comparison stuff, and I
+think the problem is in |process_tests()|, where we unilaterally
+assume that a constant test can be done by the alpha network. Fixed
+it, yay! Still need to do o-support, though...
+
 
 Thursday, June 7, 2001
 
