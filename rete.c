@@ -791,7 +791,7 @@ create_negative_node(struct agent* agent,
     alpha_node->children = result;
 
     result->tokens     = 0;
-    result->blockers   = 0;
+    result->blocked    = 0;
 
     result->data.tests = tests;
 
@@ -998,6 +998,12 @@ ensure_negative_condition_node(struct agent* agent,
 
 /* ---------------------------------------------------------------------- */
 
+/*
+ * Notify the beta node |node| that a new token |token| is being
+ * propagated downward from its parent beta node. The working memory
+ * element |wme| may extend |token| if the parent node has no storage
+ * of its own.
+ */
 static void
 do_left_addition(struct agent* agent,
                  struct beta_node* node,
@@ -1035,45 +1041,32 @@ do_left_addition(struct agent* agent,
 
     case beta_node_type_negative:
         {
-            bool_t had_blockers = (node->blockers != 0);
             struct token* new_token;
             struct right_memory* rm;
 
             ASSERT(wme != 0, ("no wme in left-addition to negative node"));
             new_token = create_token(node, token, wme);
 
+            /* Iterate through the right-memories to see if the token
+               is blocked. */
             for (rm = node->alpha_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
                 if (check_beta_tests(agent, node->data.tests, new_token, rm->wme)) {
-                    new_token->next = node->blockers;
-                    node->blockers = new_token;
+                    new_token->next = node->blocked;
+                    node->blocked = new_token;
                     break;
                 }
             }
 
             if (! rm) {
-                new_token->next = node->tokens;
-                node->tokens = new_token;
-            }
-
-            if (node->blockers) {
-                if (! had_blockers) {
-                    /* We've now got a brand new WME that causes the
-                       negative node to match, ``blocking'' the other
-                       tokens. */
-                    struct token* blocked;
-                    for (blocked = node->tokens; blocked != 0; blocked = blocked->next) {
-                        struct beta_node* child;
-                        for (child = node->children; child != 0; child = child->siblings)
-                            do_left_removal(agent, child, blocked->parent, blocked->wme);
-                    }
-                }
-            }
-            else {
                 /* Nothing matches the negative node, so go ahead and
                    propagate the token downwards. */
                 struct beta_node* child;
+
+                new_token->next = node->tokens;
+                node->tokens = new_token;
+
                 for (child = node->children; child != 0; child = child->siblings)
-                    do_left_addition(agent, child, new_token->parent, new_token->wme);
+                    do_left_addition(agent, child, new_token, 0);
             }
         }
         break;
@@ -1088,7 +1081,7 @@ do_left_addition(struct agent* agent,
 
             /* XXX Soar8 checks the retraction queue to see if the
                match has been retracted, and if so, removes the match
-               from the retraction queu. We've got a simpler ownership
+               from the retraction queue. We've got a simpler ownership
                model for tokens, so it's not possible to do that. Is
                this gonna be a problem? */
 
@@ -1156,15 +1149,14 @@ do_left_removal(struct agent* agent,
 
     case beta_node_type_negative:
         {
+            struct token** link;
             struct token* doomed;
-            struct token **link;
 
-            /* First see if this was a ``blocker'' token, in which
-               case its removal may cause us to cascade through all
-               the unblocked tokens */
-            for (doomed = node->blockers, link = &node->blockers;
+            /* First see if this was a ``blocked'' token, in which
+               case its removal will have no side effects */
+            for (link = &node->blocked, doomed = *link;
                  doomed != 0;
-                 link = &doomed->next, doomed = doomed->next) {
+                 link = &doomed->next, doomed = *link) {
                 if (doomed->wme == wme) {
                     *link = doomed->next;
                     free(doomed);
@@ -1172,26 +1164,16 @@ do_left_removal(struct agent* agent,
                 }
             }
 
-            if (doomed && !node->blockers) {
-                /* We just nuked the last ``blocker'' token. Propagate
-                   through all the tokens that are now unblocked */
-                struct token* unblocked;
-                for (unblocked = node->tokens; unblocked != 0; unblocked = unblocked->next) {
-                    struct beta_node* child;
-                    for (child = node->children; child != 0; child = child->siblings)
-                        do_left_addition(agent, child, unblocked->parent, unblocked->wme);
-                }
-            }
-            else {
-                for (doomed = node->tokens, link = &node->tokens;
+            if (! doomed) {
+                /* Okay, it must've been one of the tokens that we'd propagated
+                   downwards. Find it and yank it. */
+                for (link = &node->tokens, doomed = *link;
                      doomed != 0;
-                     link = &doomed->next, doomed = doomed->next) {
+                     link = &doomed->next, doomed = *link) {
                     if (doomed->wme == wme) {
-                        if (!node->blockers) {
-                            struct beta_node* child;
-                            for (child = node->children; child != 0; child = child->siblings)
-                                do_left_removal(agent, child, doomed->parent, doomed->wme);
-                        }
+                        struct beta_node* child;
+                        for (child = node->children; child != 0; child = child->siblings)
+                            do_left_removal(agent, child, doomed, 0);
 
                         *link = doomed->next;
                         free(doomed);
@@ -1199,49 +1181,74 @@ do_left_removal(struct agent* agent,
                     }
                 }
             }
+
+            ASSERT(doomed, ("couldn't find wme in left removal"));
         }
         break;
 
     case beta_node_type_production:
         {
-            struct instantiation* inst;
             struct match* match;
-            struct match** link;
 
-            /* See if this match had been asserted */
-            for (link = &agent->assertions, match = agent->assertions;
-                 match != 0;
-                 link = &match->next, match = match->next) {
-                if ((match->data.token->wme == wme) &&
-                    tokens_are_equal(match->data.token->parent, token)) {
-                    /* Yep. Remove from the assertion queue */
-                    *link = match->next;
-                    free(match);
-                    break;
+            /* See if this match is new */
+            {
+                struct match** link;
+
+                for (link = &agent->assertions, match = *link;
+                     match != 0;
+                     link = &match->next, match = *link) {
+                    if ((match->data.token->wme == wme) &&
+                        tokens_are_equal(match->data.token->parent, token)) {
+                        /* Yep. Remove from the assertion queue */
+                        *link = match->next;
+                        free(match);
+                        break;
+                    }
                 }
             }
 
-            /* Find the instantiation that we need to retract */
-            for (inst = node->data.production->instantiations;
-                 inst != 0;
-                 inst = inst->next) {
-                if (inst->token->wme == wme /* XXX sufficient? */) {
-                    /* See if this match is already on the retraction queue */
-                    for (match = agent->retractions; match != 0; match = match->next) {
-                        if (match->data.instantiation = inst)
-                            break;
-                    }
+            if (! match) {
+                /* It's not a new match. Find the instantiation that
+                   we need to retract */
+                struct instantiation* inst;
+                for (inst = node->data.production->instantiations;
+                     inst != 0;
+                     inst = inst->next) {
+                    if (inst->token->wme == wme /* XXX sufficient? */) {
+                        /* See if this match is already on the retraction queue */
+                        for (match = agent->retractions; match != 0; match = match->next) {
+                            if (match->data.instantiation == inst)
+                                break;
+                        }
 
-                    if (! match) {
-                        /* Gotcha. Allocate a new match and place on the
-                           retraction queue */
-                        match = (struct match*) malloc(sizeof(struct match));
-                        match->data.instantiation = inst;
-                        match->production = node->data.production;
-                        match->next = agent->retractions;
-                        agent->retractions = match;
+                        if (! match) {
+                            /* Gotcha. Allocate a new match and place on the
+                               retraction queue */
+                            match = (struct match*) malloc(sizeof(struct match));
+                            match->data.instantiation = inst;
+                            match->production = node->data.production;
+                            match->next = agent->retractions;
+                            agent->retractions = match;
+                        }
                     }
                 }
+            }
+
+            /* Nuke the token */
+            {
+                struct token** link;
+                struct token* doomed;
+                for (link = &node->tokens, doomed = *link;
+                     token != 0;
+                     link = &doomed->next, doomed = *link) {
+                    if (doomed->wme == wme) {
+                        *link = doomed->next;
+                        free(doomed);
+                        break;
+                    }
+                }
+
+                ASSERT(token, ("couldn't find token in left-removal"));
             }
         }
         break;
@@ -1258,7 +1265,10 @@ do_left_removal(struct agent* agent,
     }
 }
 
-
+/*
+ * Notify the beta node |node| that a new wme |wme| has been added to
+ * the right-memory to which |node| is attached.
+ */
 static void
 do_right_addition(struct agent* agent, struct beta_node* node, struct wme* wme)
 {
@@ -1282,16 +1292,26 @@ do_right_addition(struct agent* agent, struct beta_node* node, struct wme* wme)
 
     case beta_node_type_negative:
         {
+            struct token** link;
             struct token* token;
 
-            for (token = node->tokens; token != 0; token = token->next) {
-                if (!node->data.tests || !check_beta_tests(agent, node->data.tests, token, wme)) {
+            for (link = &node->tokens, token = *link;
+                 token != 0;
+                 link = &token->next, token = *link) {
+                if (!node->data.tests || check_beta_tests(agent, node->data.tests, token, wme)) {
                     /* If there are no beta tests, or the beta tests
-                       fail, then the negative condition has
-                       matched. Pass along the token to the kids */
+                       all pass, then the negative condition has
+                       matched. We need to remove any tokens that had
+                       previously been propagated. */
                     struct beta_node* child;
                     for (child = node->children; child != 0; child = child->siblings)
-                        do_left_addition(agent, child, token, wme);
+                        do_left_removal(agent, child, token, 0);
+
+                    /* This token is now ``blocked'' */
+                    *link = token->next;
+
+                    token->next = node->blocked;
+                    node->blocked = token;
                 }
             }
         }
@@ -1316,17 +1336,38 @@ do_right_removal(struct agent* agent, struct beta_node* node, struct wme* wme)
 {
     switch (node->type) {
     case beta_node_type_positive_join:
-        ASSERT(node->parent->type == beta_node_type_memory,
-               ("unexpected parent node"));
-
-        /* fall through */
-
-    case beta_node_type_negative: /* XXX I Have no idea if this is right */
         {
             struct beta_node* child;
 
+            ASSERT(node->parent->type == beta_node_type_memory,
+                   ("unexpected parent node"));
+
             for (child = node->children; child != 0; child = child->siblings)
                 do_left_removal(agent, child, 0, wme);
+        }
+        break;
+
+    case beta_node_type_negative:
+        {
+            struct token** link = &node->blocked;
+            struct token* token = *link;
+
+            while (token) {
+                if (!node->data.tests || check_beta_tests(agent, node->data.tests, token, wme)) {
+                    /* If there are no beta tests, or the beta tests
+                       all pass, then this blocked token just became
+                       unblocked. Propagate it downward. */
+                    struct beta_node* child;
+                    for (child = node->children; child != 0; child = child->siblings)
+                        do_left_addition(agent, child, token, 0);
+
+                    /* Move the token to the ``unblocked'' list */
+                    *link = token->next;
+
+                    token->next = node->tokens;
+                    node->tokens = token;
+                }
+            }
         }
         break;
 
@@ -1339,7 +1380,9 @@ do_right_removal(struct agent* agent, struct beta_node* node, struct wme* wme)
     case beta_node_type_root:
     case beta_node_type_production:
     case beta_node_type_memory:
-        ERROR(("unexpected right addition")); /* can't get right addition on these nodes */
+        /* can't get right addition on these nodes, because these
+           nodes can't be directly connected ot a right memory. */
+        ERROR(("unexpected right addition"));
         break;
     }
 }

@@ -407,8 +407,8 @@ struct beta_node {
     struct token* tokens;
 
     /* For negative nodes, the tokens that match the node and
-       ``block'' the other tokens from propagating through. */
-    struct token* blockers;
+       are ``blocked'' from propagating through. */
+    struct token* blocked;
 
     union {
         /* if type in { positive_join, negative }, the tests to apply at this node */
@@ -426,7 +426,7 @@ struct token {
     /* Back-pointer to the beta node that owns the token */
     struct beta_node* node;
 
-    /* The next token in the list of tokens owned by the parent beta node */
+    /* The next token in the list of tokens owned by the beta node */
     struct token* next;
 
     /* The token that this token extends */
