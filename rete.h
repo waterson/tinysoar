@@ -24,14 +24,23 @@ typedef enum test_type {
     test_type_impasse_id,
 } test_type_t;
 
+struct test {
+    test_type_t type;
+    union {
+        symbol_t referent;
+        /* list* conjunctions; */
+        /* list* disjunctions; */
+    } data;
+};
+
 struct condition {
     condition_type_t type;
 
     union {
         struct {
-            test_type_t id_test;
-            test_type_t attr_test;
-            test_type_t value_test;
+            struct test id_test;
+            struct test attr_test;
+            struct test value_test;
         } simple;
     } data;
 
@@ -50,6 +59,6 @@ struct production {
 struct rete;
 
 extern void
-rete_add_production(struct rete* net, struct production* p);
+rete_add_production(struct rete* net, const struct production* p);
 
 #endif /* rete_h__ */
