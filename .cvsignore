@@ -1,3 +1,6 @@
+*.pdb
+*.ilk
+*.opt
 .deps
 Makefile
 config-defs.h
