@@ -19,7 +19,7 @@ hash_slot(symbol_t id, symbol_t attr)
 }
 
 static struct slot*
-ensure_slot(struct agent* agent, symbol_t id, symbol_t attr)
+find_slot(struct agent* agent, symbol_t id, symbol_t attr, bool_t create)
 {
     unsigned hash = hash_slot(id, attr);
     struct ht_entry_header** entryp;
@@ -34,7 +34,7 @@ ensure_slot(struct agent* agent, symbol_t id, symbol_t attr)
     if (*entryp) {
         slot = (struct slot*) HT_ENTRY_DATA(*entryp);
     }
-    else {
+    else if (create) {
         struct ht_entry_header* entry =
             (struct ht_entry_header*) malloc(sizeof(struct ht_entry_header) + sizeof(struct slot));
 
@@ -46,8 +46,24 @@ ensure_slot(struct agent* agent, symbol_t id, symbol_t attr)
 
         ht_add(&agent->slots, entryp, hash, entry);
     }
+    else {
+        slot = 0;
+    }
 
     return slot;
+}
+
+static void
+remove_slot(struct agent* agent, struct slot* slot)
+{
+    unsigned hash = hash_slot(slot->id, slot->attr);
+    struct ht_entry_header** entryp = ht_lookup(&agent->slots, hash, slot);
+    struct ht_entry_header* entry = *entryp;
+
+    ASSERT(entry != 0, ("attempt to remove non-existent slot"));
+
+    ht_remove(&agent->slots, entryp);
+    free(entry);
 }
 
 static void
@@ -140,7 +156,7 @@ wmem_add(struct agent* agent,
          symbol_t value,
          wme_type_t type)
 {
-    struct slot* slot = ensure_slot(agent, id, attr);
+    struct slot* slot = find_slot(agent, id, attr, 1);
     struct wme* wme;
 
     wme = (struct wme*) malloc(sizeof(struct wme));
@@ -173,9 +189,13 @@ void
 wmem_decide(struct agent* agent)
 {
     struct slot_list* slots;
-    for (slots = agent->modified_slots; slots != 0; slots = slots->next) {
+    struct slot_list* next;
+
+    for (slots = agent->modified_slots; slots != 0; slots = next) {
         struct preference* pref =
             get_preferences_for_slot(agent, slots->slot);
+
+        next = slots->next;
 
         if (pref) {
             struct symbol_list* candidates = 0;
@@ -199,7 +219,7 @@ wmem_decide(struct agent* agent)
                         wme->next  = slots->slot->wmes;
                         slots->slot->wmes = wme;
 
-                        rete_add_wme(agent, wme); /*XXX*/
+                        rete_operate_wme(agent, wme, wme_operation_add); /*XXX*/
                     }
                 }
             }
@@ -225,7 +245,7 @@ wmem_decide(struct agent* agent)
                         *link = wme->next;
                         wme = wme->next;
 
-                        rete_remove_wme(agent, doomed); /*XXX*/
+                        rete_operate_wme(agent, doomed, wme_operation_remove); /*XXX*/
                         free(doomed);
                     }
                 }
@@ -238,22 +258,63 @@ wmem_decide(struct agent* agent)
             }
         }
         else {
-            /* possibly remove the slot altogether */
+            /* There are no preferences for the slot. Nuke the wmes
+               and remove the slot */
+            struct wme* wme = slots->slot->wmes;
+            while (wme) {
+                struct wme* doomed = wme;
+                wme = wme->next;
+
+                rete_operate_wme(agent, doomed, wme_operation_remove);
+                free(doomed);
+            }
+
+            slots->slot->wmes = 0;
+
+            remove_slot(agent, slots->slot);
         }
+
+        free(slots);
     }
+
+    agent->modified_slots = 0;
 }
 
 
 void
 wmem_add_preference(struct agent* agent, struct preference* pref)
 {
-    struct slot* slot = ensure_slot(agent, pref->id, pref->attr);
+    struct slot* slot = find_slot(agent, pref->id, pref->attr, 1);
 
     pref->next_in_slot = slot->preferences;
     slot->preferences  = pref;
 
     /* Add to the list of slots that have changed */
     mark_slot_modified(agent, slot);
+}
+
+void
+wmem_remove_preference(struct agent* agent, struct preference* pref)
+{
+    struct slot* slot = find_slot(agent, pref->id, pref->attr, 0);
+
+    if (slot) {
+        struct preference* doomed;
+        struct preference** link;
+
+        for (doomed = slot->preferences, link = &slot->preferences;
+             doomed != 0;
+             link = &doomed->next_in_slot, doomed = doomed->next_in_slot) {
+            if (doomed == pref) {
+                *link = pref->next_in_slot;
+                free(doomed); /* XXX safe? */
+
+                /* Add to the list of slots that have changed */
+                mark_slot_modified(agent, slot);
+                break;
+            }
+        }
+    }
 }
 
 

@@ -151,5 +151,10 @@ main(int argc, char* argv[])
     pref_process_matches(&agent);
     wmem_decide(&agent);
 
+    wmem_remove_preference(&agent, pref);
+
+    wmem_decide(&agent);
+    pref_process_matches(&agent);
+
     return 0;
 }

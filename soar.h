@@ -395,7 +395,7 @@ struct beta_node {
 
     union {
         /* if type == positive_join, the tests to apply at this node */
-        struct beta_test*        tests;
+        struct beta_test*  tests;
 
         /* if type == production, the the production that's been matched */
         struct production* production;
@@ -422,7 +422,10 @@ struct token {
 
 struct match {
     struct production* production;
-    struct token* token;
+    union {
+        struct token* token; /* for assertions */
+        struct instantiation* instantiation; /* for retractions */
+    } data;
     struct match* next;
 };
 
@@ -475,13 +478,16 @@ rete_add_production(struct agent* agent, struct production* p);
 
 /*
  * Notify the network that a new working memory element has been
- * added.
+ * added or removed.
  */
-extern void
-rete_add_wme(struct agent* agent, struct wme* wme);
+
+typedef enum wme_operation {
+    wme_operation_add,
+    wme_operation_remove
+} wme_operation_t;
 
 extern void
-rete_remove_wme(struct agent* agent, struct wme* wme);
+rete_operate_wme(struct agent* agent, struct wme* wme, wme_operation_t op);
 
 extern void
 agent_init(struct agent* agent);
@@ -500,6 +506,9 @@ wmem_init(struct agent* agent);
 
 extern void
 wmem_add_preference(struct agent* agent, struct preference* pref);
+
+extern void
+wmem_remove_preference(struct agent* agent, struct preference* pref);
 
 extern void
 wmem_decide(struct agent* agent);

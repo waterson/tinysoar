@@ -5,10 +5,15 @@
 #include "alloc.h"
 
 static void
-do_left_addition(struct agent* agent, struct beta_node* node, struct token* token, struct wme* wme);
+do_left_addition(struct agent* agent,
+                 struct beta_node* node,
+                 struct token* token,
+                 struct wme* wme);
 
 static void
-do_right_addition(struct agent* agent, struct beta_node* node, struct wme* wme);
+do_right_addition(struct agent* agent,
+                  struct beta_node* node,
+                  struct wme* wme);
 
 struct variable_binding_list {
     symbol_t                      variable;
@@ -16,21 +21,6 @@ struct variable_binding_list {
     struct variable_binding_list* next;
 };
 
-
-static inline struct beta_node*
-create_beta_node(struct agent* agent)
-{
-    return (struct beta_node*) malloc(sizeof(struct beta_node));
-}
-
-/*
- * Create a new beta_test object from the beta_test pool
- */
-static inline struct beta_test*
-create_beta_test(struct agent* agent)
-{
-    return (struct beta_test*) malloc(sizeof(struct beta_test));
-}
 
 /*
  * Determine if two beta_test lists are identical. Kinda lame,
@@ -51,7 +41,8 @@ beta_tests_are_identical(struct beta_test* left, struct beta_test* right)
             break;
 
         case test_type_disjunctive:
-            if (! beta_tests_are_identical(left->data.disjuncts, right->data.disjuncts))
+            if (! beta_tests_are_identical(left->data.disjuncts,
+                                           right->data.disjuncts))
                 return 0;
 
             break;
@@ -79,11 +70,13 @@ beta_tests_are_identical(struct beta_test* left, struct beta_test* right)
 
             /* Are the referents the same? */
             if (left->relational_type == relational_type_constant) {
-                if (! SYMBOLS_ARE_EQUAL(left->data.constant_referent, right->data.constant_referent))
+                if (! SYMBOLS_ARE_EQUAL(left->data.constant_referent,
+                                        right->data.constant_referent))
                     return 0;
             }
             else {
-                if (! VARIABLE_BINDINGS_ARE_EQUAL(left->data.variable_referent, right->data.variable_referent))
+                if (! VARIABLE_BINDINGS_ARE_EQUAL(left->data.variable_referent,
+                                                  right->data.variable_referent))
                     return 0;
             }
         }
@@ -106,19 +99,13 @@ free_beta_tests(struct agent* agent, struct beta_test* tests)
 }
 
 /*
- * Create a new variable binding list
- */
-static inline struct variable_binding_list*
-create_variable_binding_list(struct agent* agent)
-{
-    return (struct variable_binding_list*) malloc(sizeof(struct variable_binding_list));
-}
-
-/*
  * Create a new token
  */
 static inline struct token*
-create_token(struct agent* agent, struct beta_node* node, struct token* parent, struct wme* wme)
+create_token(struct agent* agent,
+             struct beta_node* node,
+             struct token* parent,
+             struct wme* wme)
 {
     struct token* result = (struct token*) malloc(sizeof(struct token));
     result->parent = parent;
@@ -135,13 +122,20 @@ create_token(struct agent* agent, struct beta_node* node, struct token* parent, 
 /*
  * Are the two tokens equal?
  */
-static inline bool_t
+static bool_t
 tokens_are_equal(struct token* left, struct token* right)
 {
     while (left && right) {
+        /* If we ever get to a point where left and right refer to the
+           same token, then the tokens are most certainly equal */
+        if (left == right)
+            return 1;
+
+        /* If the wmes don't match, the tokens are different */
         if (left->wme != right->wme)
             return 0;
 
+        /* Walk up to the parent */
         left = left->parent;
         right = right->parent;
     }
@@ -154,11 +148,14 @@ tokens_are_equal(struct token* left, struct token* right)
  * memory bucket a test should be in.
  */
 static inline short
-get_alpha_test_index(symbol_t id, symbol_t attr, symbol_t value, wme_type_t type)
+get_alpha_test_index(symbol_t id,
+                     symbol_t attr,
+                     symbol_t value,
+                     wme_type_t type)
 {
-    return ((type == wme_type_acceptable_preference) ? 8 : 0) +
-        (GET_SYMBOL_VALUE(id) ? 4 : 0) +
-        (GET_SYMBOL_VALUE(attr) ? 2 : 0) + 
+    return ((type == wme_type_acceptable_preference) ? 8 : 0) |
+        (GET_SYMBOL_VALUE(id) ? 4 : 0) |
+        (GET_SYMBOL_VALUE(attr) ? 2 : 0) |
         (GET_SYMBOL_VALUE(value) ? 1 : 0);
 }
 
@@ -193,21 +190,51 @@ get_field_from_wme(struct wme* wme, field_t field)
 static inline bool_t
 wme_matches_alpha_node(const struct wme* wme, const struct alpha_node* node)
 {
-    return (SYMBOL_IS_NIL(node->id) || SYMBOLS_ARE_EQUAL(node->id, wme->slot->id)) &&
-        (SYMBOL_IS_NIL(node->attr) || SYMBOLS_ARE_EQUAL(node->attr, wme->slot->attr)) &&
-        (SYMBOL_IS_NIL(node->value) || SYMBOLS_ARE_EQUAL(node->value, wme->value));
+    return (SYMBOL_IS_NIL(node->id) ||
+            SYMBOLS_ARE_EQUAL(node->id, wme->slot->id)) &&
+        (SYMBOL_IS_NIL(node->attr) ||
+         SYMBOLS_ARE_EQUAL(node->attr, wme->slot->attr)) &&
+        (SYMBOL_IS_NIL(node->value) ||
+         SYMBOLS_ARE_EQUAL(node->value, wme->value));
 }
 
 /*
- * Add a wme to the specfieid alpha node's right memory
+ * Add a wme to the specified alpha node's right memory
  */
 static void
-add_wme_to_alpha_node(struct agent* agent, struct alpha_node* node, struct wme* wme)
+add_wme_to_alpha_node(struct agent* agent,
+                      struct alpha_node* node,
+                      struct wme* wme)
 {
-    struct right_memory* rm = (struct right_memory*) malloc(sizeof(struct right_memory));
+    struct right_memory* rm =
+        (struct right_memory*) malloc(sizeof(struct right_memory));
+
     rm->wme = wme;
     rm->next_in_alpha_node = node->right_memories;
     node->right_memories = rm;
+}
+
+/*
+ * Remove a wme from the specified alpha node's right memory
+ */
+static void
+remove_wme_from_alpha_node(struct agent* agent,
+                           struct alpha_node* node,
+                           struct wme* wme)
+{
+    struct right_memory* rm = node->right_memories;
+    struct right_memory** link = &node->right_memories;
+
+    while (rm) {
+        if (rm->wme == wme) {
+            *link = rm->next_in_alpha_node;
+            free(rm);
+            break;
+        }
+
+        link = &rm->next_in_alpha_node;
+        rm = rm->next_in_alpha_node;
+    }
 }
 
 /*
@@ -217,9 +244,15 @@ add_wme_to_alpha_node(struct agent* agent, struct alpha_node* node, struct wme* 
  * Corresponds to find_alpha_mem() in rete.c from Soar8.
  */
 static struct alpha_node*
-find_alpha_node(struct agent* agent, symbol_t id, symbol_t attr, symbol_t value, wme_type_t type)
+find_alpha_node(struct agent* agent,
+                symbol_t id,
+                symbol_t attr,
+                symbol_t value,
+                wme_type_t type)
 {
-    struct alpha_node* node = agent->alpha_nodes[get_alpha_test_index(id, attr, value, type)];
+    struct alpha_node* node =
+        agent->alpha_nodes[get_alpha_test_index(id, attr, value, type)];
+
     for ( ; node != 0; node = node->siblings) {
         if (SYMBOLS_ARE_EQUAL(id, node->id) &&
             SYMBOLS_ARE_EQUAL(attr, node->attr) &&
@@ -244,12 +277,18 @@ add_matching_wmes(struct agent* agent, struct wme* wme, void* closure)
  * This corresponds to find_or_make_alpha_mem() in rete.c from Soar8.
  */
 static struct alpha_node*
-ensure_alpha_node(struct agent* agent, symbol_t id, symbol_t attr, symbol_t value, wme_type_t type)
+ensure_alpha_node(struct agent* agent,
+                  symbol_t id,
+                  symbol_t attr,
+                  symbol_t value,
+                  wme_type_t type)
 {
     struct alpha_node* result;
 
     if (! (result = find_alpha_node(agent, id, attr, value, type))) {
-        struct alpha_node** head = &agent->alpha_nodes[get_alpha_test_index(id, attr, value, type)];
+        struct alpha_node** head =
+            &agent->alpha_nodes[get_alpha_test_index(id, attr, value, type)];
+
         struct alpha_node* more_general_node;
         symbol_t nil;
 
@@ -295,7 +334,8 @@ ensure_alpha_node(struct agent* agent, symbol_t id, symbol_t attr, symbol_t valu
  * specified variable.
  */
 static inline const variable_binding_t*
-find_bound_variable(const struct variable_binding_list* bindings, const symbol_t variable)
+find_bound_variable(const struct variable_binding_list* bindings,
+                    const symbol_t variable)
 {
     for ( ; bindings != 0; bindings = bindings->next) {
         if (SYMBOLS_ARE_EQUAL(bindings->variable, variable))
@@ -334,7 +374,8 @@ bind_variables(struct agent* agent,
         if ((GET_SYMBOL_TYPE(test->data.referent) == symbol_type_variable) &&
             !find_bound_variable(*bindings, test->data.referent)) {
             struct variable_binding_list* entry =
-                create_variable_binding_list(agent);
+                (struct variable_binding_list*)
+                malloc(sizeof(struct variable_binding_list));
 
             entry->variable = test->data.referent;
             entry->binding.depth = depth;
@@ -396,7 +437,7 @@ process_test(struct agent* agent,
         if (GET_SYMBOL_TYPE(test->data.referent) == symbol_type_variable) {
             /* It's a variable. Make a variable relational test */
             const variable_binding_t* binding;
-            beta_test = create_beta_test(agent);
+            beta_test = (struct beta_test*) malloc(sizeof(struct beta_test));
 
             binding = find_bound_variable(bindings, test->data.referent);
             ASSERT(binding != 0, ("null ptr"));
@@ -407,7 +448,8 @@ process_test(struct agent* agent,
             /* Fix up the variable referent's depth (which was stored
                as an `absolute depth' in the binding list) to be
                relative to the current depth of the test. */
-            beta_test->data.variable_referent.depth = depth - beta_test->data.variable_referent.depth;
+            beta_test->data.variable_referent.depth =
+                depth - beta_test->data.variable_referent.depth;
         }
         else {
             /* It's a constant. Install an alpha test if possible;
@@ -416,8 +458,10 @@ process_test(struct agent* agent,
                 *constant = test->data.referent;
             }
             else {
-                beta_test = create_beta_test(agent);
-                beta_test->relational_type = relational_type_constant;                
+                beta_test =
+                    (struct beta_test*) malloc(sizeof(struct beta_test));
+
+                beta_test->relational_type = relational_type_constant;
                 beta_test->data.constant_referent = *constant;
             }
         }
@@ -425,7 +469,7 @@ process_test(struct agent* agent,
 
     case test_type_goal_id:
     case test_type_impasse_id:
-        beta_test = create_beta_test(agent);
+        beta_test = (struct beta_test*) malloc(sizeof(struct beta_test));
         break;
 
     case test_type_blank:
@@ -456,7 +500,10 @@ process_test(struct agent* agent,
  * Check a single beta test
  */
 static bool_t
-check_beta_test(struct agent* agent, struct beta_test* test, struct token* token, struct wme* wme)
+check_beta_test(struct agent* agent,
+                struct beta_test* test,
+                struct token* token,
+                struct wme* wme)
 {
     switch (test->type) {
     case test_type_equality:
@@ -593,7 +640,10 @@ check_beta_test(struct agent* agent, struct beta_test* test, struct token* token
  * Check a list of beta tests
  */
 static inline bool_t
-check_beta_tests(struct agent* agent, struct beta_test* test, struct token* token, struct wme* wme)
+check_beta_tests(struct agent* agent,
+                 struct beta_test* test,
+                 struct token* token,
+                 struct wme* wme)
 {
     for ( ; test != 0; test = test->next) {
         if (! check_beta_test(agent, test, token, wme))
@@ -611,7 +661,9 @@ check_beta_tests(struct agent* agent, struct beta_test* test, struct token* toke
  * rete.c in Soar8.
  */
 static void
-initialize_matches(struct agent* agent, struct beta_node* child, struct beta_node* parent)
+initialize_matches(struct agent* agent,
+                   struct beta_node* child,
+                   struct beta_node* parent)
 {
     if (parent->type == beta_node_type_root)
         do_left_addition(agent, child, &agent->root_token, 0);
@@ -642,7 +694,7 @@ create_memory_node(struct agent* agent, struct beta_node* parent)
 {
     struct beta_node* result;
 
-    result = create_beta_node(agent);
+    result = (struct beta_node*) malloc(sizeof(struct beta_node));
     result->type       = beta_node_type_memory;
     result->parent     = parent;
     result->siblings   = parent->children;
@@ -665,7 +717,7 @@ create_positive_join_node(struct agent* agent,
 {
     struct beta_node* result;
 
-    result = create_beta_node(agent);
+    result = (struct beta_node*) malloc(sizeof(struct beta_node));
     result->type       = beta_node_type_positive_join;
     result->parent     = parent;
     result->siblings   = parent->children;
@@ -693,7 +745,7 @@ create_production_node(struct agent* agent,
 {
     struct beta_node* result;
 
-    result = create_beta_node(agent);
+    result = (struct beta_node*) malloc(sizeof(struct beta_node));
     result->type       = beta_node_type_production;
     result->parent     = parent;
     result->siblings   = parent->children;
@@ -816,7 +868,10 @@ ensure_positive_condition_node(struct agent* agent,
 /* ---------------------------------------------------------------------- */
 
 static void
-do_left_addition(struct agent* agent, struct beta_node* node, struct token* token, struct wme* wme)
+do_left_addition(struct agent* agent,
+                 struct beta_node* node,
+                 struct token* token,
+                 struct wme* wme)
 {
     switch (node->type) {
     case beta_node_type_memory:
@@ -845,28 +900,112 @@ do_left_addition(struct agent* agent, struct beta_node* node, struct token* toke
     case beta_node_type_production:
         {
             struct token* new_token = create_token(agent, node, token, wme);
-            struct match** link;
-            struct match* match;
 
-            /* See if this match had been retracted */
-            for (link = &agent->retractions, match = agent->retractions;
+            /* XXX Soar8 checks the retraction queue to see if the
+               match has been retracted, and if so, removes the match
+               from the retraction queu. We've got a simpler ownership
+               model for tokens, so it's not possible to do that. Is
+               this gonna be a problem? */
+
+            /* Allocate a new match and place on the firing queue */
+            struct match* match =
+                (struct match*) malloc(sizeof(struct match));
+
+            match->data.token = new_token;
+            match->production = node->data.production;
+            match->next = agent->assertions;
+            agent->assertions = match;
+        }
+        break;
+
+    case beta_node_type_memory_positive_join:
+    case beta_node_type_negative:
+    case beta_node_type_conjunctive_negative:
+    case beta_node_type_conjunctive_negative_partner:
+        UNIMPLEMENTED(); /* XXX write me! */
+        break;
+
+    case beta_node_type_root:
+        ERROR(("unexpected left addition")); /* can't get left addition on this node */
+        break;
+    }
+}
+
+
+static void
+do_left_removal(struct agent* agent,
+                struct beta_node* node,
+                struct token* token,
+                struct wme* wme)
+{
+    switch (node->type) {
+    case beta_node_type_memory:
+        {
+            struct token* doomed;
+            struct token **link;
+
+            for (doomed = node->tokens, link = &node->tokens;
+                 doomed != 0;
+                 link = &doomed->next, doomed = doomed->next) {
+                if (doomed->wme == wme) {
+                    struct beta_node* child;
+                    for (child = node->children; child != 0; child = child->siblings)
+                        do_left_removal(agent, child, doomed, 0);
+
+                    *link = doomed->next;
+                    free(doomed);
+                    break;
+                }
+            }
+        }
+        break;
+
+    case beta_node_type_positive_join:
+        {
+            struct right_memory* rm;
+            for (rm = node->alpha_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
+                if (token->wme == rm->wme) {
+                    struct beta_node* child;
+                    for (child = node->children; child != 0; child = child->siblings)
+                        do_left_removal(agent, child, token, rm->wme);
+                }
+            }
+        }
+        break;
+
+    case beta_node_type_production:
+        {
+            struct instantiation* inst;
+            struct match* match;
+            struct match** link;
+
+            /* See if this match had been asserted */
+            for (link = &agent->assertions, match = agent->assertions;
                  match != 0;
                  link = &match->next, match = match->next) {
-                if (tokens_are_equal(match->token, new_token)) {
-                    /* Yep. Remove from the retraction queue */
+                if ((match->data.token->wme == wme) &&
+                    tokens_are_equal(match->data.token->parent, token)) {
+                    /* Yep. Remove from the assertion queue */
                     (*link)->next = match->next;
                     free(match);
                     break;
                 }
             }
 
-            /* Otherwise, allocate a new match and place on the firing
-               queue */
-            match = (struct match*) malloc(sizeof(struct match));
-            match->token = new_token;
-            match->production = node->data.production;
-            match->next = agent->assertions;
-            agent->assertions = match;
+            /* Find the instantiation that we need to retract */
+            for (inst = node->data.production->instantiations;
+                 inst != 0;
+                 inst = inst->next) {
+                if (inst->token->wme == wme /* XXX sufficient? */) {
+                    /* Gotcha. Allocate a new match and place on the
+                       retraction queue */
+                    match = (struct match*) malloc(sizeof(struct match));
+                    match->data.instantiation = inst;
+                    match->production = node->data.production;
+                    match->next = agent->retractions;
+                    agent->retractions = match;
+                }
+            }
         }
         break;
 
@@ -891,6 +1030,10 @@ do_right_addition(struct agent* agent, struct beta_node* node, struct wme* wme)
     case beta_node_type_positive_join:
         {
             struct token* token;
+
+            ASSERT(node->parent->type == beta_node_type_memory,
+                   ("unexpected parent node in right addition"));
+
             for (token = node->parent->tokens; token != 0; token = token->next) {
                 if (check_beta_tests(agent, node->data.tests, token, wme)) {
                     struct beta_node* child;
@@ -898,6 +1041,37 @@ do_right_addition(struct agent* agent, struct beta_node* node, struct wme* wme)
                         do_left_addition(agent, child, token, wme);
                 }
             }
+        }
+        break;
+
+    case beta_node_type_memory_positive_join:
+    case beta_node_type_negative:
+        UNIMPLEMENTED(); /* XXX write me! */
+        break;
+
+    case beta_node_type_conjunctive_negative:
+    case beta_node_type_conjunctive_negative_partner:
+    case beta_node_type_root:
+    case beta_node_type_production:
+    case beta_node_type_memory:
+        ERROR(("unexpected right addition")); /* can't get right addition on these nodes */
+        break;
+    }
+}
+
+static void
+do_right_removal(struct agent* agent, struct beta_node* node, struct wme* wme)
+{
+    switch (node->type) {
+    case beta_node_type_positive_join:
+        {
+            struct beta_node* child;
+
+            ASSERT(node->parent->type == beta_node_type_memory,
+                   ("unexpected parent node"));
+
+            for (child = node->children; child != 0; child = child->siblings)
+                do_left_removal(agent, child, 0, wme);
         }
         break;
 
@@ -1011,35 +1185,38 @@ rete_add_production(struct agent* agent, struct production* p)
 void
 rete_remove_production()
 {
+    UNIMPLEMENTED();
 }
 
 void
-rete_add_wme(struct agent* agent, struct wme* wme)
+rete_operate_wme(struct agent* agent, struct wme* wme, wme_operation_t op)
 {
-    int offset;
+    int offset = (wme->type == wme_type_normal) ? 0 : 8;
     int i;
 
-    offset = (wme->type == wme_type_normal) ? 0 : 8;
     for (i = 0; i < 8; ++i) {
         struct alpha_node* alpha;
 
         for (alpha = agent->alpha_nodes[i + offset]; alpha != 0; alpha = alpha->siblings) {
             if (wme_matches_alpha_node(wme, alpha)) {
-                struct beta_node* beta;
-                add_wme_to_alpha_node(agent, alpha, wme);
+                if (op == wme_operation_add) {
+                    struct beta_node* beta;
+                    add_wme_to_alpha_node(agent, alpha, wme);
 
-                for (beta = alpha->children; beta != 0; beta = beta->next_with_same_alpha_node)
-                    do_right_addition(agent, beta, wme);
+                    for (beta = alpha->children; beta != 0; beta = beta->next_with_same_alpha_node)
+                        do_right_addition(agent, beta, wme);
+                }
+                else {
+                    struct beta_node* beta;
+                    for (beta = alpha->children; beta != 0; beta = beta->next_with_same_alpha_node)
+                        do_right_removal(agent, beta, wme);
+
+                    remove_wme_from_alpha_node(agent, alpha, wme);
+                }
             }
         }
     }
 }
-
-void
-rete_remove_wme(struct agent* agent, struct wme* wme)
-{
-}
-
 
 void
 rete_push_goal_id(struct agent* agent, symbol_t goal_id)

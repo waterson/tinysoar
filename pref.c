@@ -126,7 +126,7 @@ pref_process_matches(struct agent* agent)
     /* create instantiations for assertions */
     match = agent->assertions;
     while (match) {
-        create_instantiation(agent, match->production, match->token, &inst);
+        create_instantiation(agent, match->production, match->data.token, &inst);
 
         doomed = match;
         match = match->next;
@@ -155,7 +155,34 @@ pref_process_matches(struct agent* agent)
 
     match = agent->retractions;
     while (match) {
-        /* retract_instantiation(...); */
+        /* Remove the preferences involved with this instantiation */
+        {
+            struct preference* pref = match->data.instantiation->preferences;
+            struct preference* next;
+
+            while (pref) {
+                next = pref->next_in_instantiation;
+                wmem_remove_preference(agent, pref);
+                pref = next;
+            }
+        }
+
+        /* Yank the instantiation from the production */
+        {
+            struct instantiation** link = &match->data.instantiation->production->instantiations;
+            struct instantiation* inst = *link;
+
+            while (inst) {
+                if (inst == match->data.instantiation) {
+                    *link = inst->next;
+                    free(inst);
+                    break;
+                }
+
+                link = &inst->next;
+                inst = inst->next;
+            }
+        }
 
         doomed = match;
         match = match->next;
