@@ -372,7 +372,7 @@ make_rhs(struct agent                 *agent,
         struct action *action;
 
         action = (struct action *) malloc(sizeof(struct action));
-        action->preference_type = pref->type;
+        action->preference_type = GET_PREFERENCE_TYPE(pref);
         make_rhs_value(&action->id, pref->slot->id, depth, bindings, &unbound_vars);
         make_rhs_value(&action->attr, pref->slot->attr, depth, bindings, &unbound_vars);
         make_rhs_value(&action->value, pref->value, depth, bindings, &unbound_vars);
@@ -1145,7 +1145,7 @@ backtrace(struct agent *agent, struct chunk *chunk)
             for (pref = wme->slot->preferences;
                  pref != 0;
                  pref = pref->next_in_slot) {
-                if (pref->type == preference_type_acceptable
+                if (GET_PREFERENCE_TYPE(pref) == preference_type_acceptable
                     && SYMBOLS_ARE_EQUAL(pref->value, wme->value)
                     && pref->instantiation
                     && !instantiation_list_contains(chunk->visited,
@@ -1276,8 +1276,8 @@ close_results_helper(struct ht_entry_header *entry, void *closure)
         struct preference *pref;
 
         for (pref = slot->preferences; pref != 0; pref = pref->next_in_slot) {
-            if ((pref->state == preference_state_live)
-                && (pref->type == preference_type_acceptable)
+            if ((GET_PREFERENCE_STATE(pref) == preference_state_live)
+                && (GET_PREFERENCE_TYPE(pref) == preference_type_acceptable)
                 && !preference_list_contains(*(data->results), pref)) {
                 struct preference_list *entry = (struct preference_list *)
                     malloc(sizeof(struct preference_list));
@@ -1317,7 +1317,7 @@ close_results(struct agent            *agent,
            reachable from the value's identifier. */
         for (list = *results; list != 0; list = list->next) {
             struct preference *pref = list->preference;
-            if ((pref->type == preference_type_acceptable)
+            if ((GET_PREFERENCE_TYPE(pref) == preference_type_acceptable)
                 && (GET_SYMBOL_TYPE(pref->value) == symbol_type_identifier)) {
                 /* The identifier's level may be zero if it's first
                    created by this instantiation. */

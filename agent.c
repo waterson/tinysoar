@@ -341,7 +341,7 @@ mark_slot_identifiers(struct ht_entry_header *header, void *closure)
 
     for (pref = slot->preferences; pref != 0; pref = pref->next_in_slot) {
         mark_if_unused(agent, pref->value);
-        if (pref->type & preference_type_binary)
+        if (GET_PREFERENCE_TYPE(pref) & preference_type_binary)
             mark_if_unused(agent, pref->referent);
     }
 

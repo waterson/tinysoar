@@ -55,7 +55,7 @@
 #define SYMBOL_TYPE_BITS   2
 #define SYMBOL_VALUE_BITS  (BITS_PER_WORD - SYMBOL_TYPE_BITS)
 #define SYMBOL_VALUE_SHIFT SYMBOL_TYPE_BITS
-#define SYMBOL_VALUE_MASK  ((-1) << SYMBOL_VALUE_SHIFT)
+#define SYMBOL_VALUE_MASK  (((unsigned) (~0)) << SYMBOL_VALUE_SHIFT)
 #define SYMBOL_TYPE_MASK   ~SYMBOL_VALUE_MASK
 
 typedef enum symbol_type {
@@ -162,12 +162,19 @@ typedef unsigned variable_binding_t;
  */
 
 #define SUPPORT_TYPE_BITS     2
-#define PREFERENCE_STATE_BITS 1
-#define PREFERENCE_TYPE_BITS  (BITS_PER_WORD - SUPPORT_TYPE_BITS - PREFERENCE_STATE_BITS)
+#define SUPPORT_TYPE_SHIFT    (BITS_PER_WORD - SUPPORT_TYPE_BITS)
+#define SUPPORT_TYPE_MASK     (((unsigned) (~0)) << SUPPORT_TYPE_SHIFT)
+
+#define PREFERENCE_STATE_BITS  1
+#define PREFERENCE_STATE_SHIFT (SUPPORT_TYPE_SHIFT - PREFERENCE_STATE_BITS)
+#define PREFERENCE_STATE_MASK  ((((unsigned) (~0)) << PREFERENCE_STATE_SHIFT) & ~SUPPORT_TYPE_MASK)
+
+#define PREFERENCE_TYPE_BITS   (BITS_PER_WORD - SUPPORT_TYPE_BITS - PREFERENCE_STATE_BITS)
+#define PREFERENCE_TYPE_MASK   (~(SUPPORT_TYPE_MASK | PREFERENCE_STATE_MASK))
 
 typedef enum preference_type {
     preference_type_unary              = 0,
-    preference_type_binary             = 0 - (1 << (PREFERENCE_TYPE_BITS - 1)),
+    preference_type_binary             = (1 << (PREFERENCE_TYPE_BITS - 1)),
 
     preference_type_acceptable         = preference_type_unary + 0,
     preference_type_reject             = preference_type_unary + 1,
@@ -184,15 +191,15 @@ typedef enum preference_type {
 } preference_type_t;
 
 typedef enum preference_state {
-    preference_state_live   =  0,
-    preference_state_zombie = -1
+    preference_state_live   = 0 << PREFERENCE_STATE_SHIFT,
+    preference_state_zombie = 1 << PREFERENCE_STATE_SHIFT
 } preference_state_t;
 
 typedef enum support_type {
-    support_type_isupport     = 0,
-    support_type_osupport     = 1,
-    support_type_architecture = -1,
-    support_type_unknown      = -2
+    support_type_isupport     = 0 << SUPPORT_TYPE_SHIFT,
+    support_type_osupport     = 1 << SUPPORT_TYPE_SHIFT,
+    support_type_architecture = 2 << SUPPORT_TYPE_SHIFT,
+    support_type_unknown      = 3 << SUPPORT_TYPE_SHIFT
 } support_type_t;
 
 struct preference {
@@ -200,12 +207,28 @@ struct preference {
     struct preference    *next_in_slot;
     struct preference    *next_in_instantiation;
     struct instantiation *instantiation;
-    preference_type_t     type    : PREFERENCE_TYPE_BITS;
-    preference_state_t    state   : PREFERENCE_STATE_BITS;
-    support_type_t        support : SUPPORT_TYPE_BITS;
+    unsigned              bits;
     symbol_t              value;
     symbol_t              referent;
 };
+
+#define ASSERT_VALID_PREFERENCE_TYPE(t) \
+    ASSERT(((t) & ~PREFERENCE_TYPE_MASK) == 0, ("invalid preference type %d", (t)))
+
+#define GET_PREFERENCE_TYPE(p)    ((p)->bits & PREFERENCE_TYPE_MASK)
+#define SET_PREFERENCE_TYPE(p, t) (ASSERT_VALID_PREFERENCE_TYPE(t), (p)->bits &= ~PREFERENCE_TYPE_MASK, (p)->bits |= (t))
+
+#define ASSERT_VALID_PREFERENCE_STATE(s) \
+    ASSERT(((s) & ~PREFERENCE_STATE_MASK) == 0, ("invalid preference state %d", (s)))
+
+#define GET_PREFERENCE_STATE(p)    ((p)->bits & PREFERENCE_STATE_MASK)
+#define SET_PREFERENCE_STATE(p, s) (ASSERT_VALID_PREFERENCE_STATE(s), (p)->bits &= ~PREFERENCE_STATE_MASK, (p)->bits |= (s))
+
+#define ASSERT_VALID_SUPPORT_TYPE(s) \
+    ASSERT(((s) & ~SUPPORT_TYPE_MASK) == 0, ("invalid support type %d", (s)))
+
+#define GET_PREFERENCE_SUPPORT_TYPE(p)    ((p)->bits & SUPPORT_TYPE_MASK)
+#define SET_PREFERENCE_SUPPORT_TYPE(p, s) (ASSERT_VALID_SUPPORT_TYPE(s), (p)->bits &= ~SUPPORT_TYPE_MASK, (p)->bits |= (s))
 
 struct instantiation {
     struct production    *production;
@@ -393,7 +416,7 @@ struct right_memory {
 
 #define RELATIONAL_TYPE_BITS   1
 #define RELATIONAL_TYPE_SHIFT  (FIELD_SHIFT - RELATIONAL_TYPE_BITS)
-#define RELATIONAL_TYPE_MASK   (((unsigned) (~0)) << RELATIONAL_TYPE_SHIFT & ~FIELD_MASK)
+#define RELATIONAL_TYPE_MASK   ((((unsigned) (~0)) << RELATIONAL_TYPE_SHIFT) & ~FIELD_MASK)
 
 #define ASSERT_VALID_RELATIONAL_TYPE(r) \
     ASSERT(((r) & ~RELATIONAL_TYPE_MASK) == 0, ("bad relational type %d", (r)))

@@ -161,8 +161,8 @@ collect_candidates(struct preference   *preferences,
     /* Iterate through all the preferences for the slot, adding each
        `acceptable' to the candidate list */
     for (pref = preferences; pref != 0; pref = pref->next_in_slot) {
-        if ((pref->state == preference_state_live)
-            && (pref->type == preference_type_acceptable)) {
+        if ((GET_PREFERENCE_STATE(pref) == preference_state_live)
+            && (GET_PREFERENCE_TYPE(pref) == preference_type_acceptable)) {
             struct symbol_list *candidate;
             symbol_t value = pref->value;
 
@@ -187,9 +187,9 @@ collect_candidates(struct preference   *preferences,
            candidates that are masked by `prohibit' or `reject'
            preferences. */
         for (pref = preferences; pref != 0; pref = pref->next_in_slot) {
-            if ((pref->state == preference_state_live)
-                && ((pref->type == preference_type_prohibit)
-                    || (pref->type == preference_type_reject))) {
+            if ((GET_PREFERENCE_STATE(pref) == preference_state_live)
+                && ((GET_PREFERENCE_TYPE(pref) == preference_type_prohibit)
+                    || (GET_PREFERENCE_TYPE(pref) == preference_type_reject))) {
                 struct symbol_list *candidate = *candidates;
                 struct symbol_list **link = candidates;
 
@@ -470,10 +470,10 @@ wmem_add_preference(struct agent     *agent,
     pref->next_in_instantiation = 0;
     pref->instantiation = 0;
 
-    pref->type    = type;
-    pref->state   = preference_state_live;
-    pref->support = support;
-    pref->value   = value;
+    ASSERT_VALID_PREFERENCE_TYPE(type);
+    ASSERT_VALID_SUPPORT_TYPE(support);
+    pref->bits  = type | preference_state_live | support;
+    pref->value = value;
 
     hash_preference(agent, id, attr, pref);
     return pref;
@@ -514,7 +514,7 @@ wmem_remove_preference(struct agent      *agent,
 
     /* If it's a live preference that's dying, add to the list of
        slots that have changed. */
-    if (doomed->state == preference_state_live)
+    if (GET_PREFERENCE_STATE(doomed) == preference_state_live)
         mark_slot_modified(agent, slot);
 
     if (! save) {
@@ -534,7 +534,7 @@ wmem_remove_preference(struct agent      *agent,
     else {
         /* Just mark the preference as a `zombie' so it can be
            backtraced. */
-        doomed->state = preference_state_zombie;
+        SET_PREFERENCE_STATE(doomed, preference_state_zombie);
     }
 }
 
@@ -595,7 +595,7 @@ wmem_sweep_subgoals(struct ht_entry_header *header, void *closure)
                        ("preference refers to a value from a gc'd level"));
             }
 
-            if ((pref->type & preference_type_binary) &&
+            if ((GET_PREFERENCE_TYPE(pref) & preference_type_binary) &&
                 GET_SYMBOL_TYPE(pref->referent) == symbol_type_identifier) {
                 ASSERT(agent_get_id_level(gc->agent, pref->referent) <= gc->level,
                        ("preference refers to a referent from a gc'd level"));
@@ -765,9 +765,8 @@ create_instantiation(struct agent       *agent,
 
         pref->next_in_slot = 0;
 
-        pref->type = action->preference_type;
-        pref->state = preference_state_live;
-
+        ASSERT_VALID_PREFERENCE_TYPE(action->preference_type);
+        pref->bits  = action->preference_type | preference_state_live;
         id          = instantiate_rhs_value(&action->id,    token, unbound_vars);
         attr        = instantiate_rhs_value(&action->attr,  token, unbound_vars);
         pref->value = instantiate_rhs_value(&action->value, token, unbound_vars);
@@ -784,18 +783,20 @@ create_instantiation(struct agent       *agent,
            preferences must be i-supported, otherwise we'd never be
            able to get rid of them. Second, if the preference is being
            made for a higher-level identifier, give it i-support. */
-        if ((pref->type == preference_type_reconsider)
+        if ((GET_PREFERENCE_TYPE(pref) == preference_type_reconsider)
 #ifdef CONF_SOAR_CHUNKING
             || (((id_level = agent_get_id_level(agent, id)) != 0)
                 && (id_level < level))
 #endif
             )
-            pref->support = support_type_isupport;
-        else
-            pref->support = production->support;
+            SET_PREFERENCE_SUPPORT_TYPE(pref, support_type_isupport);
+        else {
+            ASSERT_VALID_SUPPORT_TYPE(production->support);
+            SET_PREFERENCE_SUPPORT_TYPE(pref, production->support);
+        }
 
-        if ((pref->type == preference_type_reject) &&
-            (pref->support == support_type_osupport)) {
+        if ((GET_PREFERENCE_TYPE(pref) == preference_type_reject) &&
+            (GET_PREFERENCE_SUPPORT_TYPE(pref) == support_type_osupport)) {
             /* Oooh, an o-supported reject preference! These are
                special, and we'll process them later. We bastardize
                the preferences structure to get the work done: we'll
@@ -859,8 +860,8 @@ remove_if_duplicate(struct agent      *agent,
     struct preference *pref = doomed->slot->preferences;
     for ( ; pref != 0; pref = pref->next_in_slot) {
         if ((pref != doomed)
-            && (pref->support == support_type_osupport)
-            && (pref->state == preference_state_live)
+            && (GET_PREFERENCE_SUPPORT_TYPE(pref) == support_type_osupport)
+            && (GET_PREFERENCE_STATE(pref) == preference_state_live)
             && SYMBOLS_ARE_EQUAL(pref->value, doomed->value)) {
             wmem_remove_preference(agent, doomed, save);
             return;
@@ -1022,7 +1023,7 @@ wmem_remove_instantiation(struct agent          *agent,
         do {
             struct preference *next = pref->next_in_instantiation;
 
-            if (pref->support == support_type_isupport) {
+            if (GET_PREFERENCE_SUPPORT_TYPE(pref) == support_type_isupport) {
                 /* If the preference is only i-supported, remove it. */
                 wmem_remove_preference(agent, pref, save);
             }
@@ -1171,9 +1172,9 @@ process_matches(struct agent *agent)
 
                 /* Nuke the pref if it has the same value, and it's not
                    architecturally supported. */
-                if ((pref->state == preference_state_live)
+                if ((GET_PREFERENCE_STATE(pref) == preference_state_live)
                     && SYMBOLS_ARE_EQUAL(pref->value, rejector->value)
-                    && (pref->support != support_type_architecture)) {
+                    && (GET_PREFERENCE_SUPPORT_TYPE(pref) != support_type_architecture)) {
                     bool_t save =
 #ifdef CONF_SOAR_CHUNKING
                         /* XXX implicit all-goals chunking. */
@@ -1221,11 +1222,11 @@ run_operator_semantics_on(struct agent        *agent,
     for (candidate = *candidates; candidate != 0; candidate = candidate->next) {
         struct preference *p;
         for (p = preferences; p != 0; p = p->next_in_slot) {
-            if (p->state != preference_state_live)
+            if (GET_PREFERENCE_STATE(p) != preference_state_live)
                 continue;
 
-            if (((p->type == preference_type_better)
-                 || (p->type == preference_type_worse))
+            if (((GET_PREFERENCE_TYPE(p) == preference_type_better)
+                 || (GET_PREFERENCE_TYPE(p) == preference_type_worse))
                 && SYMBOLS_ARE_EQUAL(p->value, candidate->symbol)) {
                 struct preference *q;
 
@@ -1235,7 +1236,7 @@ run_operator_semantics_on(struct agent        *agent,
                     struct symbol_list *entry =
                         (struct symbol_list *) malloc(sizeof(struct symbol_list));
 
-                    if (p->type == preference_type_better) {
+                    if (GET_PREFERENCE_TYPE(p) == preference_type_better) {
                         /* The candidate dominates its referent. */
                         entry->symbol = p->referent;
                     }
@@ -1253,11 +1254,11 @@ run_operator_semantics_on(struct agent        *agent,
                    conflict. */
                 for (q = preferences; q != 0; q = q->next_in_slot) {
                     /* A preference can't conflict itself. */
-                    if ((p == q) || (q->state != preference_state_live))
+                    if ((p == q) || (GET_PREFERENCE_STATE(q) != preference_state_live))
                         continue;
 
-                    if (q->type == preference_type_better ||
-                        q->type == preference_type_worse) {
+                    if (GET_PREFERENCE_TYPE(q) == preference_type_better ||
+                        GET_PREFERENCE_TYPE(q) == preference_type_worse) {
                         /* If |q| is a ``better'' or ``worse''
                            preference, then it may conflict.
 
@@ -1275,10 +1276,10 @@ run_operator_semantics_on(struct agent        *agent,
                            non-trivial conflicts! */
                         if ((SYMBOLS_ARE_EQUAL(p->referent, q->value)
                              && SYMBOLS_ARE_EQUAL(q->referent, p->value)
-                             && (p->type == q->type))
+                             && (GET_PREFERENCE_TYPE(p) == GET_PREFERENCE_TYPE(q)))
                             || (SYMBOLS_ARE_EQUAL(p->value, q->value)
                                 && SYMBOLS_ARE_EQUAL(p->referent, q->referent)
-                                && (p->type != q->type))) {
+                                && (GET_PREFERENCE_TYPE(p) != GET_PREFERENCE_TYPE(q)))) {
                             /* Conflict! Add both |p| and |q| to the
                                conflicted set if they've not been
                                added already. */
@@ -1311,11 +1312,11 @@ run_operator_semantics_on(struct agent        *agent,
                     }
                 }
             }
-            else if (p->type == preference_type_best) {
+            else if (GET_PREFERENCE_TYPE(p) == preference_type_best) {
                 /* Remember we've seen a ``best'' preference. */
                 bests = 1;
             }
-            else if (p->type == preference_type_worst) {
+            else if (GET_PREFERENCE_TYPE(p) == preference_type_worst) {
                 /* Remember we've seen a ``worst'' preference. */
                 worsts = 1;
             }
@@ -1375,11 +1376,11 @@ run_operator_semantics_on(struct agent        *agent,
             bool_t worst = 0;
             struct preference *p;
             for (p = preferences; p != 0; p = p->next_in_slot) {
-                if ((p->state == preference_state_live)
+                if ((GET_PREFERENCE_STATE(p) == preference_state_live)
                     && SYMBOLS_ARE_EQUAL(p->value, candidate->symbol)) {
-                    if (p->type == preference_type_best)
+                    if (GET_PREFERENCE_TYPE(p) == preference_type_best)
                         best = 1;
-                    else if (p->type == preference_type_worst)
+                    else if (GET_PREFERENCE_TYPE(p) == preference_type_worst)
                         worst = 1;                        
                 }
             }
@@ -1436,8 +1437,8 @@ run_operator_semantics_on(struct agent        *agent,
     for (candidate = *candidates; candidate != 0; candidate = candidate->next) {
         struct preference *p;
         for (p = preferences; p != 0; p = p->next_in_slot) {
-            if ((p->state == preference_state_live)
-                && (p->type == preference_type_unary_indifferent))
+            if ((GET_PREFERENCE_STATE(p) == preference_state_live)
+                && (GET_PREFERENCE_TYPE(p) == preference_type_unary_indifferent))
                 break;
         }
 
@@ -1451,8 +1452,8 @@ run_operator_semantics_on(struct agent        *agent,
                     continue;
 
                 for (p = preferences; p != 0; p = p->next_in_slot) {
-                    if ((p->state == preference_state_live)
-                        && (p->type == preference_type_binary_indifferent)) {
+                    if ((GET_PREFERENCE_STATE(p) == preference_state_live)
+                        && (GET_PREFERENCE_TYPE(p) == preference_type_binary_indifferent)) {
                         if ((SYMBOLS_ARE_EQUAL(p->value, candidate->symbol)
                              && SYMBOLS_ARE_EQUAL(p->referent, referent->symbol))
                             || (SYMBOLS_ARE_EQUAL(p->value, referent->symbol)
@@ -1569,8 +1570,8 @@ select_operator(struct agent *agent)
         if (wme) {
             /* Look for a reconsider preference */
             for (pref = slot->preferences; pref != 0; pref = pref->next_in_slot) {
-                if ((pref->state == preference_state_live)
-                    && (pref->type == preference_type_reconsider))
+                if ((GET_PREFERENCE_STATE(pref) == preference_state_live)
+                    && (GET_PREFERENCE_TYPE(pref) == preference_type_reconsider))
                     break;
             }
 

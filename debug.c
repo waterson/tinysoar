@@ -506,7 +506,7 @@ debug_dump_preference(struct symtab *symtab, struct preference *pref)
         ERROR(("illegal value in preference"));
     }
 
-    switch (pref->type) {
+    switch (GET_PREFERENCE_TYPE(pref)) {
     case preference_type_acceptable:         printf("+"); break;
     case preference_type_reject:             printf("-"); break;
     case preference_type_reconsider:         printf("@"); break;
@@ -521,7 +521,7 @@ debug_dump_preference(struct symtab *symtab, struct preference *pref)
     default:                                 printf("?"); break;
     }
 
-    if (pref->type & preference_type_binary) {
+    if (GET_PREFERENCE_TYPE(pref) & preference_type_binary) {
         switch (GET_SYMBOL_TYPE(pref->referent)) {
         case symbol_type_symbolic_constant:
             printf("%s ", symtab_find_name(symtab, pref->referent));
@@ -540,7 +540,7 @@ debug_dump_preference(struct symtab *symtab, struct preference *pref)
         }
     }
 
-    if (pref->support == support_type_osupport)
+    if (GET_PREFERENCE_SUPPORT_TYPE(pref) == support_type_osupport)
         printf(" :O");
 
     if (pref->instantiation && pref->instantiation->production)
