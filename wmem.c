@@ -545,8 +545,13 @@ create_instantiation(struct agent       *agent,
 
         pref->next_in_slot = 0;
 
-        pref->support = production->support;
-        pref->type    = action->preference_type;
+        pref->type = action->preference_type;
+
+        /* Reconsider preferences must be i-supported, otherwise we'd
+           never be able to get rid of them! */
+        pref->support = (pref->type == preference_type_reconsider)
+            ? support_type_isupport
+            : production->support;
 
         id          = instantiate_rhs_value(&action->id,    token, unbound_vars);
         attr        = instantiate_rhs_value(&action->attr,  token, unbound_vars);
@@ -596,6 +601,28 @@ create_instantiation(struct agent       *agent,
     }
 }
 
+/*
+ * Remove an o-supported preference if it's a duplicate of another
+ * o-supported preference.
+ */
+static void
+remove_if_duplicate(struct agent      *agent,
+                    struct preference *doomed)
+{
+    struct preference *pref = doomed->slot->preferences;
+    for ( ; pref != 0; pref = pref->next_in_slot) {
+        if (pref != doomed &&
+            pref->support == support_type_osupport &&
+            SYMBOLS_ARE_EQUAL(pref->value, doomed->value)) {
+            wmem_remove_preference(agent, doomed);
+            return;
+        }
+    }
+
+    /* If we get here, it's not a duplicate. Splice it out of the
+       instantiation to avoid any dangling pointers. */
+    doomed->next_in_instantiation = doomed->prev_in_instantiation = 0;
+}
 
 /*
  * ``Un-instantiate'' a production.
@@ -636,9 +663,10 @@ remove_instantiation(struct agent         *agent,
                 wmem_remove_preference(agent, pref);
             }
             else {
-                /* Otherwise, splice it out of the list to avoid any
-                   dangling pointers. */
-                pref->next_in_instantiation = pref->prev_in_instantiation = 0;
+                /* If the preference is o-supported, remove it if it's
+                   a duplicate of another o-supported preference with
+                   the same value. */
+                remove_if_duplicate(agent, pref);
             }
 
             pref = next;
