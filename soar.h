@@ -215,8 +215,8 @@ struct slot {
 };
 
 typedef enum wme_type {
-    wme_type_normal,
-    wme_type_acceptable
+    wme_type_normal     =  0,
+    wme_type_acceptable = -1
 } wme_type_t;
 
 typedef enum wme_state {
