@@ -1,0 +1,47 @@
+# Tests simple chunking.
+
+package require TinySoar;
+
+sp {elaborate*top-state
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^ball <b>)
+    (<b> ^color red)}
+
+sp {propose*foo
+    (state <s> ^impasse no-change ^attribute state ^superstate <ss>)
+    (<ss> ^ball <b>)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name foo ^ball <b>)}
+
+sp {implement*foo
+    (state <s> ^operator <o>)
+    (<o> ^name foo ^ball <b>)
+    -->
+    (<b> ^counted t)}
+
+sp {implement*foo*2
+    (state <s> ^operator <o>)
+    (<o> ^name foo)
+    -->
+    (<s> ^foo t)}
+
+sp {terminate*foo
+    (state <s> ^operator <o>)
+    (<o> ^name foo ^ball <b>)
+    (<b> ^counted t)
+    -->
+    (<s> ^operator <o> @)}
+
+sp {propose*wait
+    (state <s> ^ball.counted t)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name wait)}
+
+sp {terminate*wait
+    (state <s> ^operator <o>)
+    (<o> ^name wait)
+    -->
+    (<s> ^operator <o> @)}

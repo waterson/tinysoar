@@ -1,0 +1,45 @@
+# Tests chunking through an operator in a sub-state.
+
+package require TinySoar;
+
+sp {elaborate*top-state
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^ball <b>)
+    (<b> ^color red)}
+
+sp {propose*foo
+    (state <s> ^impasse no-change ^attribute state ^superstate <ss>)
+    (<ss> ^ball <b>)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name foo ^ball <b>)}
+
+sp {propose*bar
+    (state <s> ^impasse no-change ^attribute state ^superstate <ss>)
+    (<ss> ^ball <b>)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name bar)}
+
+sp {prefer*foo*over*bar
+    (state <s> ^operator <o1> + ^operator <o2> + ^superstate <ss>)
+    (<ss> ^ball.color red)
+    (<o1> ^name foo)
+    (<o2> ^name bar)
+    -->
+    (<s> ^operator <o1> > <o2>)}
+
+sp {implement*foo
+    (state <s> ^operator <o>)
+    (<o> ^name foo ^ball <b>)
+    -->
+    (<b> ^counted t)}
+
+sp {terminate*foo
+    (state <s> ^operator <o>)
+    (<o> ^name foo ^ball <b>)
+    (<b> ^counted t)
+    -->
+    (<s> ^operator <o> @)}
+
