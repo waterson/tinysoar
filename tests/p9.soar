@@ -1,0 +1,8 @@
+package require TinySoar;
+
+# This production should oscillate between firing and retracting.
+sp {elaborate*top-state
+    (state <s> ^superstate nil -^foo bar)
+    -->
+    (<s> ^foo bar)}
+

@@ -1,0 +1,18 @@
+# This test verifies that we can backtrace through attribute
+# variables.
+
+package require TinySoar
+
+sp {elaborate*top-state
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^ball <b>)
+    (<b> ^color blue)}
+
+sp {make-chunk
+    (state <s> ^impasse no-change ^attribute state ^superstate <ss>)
+    (<ss> ^ball <b>)
+    (<b> ^<att> <val>)
+    -->
+    (<ss> ^attr <att> ^value <val>)}
+
