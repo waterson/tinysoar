@@ -92,10 +92,10 @@ init_productions(struct agent* agent)
     actions[0].support_type    = support_type_isupport;
 
     actions[0].id.type = rhs_value_type_symbol;
-    actions[0].id.val.symbol = symbols[VARIABLE_STATE];
+    actions[0].id.val.symbol = SYM(STATE_CONSTANT);
 
     actions[0].attr.type = rhs_value_type_symbol;
-    actions[0].attr.val.symbol = agent->operator_symbol;
+    actions[0].attr.val.symbol = SYM(OPERATOR_CONSTANT);
 
     actions[0].value.type = rhs_value_type_unbound_variable;
     actions[0].value.val.unbound_variable = 0;
@@ -120,41 +120,36 @@ struct agent agent;
 int
 main(int argc, char* argv[])
 {
-    struct preference* pref;
-
     agent_init(&agent);
 
     init_symbols(&agent);
     init_productions(&agent);
     rete_add_production(&agent, &productions[0]);
 
-    rete_push_goal_id(&agent, symbols[IDENTIFIER_S1]);
+    wmem_add_preference(&agent,
+                        symbols[IDENTIFIER_S1],
+                        symbols[CONSTANT_SUPERSTATE],
+                        symbols[CONSTANT_NIL],
+                        preference_type_acceptable,
+                        support_type_architecture);
 
-    pref = pref_create_preference(symbols[IDENTIFIER_S1],
-                                  symbols[CONSTANT_SUPERSTATE],
-                                  symbols[CONSTANT_NIL],
-                                  preference_type_acceptable,
-                                  support_type_architecture);
+    wmem_add_preference(&agent,
+                        symbols[IDENTIFIER_S1],
+                        symbols[CONSTANT_INPUT_LINK],
+                        symbols[IDENTIFIER_I1],
+                        preference_type_acceptable,
+                        support_type_architecture);
 
-    wmem_add_preference(&agent, pref);
+    wmem_elaborate(&agent);
+    wmem_elaborate(&agent);
 
-    pref = pref_create_preference(symbols[IDENTIFIER_S1],
-                                  symbols[CONSTANT_INPUT_LINK],
-                                  symbols[IDENTIFIER_I1],
-                                  preference_type_acceptable,
-                                  support_type_architecture);
+    wmem_remove_preference(&agent,
+                           symbols[IDENTIFIER_S1],
+                           symbols[CONSTANT_INPUT_LINK],
+                           symbols[IDENTIFIER_I1],
+                           preference_type_acceptable);
 
-    wmem_add_preference(&agent, pref);
-
-    wmem_decide(&agent);
-
-    pref_process_matches(&agent);
-    wmem_decide(&agent);
-
-    wmem_remove_preference(&agent, pref);
-
-    wmem_decide(&agent);
-    pref_process_matches(&agent);
+    wmem_elaborate(&agent);
 
     return 0;
 }
