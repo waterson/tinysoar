@@ -54,6 +54,8 @@ CHUNKING = @CHUNKING@
 TCLSH    = @TCLSH@
 TCLLIBS  = @TCLLIBS@
 
+TARGET   = @TARGET@
+
 # ----------------------------------------------------------------------
 #
 # Dependencies
@@ -80,7 +82,7 @@ endif
 # Top-level targets
 #
 
-all: tcl-extension
+all: $(TARGET)
 
 clean:
 	rm -rf .deps tinysoar.$(DSO_SUFFIX) legosoar test-alloc y.tab.* lex.yy.c *.o *.a *.map core *~
