@@ -1,4 +1,5 @@
 #include <stdarg.h>
+#include <string.h>
 #include "config.h"
 
 #ifdef DEBUG
