@@ -1,0 +1,4 @@
+(state <s> ^superstate nil -^found-line t)
+-->
+(<s> ^operator <o> +)
+(<o> ^name move-forward)
