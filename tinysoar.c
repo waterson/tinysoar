@@ -44,8 +44,68 @@
 #include <stdlib.h>
 #include <string.h>
 
-static struct agent agent;
-static struct symtab symtab;
+struct agent agent;
+struct symtab symtab;
+
+static inline size_t
+max(size_t a, size_t b)
+{
+    return (a > b) ? a : b;
+}
+
+/*
+ * Varargs-style malloc-ing formatted concatenation.
+ */
+static int
+vsmcatf(char **result, size_t *sz, const char *format, ...)
+{
+    char *buf = *result;
+    size_t length, required, remaining;
+    va_list ap;
+
+    va_start(ap, format);
+
+    /* If we've got no buffer, allocate a minimal one to start with. */
+    if (! buf) {
+        *sz = 16;
+        buf = malloc(*sz);
+        if (! buf)
+            goto out_of_memory;
+
+        buf[0] = 0;
+        *result = buf;
+    }
+
+    /* Try to fit the formatted string in the existing buffer. */
+    length = strlen(buf);
+    remaining = *sz - (length + 1);
+    required = vsnprintf(buf + length, remaining, format, ap);
+
+    if (required >= remaining) {
+        /* It didn't fit. Allocate a new buffer big enough to hold the
+           formatted string, and try again. */
+        char *old_buf = buf;
+
+        *sz = max(required + length + 1, *sz * 2);
+        buf = malloc(*sz);
+        if (! buf)
+            goto out_of_memory;
+
+        strcpy(buf, old_buf);
+        free(old_buf);
+
+        vsprintf(buf + length, format, ap);
+
+        *result = buf;
+    }
+
+    return required;
+
+ out_of_memory:
+    *result = 0;
+    *sz = 0;
+    return -1;
+}
 
 /*
  * `dump-rete'.
@@ -110,7 +170,7 @@ init_soar_command(ClientData data, Tcl_Interp *interp, int argc, char *argv[])
 static int
 preferences_command(ClientData data, Tcl_Interp *interp, int argc, char *argv[])
 {
-static char result[16];
+static char preferences_result[16];
 
     symbol_t id, attr, value;
     int i;
@@ -141,13 +201,13 @@ preferences -r <pref>";
     }
 
     if (op == 2) {
-        /* handle remove */
+        /* Handle remove. */
 
-        /* XXX yeah, baby */
+        /* XXX Yeah, baby! */
         pref = (struct preference *) atoi(argv[i]);
 
-        /* XXX it'd be nice to make sure there is a really a pref with
-           said address before whacking it */
+        /* XXX It'd be nice to make sure there is a really a pref with
+           said address before whacking it. */
         wmem_remove_preference(&agent, pref);
         return TCL_OK;
     }
@@ -164,7 +224,7 @@ preferences -r <pref>";
         return TCL_OK;
 
     if (op == 0) {
-        /* handle query */
+        /* Handle a query. */
         pref = wmem_get_preferences(&agent, id, attr);
         while (pref) {
             printf("%u: ", (unsigned) pref);
@@ -236,7 +296,7 @@ preferences -r <pref>";
         return TCL_ERROR;
     }
 
-    /* parse the value */
+    /* Parse the value. */
     if (argv[i][0] >= '0' && argv[i][0] <= '9') {
         INIT_SYMBOL(value, symbol_type_identifier, atoi(argv[i++]));
     }
@@ -254,7 +314,7 @@ preferences -r <pref>";
         return TCL_ERROR;
     }
 
-    /* parse the type */
+    /* Parse the type. */
     switch (argv[i++][0]) {
     case '+': type = preference_type_acceptable;        break;
     case '-': type = preference_type_reject;            break;
@@ -275,14 +335,20 @@ preferences -r <pref>";
         return TCL_ERROR;
     }
 
-    /* do the nasty */
+    /* Do the nasty. */
     pref = wmem_add_preference(&agent, id, attr, value, type, support_type_architecture);
-    sprintf(result, "%u", (unsigned) pref);
-    interp->result = result;
+    snprintf(preferences_result, sizeof preferences_result, "%u", (unsigned) pref);
+    interp->result = preferences_result;
 
     return TCL_OK;
 }
 
+
+struct print_closure {
+    char     **result;
+    size_t    *sz;
+    symbol_t   id;
+};
 
 /*
  * wme enumerator callback for `print': if this is the id we wanna print,
@@ -291,21 +357,22 @@ preferences -r <pref>";
 static void
 print_enumerator(struct agent *agent, struct wme *wme, void *closure)
 {
-    symbol_t *id = (symbol_t *) closure;
-    if (SYMBOLS_ARE_EQUAL(*id, wme->slot->id)) {
-        printf(" ^%s ", symtab_find_name(&symtab, wme->slot->attr));
+    struct print_closure *pc = (struct print_closure *) closure;
+
+    if (SYMBOLS_ARE_EQUAL(pc->id, wme->slot->id)) {
+        vsmcatf(pc->result, pc->sz, " ^%s ", symtab_find_name(&symtab, wme->slot->attr));
 
         switch (GET_SYMBOL_TYPE(wme->value)) {
         case symbol_type_symbolic_constant:
-            printf("%s", symtab_find_name(&symtab, wme->value));
+            vsmcatf(pc->result, pc->sz, "%s", symtab_find_name(&symtab, wme->value));
             break;
 
         case symbol_type_identifier:
-            printf("[%d]", GET_SYMBOL_VALUE(wme->value));
+            vsmcatf(pc->result, pc->sz, "[%d]", GET_SYMBOL_VALUE(wme->value));
             break;
 
         case symbol_type_integer_constant:
-            printf("%d", GET_SYMBOL_VALUE(wme->value));
+            vsmcatf(pc->result, pc->sz, "%d", GET_SYMBOL_VALUE(wme->value));
             break;
 
         case symbol_type_variable:
@@ -313,10 +380,9 @@ print_enumerator(struct agent *agent, struct wme *wme, void *closure)
         }
 
         if (wme->type == wme_type_acceptable)
-            printf(" +");
+            vsmcatf(pc->result, pc->sz, " +");
     }
 }
-
 
 /*
  * `print'. Print stuff that's hanging off an identifier
@@ -324,8 +390,20 @@ print_enumerator(struct agent *agent, struct wme *wme, void *closure)
 static int
 print_command(ClientData data, Tcl_Interp *interp, int argc, char *argv[])
 {
+static char *print_result;
+
+    struct print_closure pc;
+    size_t print_result_sz;
     int i;
 
+    /* Free the last result buffer, if there was one. This makes the
+       command non-reentrant, but that's probably okay. */
+    if (print_result) {
+        free(print_result);
+        print_result = 0;
+    }
+
+    /* Sanity check the command. */
     if (argc < 2) {
         interp->result = "print [-stack | <id>]";
         return TCL_ERROR;
@@ -335,27 +413,28 @@ print_command(ClientData data, Tcl_Interp *interp, int argc, char *argv[])
 
     if (strcmp(argv[i], "-stack") == 0) {
         struct symbol_list *goal;
-        int indent;
-        for (goal = agent.goals, indent = 0; goal != 0; goal = goal->next, ++indent) {
-            int j = indent;
-            while (--j > 0)
-                printf("  ");
+        for (goal = agent.goals; goal != 0; goal = goal->next) {
+            vsmcatf(&print_result, &print_result_sz,
+                    "[%d]", GET_SYMBOL_VALUE(goal->symbol));
 
-            printf("[%d]\n", GET_SYMBOL_VALUE(goal->symbol));
+            if (goal->next)
+                vsmcatf(&print_result, &print_result_sz, " ");
         }
 
         ++i;
     }
 
-    while (i < argc) {
-        symbol_t id;
-        INIT_SYMBOL(id, symbol_type_identifier, atoi(argv[i++]));
+    pc.result = &print_result;
+    pc.sz = &print_result_sz;
 
-        printf("([%d]", GET_SYMBOL_VALUE(id));
-        wmem_enumerate_wmes(&agent, print_enumerator, &id);
-        printf(")\n");
+    while (i < argc) {
+        INIT_SYMBOL(pc.id, symbol_type_identifier, atoi(argv[i++]));
+
+        vsmcatf(&print_result, &print_result_sz, "[%d]", GET_SYMBOL_VALUE(pc.id));
+        wmem_enumerate_wmes(&agent, print_enumerator, &pc);
     }
 
+    interp->result = print_result;
     return TCL_OK;
 }
 
@@ -390,7 +469,6 @@ sp_command(ClientData data, Tcl_Interp *interp, int argc, char *argv[])
 
     return TCL_OK;
 }
-
 
 #if defined(_WIN32)
 __declspec(dllexport)
