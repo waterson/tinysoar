@@ -1,7 +1,13 @@
 package require TinySoar;
 
-sp {(state <s> ^superstate nil)
+sp {propose*wait
+    (state <s> ^superstate nil)
     -->
     (<s> ^operator <o> +)
     (<o> ^name wait)}
 
+sp {reconsider*wait
+    (state <s> ^operator <o>)
+    (<o> ^name wait)
+    -->
+    (<s> ^operator <o> @)}

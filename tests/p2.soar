@@ -1,4 +1,6 @@
-(state <s> ^superstate nil -^found-line t)
--->
-(<s> ^operator <o> +)
-(<o> ^name move-forward)
+package require TinySoar;
+sp {propose*move-forward
+    (state <s> ^superstate nil -^found-line t)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name move-forward)}
