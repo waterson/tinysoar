@@ -292,6 +292,7 @@ decide_slots(struct agent *agent)
                         wme->slot  = slots->slot;
                         wme->value = candidate->symbol;
                         wme->type  = operator_slot ? wme_type_acceptable : wme_type_normal;
+                        wme->state = wme_state_live;
                         wme->next  = slots->slot->wmes;
                         slots->slot->wmes = wme;
 
@@ -1394,6 +1395,7 @@ select_operator(struct agent *agent)
                 op->slot  = slot;
                 op->value = selected_op;
                 op->type  = wme_type_normal;
+                op->state = wme_state_live;
                 op->next  = slot->wmes;
                 slot->wmes = op;
 
