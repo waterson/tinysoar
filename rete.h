@@ -107,7 +107,6 @@ struct alpha_node {
 
 struct right_memory {
     struct wme* wme;
-    struct right_memory* next_in_bucket;
     struct right_memory* next_in_alpha_node;
 };
 
@@ -228,16 +227,16 @@ struct token {
  * The Network
  */
 struct rete {
-    struct beta_node   root_node;
-    struct token       root_token;
-    struct pool        alpha_node_pool;
-    struct pool        right_memory_pool;
-    struct pool        beta_node_pool;
-    struct pool        beta_test_pool;
-    struct pool        variable_binding_list_pool;
-    struct pool        token_pool;
-    struct pool        goal_impasse_pool;
-    struct wmem*       wmem;
+    struct beta_node    root_node;
+    struct token        root_token;
+    struct pool         alpha_node_pool;
+    struct pool         right_memory_pool;
+    struct pool         beta_node_pool;
+    struct pool         beta_test_pool;
+    struct pool         variable_binding_list_pool;
+    struct pool         token_pool;
+    struct pool         goal_impasse_pool;
+    struct wmem*        wmem;
     struct alpha_node*  alpha_nodes[16];
     struct symbol_list* goals;
     struct symbol_list* impasses;

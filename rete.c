@@ -276,7 +276,15 @@ find_bound_variable(const struct variable_binding_list* bindings, const symbol_t
 }
 
 /*
- * 
+ * Compute a `variable binding' for each variable contained in the
+ * specified test. If the variable binding list already contains a
+ * binding for the specified variable, then we'll leave it
+ * unchanged. If there is no binding for the specified variable in the
+ * binding list, we'll make one.
+ *
+ * Note that the computed depth of the variable binding will be
+ * `absolute'. This will need to be made into a `relative depth'
+ * before being stored in the beta_test struct.
  */
 static void
 bind_variables(struct rete* net,
@@ -295,7 +303,9 @@ bind_variables(struct rete* net,
     case test_type_same_type:
         if ((GET_SYMBOL_TYPE(test->data.referent) == symbol_type_variable) &&
             !find_bound_variable(*bindings, test->data.referent)) {
-            struct variable_binding_list* entry = create_variable_binding_list(net);
+            struct variable_binding_list* entry =
+                create_variable_binding_list(net);
+
             entry->variable = test->data.referent;
             entry->binding.depth = depth;
             entry->binding.field = field;
@@ -334,6 +344,7 @@ bind_variables(struct rete* net,
 static void
 process_test(struct rete* net,
              const struct test* test,
+             unsigned depth,
              field_t field,
              const struct variable_binding_list* bindings,
              symbol_t* constant,
@@ -362,6 +373,11 @@ process_test(struct rete* net,
 
             beta_test->relational_type = relational_type_variable;
             beta_test->data.variable_referent = *binding;
+
+            /* Fix up the variable referent's depth (which was stored
+               as an `absolute depth' in the binding list) to be
+               relative to the current depth of the test. */
+            beta_test->data.variable_referent.depth -= depth;
         }
         else {
             /* It's a constant. Install an alpha test if possible;
@@ -390,7 +406,7 @@ process_test(struct rete* net,
         {
             struct test_list* tests;
             for (tests = test->data.conjuncts; tests != 0; tests = tests->next)
-                process_test(net, &tests->test, field, bindings, constant, beta_tests);
+                process_test(net, &tests->test, depth, field, bindings, constant, beta_tests);
         }
         break;
 
@@ -429,12 +445,16 @@ check_beta_test(struct rete* net, struct beta_test* test, struct token* token, s
                 left = test->data.constant_referent;
             }
             else {
-                struct token* t = token;
-                unsigned depth = test->data.variable_referent.depth;
-                while (depth--)
-                    t = t->parent;
+                struct wme* left_wme = wme;
+                int depth = (int) test->data.variable_referent.depth;
+                if (depth) {
+                    struct token* t = token;
+                    while (--depth > 0)
+                        t = t->parent;
+                    left_wme = t->wme;
+                }
 
-                left = get_field_from_wme(t->wme, test->data.variable_referent.field);
+                left = get_field_from_wme(left_wme, test->data.variable_referent.field);
             }
 
             switch (test->type) {
@@ -556,6 +576,9 @@ check_beta_tests(struct rete* net, struct beta_test* test, struct token* token, 
 
 /*
  * Propogate matches from the parent node to its child.
+ *
+ * This corresponds to update_node_with_matches_from_above() from
+ * rete.c in Soar8.
  */
 static void
 initialize_matches(struct rete* net, struct beta_node* child, struct beta_node* parent)
@@ -563,6 +586,18 @@ initialize_matches(struct rete* net, struct beta_node* child, struct beta_node* 
     if (parent->type == beta_node_type_root)
         do_left_addition(net, child, &net->root_token, 0);
     else if (parent->type & beta_node_type_bit_positive) {
+        struct beta_node* old_children = parent->children;
+        struct beta_node* old_siblings = child->siblings;
+        struct right_memory* rm;
+
+        parent->children = child;
+        child->siblings = 0;
+
+        for (rm = parent->alpha_node->right_memories; rm != 0; rm = rm->next_in_alpha_node)
+            do_right_addition(net, parent, rm->wme);
+
+        parent->children = old_children;
+        child->siblings = old_siblings;
     }
     else {
         assert(0); /* XXX write me! */
@@ -606,10 +641,14 @@ create_positive_join_node(struct rete* net,
     result->siblings   = parent->children;
     parent->children   = result;
     result->children   = 0;
-    result->data.tests = tests;
 
+    result->alpha_node = alpha_node;
     result->next_with_same_alpha_node = alpha_node->children;
     alpha_node->children = result;
+
+    result->tokens = 0;
+
+    result->data.tests = tests;
 
     return result;
 }
@@ -660,13 +699,14 @@ ensure_positive_condition_node(struct rete* net,
     CLEAR_SYMBOL(alpha_attr);
     CLEAR_SYMBOL(alpha_value);
 
+    /* XXX gee, that's a lot of parameters. */
     bind_variables(net, &cond->data.simple.id_test,    depth, field_id,    bindings);
     bind_variables(net, &cond->data.simple.attr_test,  depth, field_attr,  bindings);
     bind_variables(net, &cond->data.simple.value_test, depth, field_value, bindings);
 
-    process_test(net, &cond->data.simple.id_test,    field_id,    *bindings, &alpha_id,    &tests);
-    process_test(net, &cond->data.simple.attr_test,  field_attr,  *bindings, &alpha_attr,  &tests);
-    process_test(net, &cond->data.simple.value_test, field_value, *bindings, &alpha_value, &tests);
+    process_test(net, &cond->data.simple.id_test,    depth, field_id,    *bindings, &alpha_id,    &tests);
+    process_test(net, &cond->data.simple.attr_test,  depth, field_attr,  *bindings, &alpha_attr,  &tests);
+    process_test(net, &cond->data.simple.value_test, depth, field_value, *bindings, &alpha_value, &tests);
 
     /* See if there's a memory node we can use */
     for (memory_node = parent->children; memory_node != 0; memory_node = memory_node->siblings) {
