@@ -475,3 +475,65 @@ produced this chunk:
       (<b1> ^junk <j1> +)
       (<j1> ^opacity clear + ^texture smooth + ^size small +)
   }
+
+---
+
+With respect to variablization, it looks like Soar8 does the obvious
+thing. For example, these rules:
+
+  sp {elaborate*top-state
+      (state <s> ^superstate nil)
+      -->
+      (<s> ^ball <b>)
+      (<b> ^color blue ^size large)}
+
+  sp {elaborate*snc*test1
+      (state <s> ^impasse no-change ^attribute state ^superstate <ss>)
+      (<ss> ^ball <b>)
+      (<b> ^color blue)
+      -->
+      (<s> ^test1 passed)}
+
+
+  sp {elaborate*snc*test2
+      (state <s> ^impasse no-change ^attribute state ^superstate <ss>)
+      (<ss> ^ball <b>)
+      (<b> ^size large)
+      -->
+      (<s> ^test2 passed)}
+
+  sp {return*chunk
+      (state <s> ^impasse no-change ^attribute state ^superstate <ss>
+                 ^test1 passed ^test2 passed)
+      -->
+      (<ss> ^result yaba-daba-doo)}
+
+produced this chunk:
+
+  sp {chunk-1*d1*snochange*1
+      :chunk
+      (state <s1> ^ball <b1>)
+      (<b1> ^size large ^color blue)
+      -->
+      (<s1> ^result yaba-daba-doo +)
+  }
+
+In theory, it might've produced a chunk like:
+
+  sp {chunk-1*d1*snochange*1
+      (state <s1> ^ball <b1> ^ball <b2>)
+      (<b1> ^size large)
+      (<b2> ^color blue)
+      -->
+      (<s1> ^result yab-daba-doo +)}
+
+Because, strictly speaking, the rules that produced the above chunk
+would've allowed it. But, the implication is that doing variablization
+based on equality of the instantiated values is (apparently)
+sufficient.
+
+With respect to o-support, I guess what I was trying to get at was a
+situation where we _remove_ a preference, and in doing so, lose some
+important backtrace information. For example, counting. I took a stab
+at this with p8.soar, but am too groggy right now to figure out if
+what it's doing is magic.
