@@ -201,12 +201,15 @@ Trying to understand the backtracing algorithm...
     do
       foreach positive condition |c| in |inst|
       begin
-        if |c.id| is in |tc| then
+        if |c.id| is a goal and |c.wme.id.level <= grounds_level| then
+          /* basis case: id is a higher goal that was tested, so add
+             the value */
+          |tc| = |tc| U |c.value|
+
+        else if |c.id| is in |tc| then
           /* the ID is in the transitive closure, so add the value */
           |tc| = |tc| U |c.value|
-        else if |c.id| is a goal and |c.wme.id.level <= grounds_level| then
-          /* id is a higher goal that was tested, so add the value */
-          |tc| = |tc| U |c.value|
+
         endif
       end
     until |tc| is reaches a fix point.
@@ -215,14 +218,23 @@ Trying to understand the backtracing algorithm...
     begin
       if |c| is a positive condition then
         if |c.id| in |tc| then
+          /* The condition tested something above us that is
+             immediately reachable from a higher goal. */
           |grounds| = |grounds| U |c|;
+
         else if |c.wme.id.level <= grounds_level| then
+          /* The condition tested something above us that's not
+             immediately reachable from a higher goal. */
           |potentials| = |potentials| U |c|;
+
         else
+          /* The condition tested something at the current
+             goal-level. */
           |locals| = |locals| U |c|;
+
         endif
       else
-        /* negative condi's are either grounds or potentials */
+        /* negative cond's are either grounds or potentials */
         |negated| = |negated| U make_chunk_cond_for(|c|);
       endif
     end
@@ -238,17 +250,20 @@ Trying to understand the backtracing algorithm...
     foreach condition |c| in |locals| do
       |locals| = |locals| - |c|;
 
-      /* did we test a preference at this level that's a clone of some
+      /* Did we test a preference at this level that's a clone of some
          higher-level preference? */
       |bt_pref| = find_clone_for_level(|c.wme.preference|, |grounds_level| + 1);
+
       if |bt_pref| then
-        /* backtrace through the instantiation that created the
+        /* Yes. Backtrace through the instantiation that created the
            preference in our current match-goal level */
         backtrace_through_instantiation(|br_pref.instantiation|);
 
         /* XXX check if any prohibit preferences */
+
       else if |c.id| is a goal and |c.attr| == "quiescence" and |c.value| == "t" then
         |variablize_this_chunk| = false;
+
       else
         |potentials| = |potentials| U |c|;
       endif
@@ -271,14 +286,18 @@ Trying to understand the backtracing algorithm...
     until |grounds| reaches a fix point.
   end.
 
-  procedure trace_ungrounded_potentials()
+  function trace_ungrounded_potentials() return boolean
   begin
     /* pick out positive potentials that we can backtrace through */
     |pots_to_bt| = {};
 
     foreach condition |c| in |potentials| do
+      /* Did we test a preference at this level that's a clone of some
+         higher-level preference? */
       |bt_pref| = find_clone_for_level(|c.wme.preference|, |grounds_level| + 1);
+
       if |bt_pref| then
+        /* Yes. Remove from the set of potentials and backtrace it. */
         |potentials| = |potentials| - |c|
         |pots_to_bt| = |pots_to_bt| U |c|
       endif
@@ -291,6 +310,8 @@ Trying to understand the backtracing algorithm...
 
       /* XXX check if any prohibits preferences */
     end
+
+    return |pots_to_bt| != {}
   end.
 
   procedure chunk(inst)
@@ -308,8 +329,8 @@ Trying to understand the backtracing algorithm...
     do
       trace_locals();
       trace_grounded_potentials();
-      trace_ungrouneded_potentials();
-    until (|potentials| == {})
+      |more_potentials_to_backtrace| = trace_ungrouneded_potentials();
+    while (|more_potentials_to_backtrace|)
 
     foreach condition |c| in |grounds| do
       /* add |c| to new chunk's conditions */
@@ -325,3 +346,86 @@ Trying to understand the backtracing algorithm...
 I think that one thing that'll be hard to do in the raw RETE net will
 be to figure out how to string together matching |id| and |value|
 tests, as we need to do in |backtrace_through_instantiation()|.
+
+---
+
+Couple things I thought of that I wanted to test.
+
+- If you decorate any identifier from a ``higher level'', does it get
+  returned as a result? For example, an operator tie creates
+
+    |^item O1|
+
+  WMEs for each operator in the substate.
+
+  Given this test:
+
+    sp {propose*left
+        (state <s> ^superstate nil)
+        -->
+        (<s> ^operator <o> +)
+        (<o> ^name left)}
+
+    sp {propose*right
+        (state <s> ^superstate nil)
+        -->
+        (<s> ^operator <o> +)
+        (<o> ^name right)}
+
+    sp {prefer*highest
+        (state <s> ^operator <o1> + ^operator <o2> +)
+        (<o1> ^score <s1>)
+        (<o2> ^score { <s2> > <s1> })
+        -->
+        (<s> ^operator <o2> > <o1>)}
+
+    sp {score*left
+        (state <s> ^impasse tie ^attribute operator ^item <o>)
+        (<o> ^name left)
+        -->
+        (<o> ^score 1)}
+
+
+    sp {score*right
+        (state <s> ^impasse tie ^attribute operator ^item <o>)
+        (<o> ^name right)
+        -->
+        (<o> ^score 2)}
+
+  The answer appears to be ``yes''.
+
+IIRC, I was trying to figure out why ``clones'' are necessary. (One
+reason might have been if we _didn't_ return stuff to higher levels,
+but that doesn't appear to be the case.)
+
+The comments in |find_clone_for_level()| say:
+
+  This routines take a given preference and finds the clone of it
+  whose match goal is at the given goal_stack_level.  (This is used to
+  find the proper preference to backtrace through.)
+
+Maybe this is needed to handle cases where state is ``copied'' from
+the superstate? But the only place where clones appear to be made is
+in |make_clones_of_results()|, which says:
+
+  When we build the initial instantiation of the new chunk, we have
+  to fill in preferences_generated with *copies* of all the result
+  preferences.  These copies are clones of the results.
+
+Ah, the answer appears to be in soarkernel.h:
+
+  next_clone, prev_clone: used for a doubly-linked list of all
+  "clones" of this preference.  When a result is returned from a
+  subgoal and a chunk is built, we get two copies of the "same"
+  preference, one from the subgoal's production firing, and one from
+  the chunk instantiation.  If results are returned more than one
+  level, or the same result is returned simultaneously by multiple
+  production firings, we can get lots of copies of the "same"
+  preference.  These clone preferences are kept on a list so that we
+  can find the right one to backtrace through, given a wme supported
+  by "all the clones."
+
+I guess I don't see how this is different from two ``normal''
+productions that support the same WME? I guess the difference is that
+two preferences for the same WME must necessarily come from two
+distinct backtraces.
