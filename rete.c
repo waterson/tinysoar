@@ -49,6 +49,11 @@
 #include "rete.h"
 #include "alloc.h"
 
+#if defined(HAVE_PRINTF) && defined(DEBUG)
+#  include <stdio.h>
+#  include "symtab.h"
+#endif
+
 /*
  * Create a new token
  */
@@ -233,16 +238,6 @@ check_beta_test(struct agent     *agent,
             struct symbol_list *goal;
             for (goal = agent->goals; goal != 0; goal = goal->next) {
                 if (SYMBOLS_ARE_EQUAL(goal->symbol, wme->slot->id))
-                    return 1;
-            }
-        }
-        break;
-
-    case test_type_impasse_id:
-        {
-            struct symbol_list *impasse;
-            for (impasse = agent->impasses; impasse != 0; impasse = impasse->next) {
-                if (SYMBOLS_ARE_EQUAL(impasse->symbol, wme->slot->id))
                     return 1;
             }
         }
@@ -583,7 +578,8 @@ do_right_addition(struct agent *agent, struct beta_node *node, struct wme *wme)
     case beta_node_type_negative:
         /* Iterate through the ``active'' tokens to see if any will be
            blocked by this addition */
-        for (link = &node->tokens; (token = *link) != 0; link = &token->next) {
+        link = &node->tokens;
+        while ((token = *link) != 0) {
             if (!node->data.tests ||
                 check_beta_tests(agent, node->data.tests, token, wme)) {
                 /* If there are no beta tests, or the beta tests
@@ -599,6 +595,10 @@ do_right_addition(struct agent *agent, struct beta_node *node, struct wme *wme)
 
                 token->next = node->blocked;
                 node->blocked = token;
+            }
+            else {
+                /* This token remains unblocked: on to the next one. */
+                link = &token->next;
             }
         }
         break;
@@ -652,7 +652,8 @@ do_right_removal(struct agent *agent, struct beta_node *node, struct wme *wme)
     case beta_node_type_negative:
         /* Iterate through the blocked tokens to see if any will be
            unblocked by the right-memory removal. */
-        for (link = &node->blocked; (token = *link) != 0; link = &token->next) {
+        link = &node->blocked;
+        while ((token = *link) != 0) {
             /* Check the remaining right memories (we'll skip the one
                that we're removing) to see if the token is still
                blocked. */
@@ -671,7 +672,11 @@ do_right_removal(struct agent *agent, struct beta_node *node, struct wme *wme)
                 }
             }
 
-            if (! rm) {
+            if (rm) {
+                /* Still blocked: move on to the next blocked token. */
+                link = &token->next;
+            }
+            else {
                 /* We didn't find any right-memories that block the
                    token. Propagate it downwards. */
                 struct beta_node *child;
@@ -756,6 +761,14 @@ rete_operate_wme(struct agent *agent, struct wme *wme, wme_operation_t op)
     int offset = (wme->type == wme_type_normal) ? 0 : 8;
     int i;
 
+#if 0 /* Use to debug wme additions and removals. */
+    extern struct symtab symtab;
+    static void dump_wme(struct symtab *symtab, struct wme *wme);
+    printf("%c ", (op == wme_operation_add ? '+' : '-'));
+    dump_wme(&symtab, wme);
+    printf("\n");
+#endif
+
     for (i = 0; i < 8; ++i) {
         struct alpha_node *alpha;
 
@@ -801,8 +814,6 @@ rete_finish(struct agent *agent)
 }
 
 #if defined(HAVE_PRINTF) && defined(DEBUG)
-#include <stdio.h>
-#include "symtab.h"
 
 static void
 indent_by(int nest)
@@ -849,7 +860,10 @@ dump_wme(struct symtab *symtab, struct wme *wme)
 {
     printf("wme@%p(%s ", wme, symbol_to_string(symtab, wme->slot->id));
     printf("^%s ", symbol_to_string(symtab, wme->slot->attr));
-    printf("%s)", symbol_to_string(symtab, wme->value));
+    printf("%s", symbol_to_string(symtab, wme->value));
+    if (wme->type == wme_type_acceptable)
+        printf(" +");
+    printf(")");
 }
 
 static void
@@ -945,10 +959,6 @@ dump_test(struct symtab *symtab, struct beta_test *test)
 
     case test_type_goal_id:
         printf("(G)");
-        return;
-
-    case test_type_impasse_id:
-        printf("(I)");
         return;
     }
 
