@@ -112,9 +112,9 @@ declare_symbol(FILE *file, symbol_t symbol)
     if (SYMBOL_IS_NIL(symbol))
         fprintf(file, "DECLARE_NIL_SYMBOL");
     else
-        fprintf(file, "DECLARE_SYMBOL(%d, %s)",
-                GET_SYMBOL_VALUE(symbol),
-                symbol_type_to_string(GET_SYMBOL_TYPE(symbol)));
+        fprintf(file, "DECLARE_SYMBOL(%s, %d)",
+                symbol_type_to_string(GET_SYMBOL_TYPE(symbol)),
+                GET_SYMBOL_VALUE(symbol));
 }
 
 /*
@@ -123,9 +123,9 @@ declare_symbol(FILE *file, symbol_t symbol)
 static void
 symbol_to_word(FILE *file, symbol_t symbol)
 {
-    fprintf(file, "SYMBOL_TO_WORD(%d, %s)",
-            GET_SYMBOL_VALUE(symbol),
-            symbol_type_to_string(GET_SYMBOL_TYPE(symbol)));
+    fprintf(file, "SYMBOL_TO_WORD(%s, %d)",
+            symbol_type_to_string(GET_SYMBOL_TYPE(symbol)),
+            GET_SYMBOL_VALUE(symbol));
 }
 
 /*

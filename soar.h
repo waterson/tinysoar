@@ -21,8 +21,8 @@ typedef enum symbol_type {
 } symbol_type_t;
 
 typedef struct symbol {
-    int           val  : SYMBOL_VALUE_BITS;
     symbol_type_t type : SYMBOL_TYPE_BITS;
+    int           val  : SYMBOL_VALUE_BITS;
 } symbol_t;
 
 #define GET_SYMBOL_VALUE(s)    ((s).val)
@@ -30,8 +30,8 @@ typedef struct symbol {
 #define GET_SYMBOL_TYPE(s)     ((s).type)
 #define SET_SYMBOL_TYPE(s, t)  ((s).type = (t))
 
-#define DECLARE_SYMBOL(v, t) \
-  { (v), (t) }
+#define DECLARE_SYMBOL(t, v) \
+  { (t), (v) }
 
 #define DECLARE_NIL_SYMBOL \
   { 0, 0 }
@@ -50,7 +50,7 @@ typedef struct symbol {
 
 #define SYMBOL_IS_NIL(s)        (*((unsigned *) &(s)) == 0)
 
-#define SYMBOL_TO_WORD(v, t)    (((t) << SYMBOL_TYPE_SHIFT) | (v))
+#define SYMBOL_TO_WORD(t, v)    (unsigned)((((unsigned)(t)) << SYMBOL_TYPE_SHIFT) | (unsigned)(v))
 
 /* Predefined symbols used by the architecture */
 #define ATTRIBUTE_CONSTANT      1
@@ -101,13 +101,13 @@ typedef enum field {
 } field_t;
 
 typedef struct variable_binding {
-    unsigned depth : BINDING_DEPTH_BITS;
     field_t  field : BINDING_FIELD_BITS;
+    unsigned depth : BINDING_DEPTH_BITS;
 } variable_binding_t;
 
 #define VARIABLE_BINDINGS_ARE_EQUAL(l, r)  (*((unsigned *)&(l)) == *((unsigned *)&(r)))
 
-#define VARIABLE_BINDING_TO_WORD(f, d) (((f) << BINDING_FIELD_SHIFT) | (d))
+#define VARIABLE_BINDING_TO_WORD(f, d) (unsigned)((((unsigned)(f)) << BINDING_FIELD_SHIFT) | ((unsigned)(d)))
 
 /* ---------------------------------------------------------------------- */
 
