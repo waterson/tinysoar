@@ -8,11 +8,13 @@
   TO DO
   -----
 
-  . Implement simple negative conditions
+  . Debug simple negative conditions
 
   . Implement o-support
 
   . Implement conjunctive negative conditions
+
+  . Factory redundancy between create_*_node() routines.
 
 */
 
@@ -117,8 +119,7 @@ free_beta_tests(struct agent* agent, struct beta_test* tests)
  * Create a new token
  */
 static inline struct token*
-create_token(struct agent* agent,
-             struct beta_node* node,
+create_token(struct beta_node* node,
              struct token* parent,
              struct wme* wme)
 {
@@ -372,8 +373,7 @@ find_bound_variable(const struct variable_binding_list* bindings,
  * before being stored in the beta_test struct.
  */
 static void
-bind_variables(struct agent* agent,
-               const struct test* test,
+bind_variables(const struct test* test,
                unsigned depth,
                field_t field,
                struct variable_binding_list** bindings)
@@ -404,7 +404,7 @@ bind_variables(struct agent* agent,
         {
             struct test_list* tests;
             for (tests = test->data.conjuncts; tests != 0; tests = tests->next)
-                bind_variables(agent, &tests->test, depth, field, bindings);
+                bind_variables(&tests->test, depth, field, bindings);
         }
         break;
 
@@ -428,8 +428,7 @@ bind_variables(struct agent* agent,
  * This corresponds to add_rete_tests_for_test() from rete.c in Soar8.
  */
 static void
-process_test(struct agent* agent,
-             const struct test* test,
+process_test(const struct test* test,
              unsigned depth,
              field_t field,
              const struct variable_binding_list* bindings,
@@ -495,7 +494,7 @@ process_test(struct agent* agent,
         {
             struct test_list* tests;
             for (tests = test->data.conjuncts; tests != 0; tests = tests->next)
-                process_test(agent, &tests->test, depth, field, bindings, constant, beta_tests);
+                process_test(&tests->test, depth, field, bindings, constant, beta_tests);
         }
         break;
 
@@ -687,6 +686,9 @@ initialize_matches(struct agent* agent,
         do_left_addition(agent, child, &agent->root_token, 0);
     }
     else if (parent->type & beta_node_type_bit_positive) {
+        /* Temporarily splice out all of parent's children except
+           `child', then call the right-addition routine, and restore
+           parent's children. */
         struct beta_node* old_children = parent->children;
         struct beta_node* old_siblings = child->siblings;
         struct right_memory* rm;
@@ -700,10 +702,16 @@ initialize_matches(struct agent* agent,
         parent->children = old_children;
         child->siblings = old_siblings;
     }
+    else if (parent->type & beta_node_type_bit_negative) {
+        struct token* token;
+        for (token = parent->tokens; token != 0; token = token->next)
+            do_left_addition(agent, parent, token, 0); /* XXX not right */
+    }
     else {
         UNIMPLEMENTED(); /* XXX write me! */
     }
 }
+
 
 /*
  * Create a beta memory node with the specified parent.
@@ -735,9 +743,9 @@ create_positive_join_node(struct agent* agent,
                           struct alpha_node* alpha_node,
                           struct beta_test* tests)
 {
-    struct beta_node* result;
+    struct beta_node* result =
+        (struct beta_node*) malloc(sizeof(struct beta_node));
 
-    result = (struct beta_node*) malloc(sizeof(struct beta_node));
     result->type       = beta_node_type_positive_join;
     result->parent     = parent;
     result->siblings   = parent->children;
@@ -751,6 +759,35 @@ create_positive_join_node(struct agent* agent,
     result->tokens = 0;
 
     result->data.tests = tests;
+
+    return result;
+}
+
+
+static struct beta_node*
+create_negative_node(struct agent* agent,
+                     struct beta_node* parent,
+                     struct alpha_node* alpha_node,
+                     struct beta_test* tests)
+{
+    struct beta_node* result =
+        (struct beta_node*) malloc(sizeof(struct beta_node));
+
+    result->type       = beta_node_type_negative;
+    result->parent     = parent;
+    result->siblings   = parent->children;
+    parent->children   = result;
+    result->children   = 0;
+
+    result->alpha_node = alpha_node;
+    result->next_with_same_alpha_node = alpha_node->children;
+    alpha_node->children = result;
+
+    result->tokens = 0;
+
+    result->data.tests = tests;
+
+    initialize_matches(agent, result, parent);
 
     return result;
 }
@@ -773,6 +810,9 @@ create_production_node(struct agent* agent,
     result->children   = 0;
     result->tokens     = 0;
     result->data.production = production;
+
+    /* XXX why not? */
+    /* initialize_matches(agent, result, parent); */
 
     return result;
 }
@@ -833,13 +873,13 @@ ensure_positive_condition_node(struct agent* agent,
     CLEAR_SYMBOL(alpha_value);
 
     /* XXX gee, that's a lot of parameters. */
-    bind_variables(agent, &cond->data.simple.id_test,    depth, field_id,    bindings);
-    bind_variables(agent, &cond->data.simple.attr_test,  depth, field_attr,  bindings);
-    bind_variables(agent, &cond->data.simple.value_test, depth, field_value, bindings);
+    bind_variables(&cond->data.simple.id_test,    depth, field_id,    bindings);
+    bind_variables(&cond->data.simple.attr_test,  depth, field_attr,  bindings);
+    bind_variables(&cond->data.simple.value_test, depth, field_value, bindings);
 
-    process_test(agent, &cond->data.simple.id_test,    depth, field_id,    *bindings, &alpha_id,    &tests);
-    process_test(agent, &cond->data.simple.attr_test,  depth, field_attr,  *bindings, &alpha_attr,  &tests);
-    process_test(agent, &cond->data.simple.value_test, depth, field_value, *bindings, &alpha_value, &tests);
+    process_test(&cond->data.simple.id_test,    depth, field_id,    *bindings, &alpha_id,    &tests);
+    process_test(&cond->data.simple.attr_test,  depth, field_attr,  *bindings, &alpha_attr,  &tests);
+    process_test(&cond->data.simple.value_test, depth, field_value, *bindings, &alpha_value, &tests);
 
     /* See if there's a memory node we can use */
     for (memory_node = parent->children; memory_node != 0; memory_node = memory_node->siblings) {
@@ -887,6 +927,67 @@ ensure_positive_condition_node(struct agent* agent,
     return create_positive_join_node(agent, memory_node, alpha_node, tests);
 }
 
+
+
+/*
+ * Find or create a beta node for the given single condition `cond',
+ * which must be a simple ncondition. The new node is a child
+ * of `parent'.
+ *
+ * This corresponds to make_node_for_negative_cond() in rete.c in
+ * Soar8.
+ */
+static struct beta_node*
+ensure_negative_condition_node(struct agent* agent,
+                               const struct condition* cond,
+                               unsigned depth,
+                               struct beta_node* parent,
+                               struct variable_binding_list** bindings)
+{
+    struct beta_node* result;
+    struct beta_test* tests = 0;
+    symbol_t alpha_id, alpha_attr, alpha_value;
+    struct alpha_node* alpha_node;
+
+    CLEAR_SYMBOL(alpha_id);
+    CLEAR_SYMBOL(alpha_attr);
+    CLEAR_SYMBOL(alpha_value);
+
+    /* XXX gee, that's a lot of parameters. */
+    bind_variables(&cond->data.simple.id_test,    depth, field_id,    bindings);
+    bind_variables(&cond->data.simple.attr_test,  depth, field_attr,  bindings);
+    bind_variables(&cond->data.simple.value_test, depth, field_value, bindings);
+
+    process_test(&cond->data.simple.id_test,    depth, field_id,    *bindings, &alpha_id,    &tests);
+    process_test(&cond->data.simple.attr_test,  depth, field_attr,  *bindings, &alpha_attr,  &tests);
+    process_test(&cond->data.simple.value_test, depth, field_value, *bindings, &alpha_value, &tests);
+
+    /* See if there's already a negative node we can use */
+    for (result = parent->children; result != 0; result = result->siblings) {
+        if ((result->type == beta_node_type_negative)
+            && (SYMBOLS_ARE_EQUAL(result->alpha_node->id, alpha_id))
+            && (SYMBOLS_ARE_EQUAL(result->alpha_node->attr, alpha_attr))
+            && (SYMBOLS_ARE_EQUAL(result->alpha_node->value, alpha_value))
+            && beta_tests_are_identical(result->data.tests, tests))
+            break;
+    }
+
+    if (! result) {
+        /* If we didn't a matching negative node, make one now. */
+        alpha_node =
+            ensure_alpha_node(agent, alpha_id, alpha_attr, alpha_value,
+                              cond->acceptable);
+
+        return create_negative_node(agent, parent, alpha_node, tests);
+    }
+
+    /* Hey, we found one. Free the tests we allocated and return
+       the node we found. */
+    free_beta_tests(agent, tests);
+    return result;
+}
+
+
 /* ---------------------------------------------------------------------- */
 
 static void
@@ -899,7 +1000,7 @@ do_left_addition(struct agent* agent,
     case beta_node_type_memory:
         {
             /* Add a new token to the memory and notify children */
-            struct token* new_token = create_token(agent, node, token, wme);
+            struct token* new_token = create_token(node, token, wme);
             struct beta_node* child;
             for (child = node->children; child != 0; child = child->siblings)
                 do_left_addition(agent, child, new_token, 0);
@@ -919,9 +1020,28 @@ do_left_addition(struct agent* agent,
         }
         break;
 
+    case beta_node_type_negative:
+        {
+            struct right_memory* rm;
+            for (rm = node->alpha_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
+                if (check_beta_tests(agent, node->data.tests, token, rm->wme))
+                    break;
+            }
+
+            if (! rm) {
+                struct token* new_token =
+                    create_token(node, token, wme);
+
+                struct beta_node* child;
+                for (child = node->children; child != 0; child = child->siblings)
+                    do_left_addition(agent, child, new_token, 0);
+            }
+        }
+        break;
+
     case beta_node_type_production:
         {
-            struct token* new_token = create_token(agent, node, token, wme);
+            struct token* new_token = create_token(node, token, wme);
 
             /* XXX Soar8 checks the retraction queue to see if the
                match has been retracted, and if so, removes the match
@@ -941,7 +1061,6 @@ do_left_addition(struct agent* agent,
         break;
 
     case beta_node_type_memory_positive_join:
-    case beta_node_type_negative:
     case beta_node_type_conjunctive_negative:
     case beta_node_type_conjunctive_negative_partner:
         UNIMPLEMENTED(); /* XXX write me! */
@@ -983,7 +1102,9 @@ do_left_removal(struct agent* agent,
         break;
 
     case beta_node_type_positive_join:
+    case beta_node_type_negative:
         {
+            /* XXX I have no idea if this is really right. */
             struct right_memory* rm;
             for (rm = node->alpha_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
                 struct beta_node* child;
@@ -1030,7 +1151,6 @@ do_left_removal(struct agent* agent,
         break;
 
     case beta_node_type_memory_positive_join:
-    case beta_node_type_negative:
     case beta_node_type_conjunctive_negative:
     case beta_node_type_conjunctive_negative_partner:
         UNIMPLEMENTED(); /* XXX write me! */
@@ -1064,8 +1184,25 @@ do_right_addition(struct agent* agent, struct beta_node* node, struct wme* wme)
         }
         break;
 
-    case beta_node_type_memory_positive_join:
     case beta_node_type_negative:
+        {
+            struct token* token;
+
+            /* XXX I have a bad feeling about this */
+            ASSERT(node->parent->type == beta_node_type_memory ||
+                   node->parent->type == beta_node_type_negative,
+                   ("unexpected parent node in right addition"));
+
+            for (token = node->parent->tokens; token != 0; token = token->next) {
+                if (! check_beta_tests(agent, node->data.tests, token, wme)) {
+                    struct beta_node* child;
+                    for (child = node->children; child != 0; child = child->siblings)
+                        do_left_addition(agent, child, token, wme);
+                }
+            }
+        }
+
+    case beta_node_type_memory_positive_join:
         UNIMPLEMENTED(); /* XXX write me! */
         break;
 
@@ -1084,11 +1221,14 @@ do_right_removal(struct agent* agent, struct beta_node* node, struct wme* wme)
 {
     switch (node->type) {
     case beta_node_type_positive_join:
+        ASSERT(node->parent->type == beta_node_type_memory,
+               ("unexpected parent node"));
+
+        /* fall through */
+
+    case beta_node_type_negative: /* XXX I Have no idea if this is right */
         {
             struct beta_node* child;
-
-            ASSERT(node->parent->type == beta_node_type_memory,
-                   ("unexpected parent node"));
 
             for (child = node->children; child != 0; child = child->siblings)
                 do_left_removal(agent, child, 0, wme);
@@ -1096,7 +1236,6 @@ do_right_removal(struct agent* agent, struct beta_node* node, struct wme* wme)
         break;
 
     case beta_node_type_memory_positive_join:
-    case beta_node_type_negative:
         UNIMPLEMENTED(); /* XXX write me! */
         break;
 
@@ -1162,8 +1301,10 @@ rete_add_production(struct agent* agent, struct production* p)
             break;
 
         case condition_type_negative:
+            child = ensure_negative_condition_node(agent, cond, depth, parent, &bindings);
+            break;
+
         case condition_type_conjunctive_negation:
-        default:
             UNIMPLEMENTED(); /* XXX write me */
             break;
         }
