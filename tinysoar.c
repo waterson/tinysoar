@@ -43,6 +43,7 @@
 #include "parser.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 struct agent agent;
 struct symtab symtab;
