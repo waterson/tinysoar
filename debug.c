@@ -73,11 +73,11 @@ runtime_warn(const char *fmtstr, ...)
     va_list ap;
 
     va_start(ap, fmtstr);
-    vfprintf(stderr, fmtstr, ap);
+    vfprintf(stdout, fmtstr, ap);
     va_end(ap);
 
     if (fmtstr[strlen(fmtstr) - 1] != '\n')
-        fprintf(stderr, "\n");
+        fprintf(stdout, "\n");
 }
 
 #endif /* DEBUG */
