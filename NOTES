@@ -235,6 +235,11 @@ it synchronized (e.g., during `promotion') with a minimum of
 work. I.e., caching would be of little value if wehad to continually
 re-compute each identifier's reachability from scratch.
 
+Doing that might not be so easy: we can certainly detect when a
+lower-level `value' becomes reachable from a higher-level `id';
+however, we'd need to traverse the WME graph do determine the
+transitive closure that is reachable from the newly-promoted value.
+
 ---
 
 Since wme has a back-pointer to its slot, I think that we should be
