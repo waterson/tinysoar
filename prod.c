@@ -879,7 +879,7 @@ void
 rete_add_production(struct agent* agent, struct production* p)
 {
     unsigned depth = 0;
-    struct beta_node* parent = &agent->root_node;
+    struct beta_node* parent = agent->root_node;
     struct condition* cond;
 
     struct variable_binding_list* bindings = 0;

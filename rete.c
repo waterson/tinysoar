@@ -689,11 +689,23 @@ rete_init(struct agent* agent)
 {
     int i;
 
-    agent->root_node.type = beta_node_type_root;
-    agent->root_node.tokens = &agent->root_token;
+    struct beta_node* root_node =
+        (struct beta_node*) malloc(sizeof(struct beta_node));
+
+    root_node->type = beta_node_type_root;
+    root_node->parent
+        = root_node->siblings
+        = root_node->next_with_same_alpha_node
+        = root_node->children = 0;
+
+    root_node->alpha_node = 0;
+
+    root_node->tokens = &agent->root_token;
+
+    agent->root_node = root_node;
 
     agent->root_token.parent = 0;
-    agent->root_token.node   = &agent->root_node;
+    agent->root_token.node   = agent->root_node;
     agent->root_token.wme    = 0;
     agent->root_token.next   = 0;
 

@@ -463,7 +463,7 @@ struct agent {
     unsigned next_available_identifier;
 
     /* For the RETE network */
-    struct beta_node    root_node;
+    struct beta_node*   root_node;
     struct token        root_token;
     struct alpha_node*  alpha_nodes[16];
     struct symbol_list* goals;

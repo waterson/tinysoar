@@ -317,7 +317,7 @@ dump_rete_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
     }
 
     printf("\nBETA NETWORK\n");
-    dump_beta_node(&agent.root_node, 0, 1);
+    dump_beta_node(agent.root_node, 0, 1);
     printf("\n");
 
     return TCL_OK;

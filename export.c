@@ -704,6 +704,36 @@ export_symtab(FILE* file, struct symtab* symtab)
     }
 }
 
+/*
+ * Write a static initializer for the agent
+ */
+void
+export_agent(FILE* file, struct agent* agent, struct ht* alphas)
+{
+    int i;
+
+    fprintf(file, "static struct agent agent = {\n");
+    fprintf(file, "  1, &beta_nodes[0], { &beta_nodes[0], 0, 0, 0 },\n");
+    fprintf(file, "  { ");
+
+    for (i = 0; i < 16; ++i) {
+        if (i > 0)
+            fprintf(file, "    ");
+
+        if (agent->alpha_nodes[i])
+            fprintf(file, "&alphas[%d]", get_index_map_id(alphas, agent->alpha_nodes[i]));
+        else
+            fprintf(file, "0");
+
+        if (i < 15)
+            fprintf(file, ",\n");
+    }
+
+    fprintf(file, " },\n");
+
+    fprintf(file, "  0, 0, 0, 0, { 0, 0, 0, 0 }, 0 };\n\n");
+}
+
 void
 soar_export(FILE* file, struct agent* agent, struct symtab* symtab)
 {
@@ -725,7 +755,7 @@ soar_export(FILE* file, struct agent* agent, struct symtab* symtab)
     ht_init(&productions, (ht_key_compare_t) compare_map_entries);
     ht_init(&actions, (ht_key_compare_t) compare_map_entries);
 
-    collect_beta_nodes(&agent->root_node,
+    collect_beta_nodes(agent->root_node,
                        &betas, &tests, &productions, &actions,
                        &beta_id, &test_id, &prod_id, &action_id);
 
@@ -743,20 +773,22 @@ soar_export(FILE* file, struct agent* agent, struct symtab* symtab)
     fprintf(file, "};\n\n");
 
     fprintf(file, "static struct beta_test tests[] = {\n");
-    export_beta_tests(file, &agent->root_node, &tests);
+    export_beta_tests(file, agent->root_node, &tests);
     fprintf(file, "};\n\n");
 
     fprintf(file, "static struct action actions[] = {\n");
-    export_actions(file, &agent->root_node, &actions);
+    export_actions(file, agent->root_node, &actions);
     fprintf(file, "};\n\n");
 
     fprintf(file, "static struct production productions[] = {\n");
-    export_productions(file, &agent->root_node, &productions, &actions);
+    export_productions(file, agent->root_node, &productions, &actions);
     fprintf(file, "};\n\n");
 
     fprintf(file, "static struct beta_node betas[] = {\n");
-    export_beta_nodes(file, &agent->root_node, &alphas, &betas, &tests, &productions);
+    export_beta_nodes(file, agent->root_node, &alphas, &betas, &tests, &productions);
     fprintf(file, "};\n\n");
+
+    export_agent(file, agent, &alphas);
 
     fprintf(file, "#endif /* DECL_RETE_NETWORK */\n");
 
