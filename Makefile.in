@@ -1,13 +1,17 @@
 # Substitutions from configure.
 srcdir	= @srcdir@
 VPATH	= @srcdir@
+
 AR	= @AR@
-RANLIB	= @RANLIB@
 CC	= @CC@
-LEX	= @LEX@
-YACC	= @YACC@
-CFLAGS	= @CFLAGS@ -Wall @DEFS@ -I$(srcdir) -I.
 INSTALL = @INSTALL@
+LD	= @LD@
+LEX	= @LEX@
+RANLIB	= @RANLIB@
+YACC	= @YACC@
+
+CFLAGS	= @CFLAGS@ -Wall @DEFS@ -I$(srcdir) -I.
+LDFLAGS	= @LDFLAGS@
 
 # ----------------------------------------------------------------------
 #
@@ -121,4 +125,14 @@ libtinysoar.a: $(TINYSOAR_OBJS)
 tinysoar.so: tinysoar.c libtinysoar.a $(PARSER_LIBNAME) $(RUNTIME_LIBNAME) $(BASE_LIBNAME)
 	$(CC) $(CFLAGS) -shared -o $@ $< -ltcl -L. -ltinysoar -l$(PARSER) -l$(RUNTIME) -l$(BASE)
 	$(INSTALL) $(srcdir)/pkgIndex.tcl .
+
+# ----------------------------------------------------------------------
+#
+# A Soar agent from the Lego RCX.
+#
+
+lego.o: lego.c agent.inc
+
+lego: lego.o $(RUNTIME_LIBNAME) $(BASE_LIBNAME)
+	$(CC) $< -nostdlib -Wl,-T$(srcdir)/h8300.lds -o $@ -L. -l$(RUNTIME) -l$(BASE) -lgcc
 
