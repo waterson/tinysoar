@@ -1,0 +1,24 @@
+/* -*- Mode: Text; indent-tabs-mode: nil -*- */
+
+(1) Implement o-support stuff in rule.y, test to make sure it really
+    works.
+
+(2) Get acceptable preference testing to work. I think it's
+    implemented properly in rule.y, and just needs to be made to work
+    right in rete.c.
+
+(3) Figure out how to do chunking and/or justification.
+
+(4) Depending on (3), get rid of intermediate data production data
+    structures, and have rule.y generate the RETE network data
+    structures directly. (Don't want to burn the space on the RCX if
+    we don't need to for chunking or some other reason. Plus, this
+    would get a fair bit of code _out_ of rete.c)
+
+(5) Implement |resolve_operator_tie()|, which I think (at this point)
+    should probably be renamed to something like ``implement operator
+    preference semantics''.
+
+(6) Implement operator no-change.
+
+(7) Implement conjunctive negative conditions.
