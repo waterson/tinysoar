@@ -68,7 +68,9 @@ static volatile unsigned char keystate = 0;
 #define KEY_ANY     (KEY_ON_OFF | KEY_RUN | KEY_VIEW | KEY_PROGRAM)
 
 /*
- * Handler for the OCIA interrupt. Does key debouncing and 
+ * Handler for the OCIA interrupt. Does key debouncing. Borrows
+ * heavily from LegOS's dkey.c, which is Copyright (C) 1999 Markus
+ * L. Noga <markus@noga.de>.
  */
 static void
 ocia_handler()
