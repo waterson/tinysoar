@@ -3,7 +3,7 @@ ifdef BUILD_OPT
 CFLAGS=-Wall -O -UDEBUG -DNDEBUG -DINLINE=inline
 else
 # Debug
-CFLAGS=-Wall -g -DDEBUG -UNDEBUG
+CFLAGS=-Wall -g -DDEBUG -UNDEBUG -DINLINE=
 endif
 
 MDDEPDIR=.deps
