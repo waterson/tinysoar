@@ -1,10 +1,14 @@
-*.pdb
 *.ilk
+*.lib
 *.opt
+*.pdb
 .deps
 Makefile
 config.cache
 config.log
 config.status
 defs.h
+lex.yy.c
 rete-test
+rule.tab.c
+rule.tab.h

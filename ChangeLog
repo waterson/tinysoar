@@ -1,3 +1,9 @@
+Wednesday, January 3, 2001
+
+I made WMEs just refer back to the slot they're in to pick up the `id'
+and `attr' fields. Can we do the same with preferences?
+
+
 Friday, December 29, 2000
 
 Hacked up basic symbol table stuff, but will need to expand later to

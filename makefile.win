@@ -10,23 +10,43 @@ CFLAGS=$(CFLAGS) /Zi /Od /UNDEBUG /DDEBUG
 LFLAGS=$(LFLAGS) /debug
 !endif
 
+RUNTIME_LIB = soar_rt.lib
 
-OBJS = \
+RUNTIME_OBJS = \
 	alloc.obj \
 	agent.obj \
 	ht.obj \
 	pref.obj \
-	rete-test.obj \
 	rete.obj \
 	runtime.obj \
 	symtab.obj \
 	wmem.obj \
         $(NULL)
 
-rete-test.exe: $(OBJS)
-        $(LINK) $(LFLAGS) /out:$@ $(OBJS)
+all: rete-test.exe parser-test.exe
+
+parser-test.exe: parser-test.obj rule.tab.obj lex.yy.obj
+        $(LINK) $(LFLAGS) /nologo /out:$@ $**
+
+parser-test.obj: parser-test.c parser.h config.h defs.h
+
+rule.tab.obj: rule.tab.c
+
+rule.tab.c rule.tab.h: rule.y
+        bison --defines $**
+
+lex.yy.c: rule.l
+        flex $**
+
+lex.yy.obj: lex.yy.c rule.tab.h
+
+rete-test.exe: 	rete-test.obj $(RUNTIME_LIB)
+        $(LINK) $(LFLAGS) /nologo /out:$@ $**
 
 rete-test.obj: rete-test.c soar.h alloc.h config.h defs.h
+
+$(RUNTIME_LIB): $(RUNTIME_OBJS)
+        lib /nologo /out:$@ $**
 
 alloc.obj: alloc.c alloc.h config.h defs.h
 agent.obj: agent.c soar.h alloc.h config.h defs.h
@@ -44,7 +64,7 @@ defs.h:
         echo #define SIZEOF_INT 4 >> $@
 
 clean:
-        -del *.obj *.exe *.pdb *.ilk *~
+        -del *.obj *.exe *.lib *.pdb *.ilk rule.tab.* lex.yy.c *~
 
 distclean: clean
 	-del defs.h

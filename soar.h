@@ -431,7 +431,7 @@ struct agent {
     struct match*       retractions;
 
     /* For working memory */
-    struct ht slots;
+    struct ht         slots;
     struct slot_list* modified_slots;
 };
 
