@@ -67,14 +67,17 @@ typedef enum symbol_type {
 
 typedef int symbol_t;
 
+#define ASSERT_VALID_SYMBOL_TYPE(t) \
+  ASSERT(((t) & SYMBOL_VALUE_MASK) == 0, ("bad symbol type %d", (t)))
+
 #define SYMBOL_TO_WORD(t, v)    ((t) | ((v) << SYMBOL_VALUE_SHIFT))
 #define GET_SYMBOL_VALUE(s)     ((s) >> SYMBOL_VALUE_SHIFT)
 #define SET_SYMBOL_VALUE(s, v)  ((s) &= ~SYMBOL_VALUE_MASK, (s) |= ((v) << SYMBOL_VALUE_SHIFT))
 #define GET_SYMBOL_TYPE(s)      ((s) & SYMBOL_TYPE_MASK)
-#define SET_SYMBOL_TYPE(s, t)   ((s) &= ~SYMBOL_TYPE_MASK, (s) |= (t) & SYMBOL_TYPE_MASK)
+#define SET_SYMBOL_TYPE(s, t)   (ASSERT_VALID_SYMBOL_TYPE(t), (s) &= ~SYMBOL_TYPE_MASK, (s) |= (t))
 #define DECLARE_SYMBOL(t, v)    SYMBOL_TO_WORD((t), (v))
 #define DECLARE_NIL_SYMBOL      0
-#define INIT_SYMBOL(s, t, v)    ((s) = SYMBOL_TO_WORD((t), (v)))
+#define INIT_SYMBOL(s, t, v)    (ASSERT_VALID_SYMBOL_TYPE(t), (s) = SYMBOL_TO_WORD((t), (v)))
 #define CLEAR_SYMBOL(s)         ((s) = 0)
 #define SYMBOLS_ARE_EQUAL(l, r) ((l) == (r))
 #define SYMBOL_IS_NIL(s)        SYMBOLS_ARE_EQUAL((s), 0)
