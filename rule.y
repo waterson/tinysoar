@@ -329,6 +329,10 @@ attr_value_test_list: /* empty */
                                attr_value_test we just reduced */
                             *new_cond = $2;
 
+                            /* Copy the id_test from the test to our
+                               left. */
+                            new_cond->data.simple.id_test = $<condition>0.data.simple.id_test;
+
                             /* Add this condition to the end of the
                                list of conditions that we're reducing */
                             cond = &$<condition>0;
