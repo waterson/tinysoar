@@ -8,8 +8,6 @@
   TO DO
   -----
 
-  . Implement o-support
-
   . Implement conjunctive negative conditions
 
 */

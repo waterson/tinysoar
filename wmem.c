@@ -10,9 +10,7 @@
 
   . Implement operator preference semantics (better, best, etc.)
 
-  . Implement o-support
-
-  . wmem_add_preference needs to take a referent!
+  . wmem_add_preference() needs to take a referent!
 
 */
 
