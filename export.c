@@ -713,7 +713,7 @@ export_agent(FILE* file, struct agent* agent, struct ht* alphas)
     int i;
 
     fprintf(file, "static struct agent agent = {\n");
-    fprintf(file, "  1, &beta_nodes[0], { &beta_nodes[0], 0, 0, 0 },\n");
+    fprintf(file, "  1, &betas[0], { &betas[0], 0, 0, 0 },\n");
     fprintf(file, "  { ");
 
     for (i = 0; i < 16; ++i) {
