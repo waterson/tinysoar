@@ -429,3 +429,18 @@ I guess I don't see how this is different from two ``normal''
 productions that support the same WME? I guess the difference is that
 two preferences for the same WME must necessarily come from two
 distinct backtraces.
+
+---
+
+Some more stuff to test...
+
+- Do complex results get returned? (If so, that would explain some of
+  the confusion I'm having about why we ask for each preference's
+  instantiation in |chunk()|, above.)
+
+- How does chunking across o-supported preferences work? E.g.,
+  ``counting to three''
+
+- Can we ``over-variablize'' a disjunctive condition into a
+  conjunctive condition?
+
