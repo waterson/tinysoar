@@ -2,21 +2,27 @@
 /* #define YYDEBUG 1 */
 #include "soar.h"
 #include "parser.h"
+#include "symtab.h"
 
 #define YYPARSE_PARAM yyparse_param
+
+static void
+process_attr_value_test_list(struct condition* cond,
+                             struct attr_value_test_list* list);
 %}
 
 %union {
-    int              int_constant;
-    struct test      test;
-    test_type_t      test_type;
-    symbol_t         symbol;
-    struct rhs_value rhs_value;
-    struct symbol_list* symbol_list;
-    struct test_list*   test_list;
-    struct condition    condition;
-    struct condition*   condition_list;
-    struct attr_value_test attr_value_test;
+    const char*                  sym_constant;
+    int                          int_constant;
+    struct test                  test;
+    test_type_t                  test_type;
+    symbol_t                     symbol;
+    struct rhs_value             rhs_value;
+    struct symbol_list*          symbol_list;
+    struct test_list*            test_list;
+    struct condition             condition;
+    struct condition*            condition_list;
+    struct attr_value_test       attr_value_test;
     struct attr_value_test_list* attr_value_test_list;
 }
 
@@ -32,8 +38,8 @@
 %token GREATER_THAN_OR_EQUAL
 %token SAME_TYPE
 
-%token VARIABLE
-%token SYM_CONSTANT
+%token <sym_constant> VARIABLE
+%token <sym_constant> SYM_CONSTANT
 %token <int_constant> INT_CONSTANT
 
 %type <test> conjunctive_test
@@ -62,8 +68,11 @@
 
 rule: lhs ARROW rhs
     {
+        struct parser* parser =
+            (struct parser*) yyparse_param;
+
         struct production* production =
-            (struct production*) yyparse_param;
+            parser->production;
 
         production->conditions =
             (struct condition*) malloc(sizeof(struct condition));
@@ -112,12 +121,12 @@ cond_list: cond_list cond
          { $$ = 0; }
          ;
 
-conds_for_one_id: '(' id_test ')'
+conds_for_one_id: '(' id_test attr_value_test_list ')'
                 {
                     $$.type = condition_type_positive;
                     $$.data.simple.id_test = $2;
-                    $$.data.simple.attr_test.type = test_type_blank;
-                    $$.data.simple.value_test.type = test_type_blank;
+
+                    process_attr_value_test_list(&$$, $3);
                 }
 
                 | '(' CONTEXT id_test attr_value_test_list ')'
@@ -142,12 +151,8 @@ conds_for_one_id: '(' id_test ')'
                     $$.data.simple.id_test.data.conjuncts = context_conjunct;
                     context_conjunct->next = id_test_conjunct;
                     id_test_conjunct->next = 0;
-                }
 
-                | '(' id_test attr_value_test_list ')'
-                {
-                    if (! $3)
-                        yyerror("empty test");
+                    process_attr_value_test_list(&$$, $4);
                 }
                 ;
 
@@ -284,7 +289,12 @@ relation: /* empty */
         ;
 
 single_test: VARIABLE
-           { CLEAR_SYMBOL($$); /*XXX*/ }
+           {
+               struct parser* parser =
+                   (struct parser*) yyparse_param;
+
+               $$ = symtab_lookup(parser->symtab, symbol_type_variable, $1, 1);
+           }
            | constant
            ;
 
@@ -334,6 +344,7 @@ preference_specifier: '+'
 
 rhs_value: VARIABLE
          {
+             /* XXX */
              $$.type = rhs_value_type_symbol;
              /* or maybe rhs_value_type_unbound_variable */
          }
@@ -361,10 +372,32 @@ constants: /* empty */
          ;
 
 constant: SYM_CONSTANT
-        { CLEAR_SYMBOL($$); /* XXX */ }
+        {
+            struct parser* parser =
+                (struct parser*) yyparse_param;
+
+             $$ = symtab_lookup(parser->symtab, symbol_type_symbolic_constant, $1, 1);
+        }
         | INT_CONSTANT
         { MAKE_SYMBOL($$, symbol_type_integer_constant, $1); }
         ;
 
 
 %%
+
+static void
+process_attr_value_test_list(struct condition* cond,
+                             struct attr_value_test_list* list)
+{
+    if (! list) {
+        cond->data.simple.attr_test.type = test_type_blank;
+        cond->data.simple.value_test.type = test_type_blank;
+    }
+    else if (! list->next) {
+        cond->data.simple.attr_test  = list->tests.attr_test;
+        cond->data.simple.value_test = list->tests.value_test;
+    }
+    else {
+        /* XXX writeme */
+    }
+}

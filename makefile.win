@@ -19,13 +19,12 @@ RUNTIME_OBJS = \
 	pref.obj \
 	rete.obj \
 	runtime.obj \
-	symtab.obj \
 	wmem.obj \
         $(NULL)
 
 all: rete-test.exe parser-test.exe
 
-parser-test.exe: parser-test.obj rule.tab.obj lex.yy.obj
+parser-test.exe: parser-test.obj rule.tab.obj lex.yy.obj symtab.obj ht.obj runtime.obj
         $(LINK) $(LFLAGS) /nologo /out:$@ $**
 
 parser-test.obj: parser-test.c parser.h config.h defs.h

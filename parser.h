@@ -14,8 +14,13 @@ struct attr_value_test_list {
 };
 
 
+struct parser {
+    struct symtab*     symtab;
+    struct production* production;
+};
+
 
 extern struct production*
-soar_parse_rule(const char* rule);
+soar_parse_rule(struct symtab* symtab, const char* rule);
 
 #endif /* parser_h__ */

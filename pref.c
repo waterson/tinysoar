@@ -66,7 +66,7 @@ create_instantiation(struct agent* agent,
         struct symbol_list* entry =
             (struct symbol_list*) malloc(sizeof(struct symbol_list));
 
-        entry->symbol = symtab_get_identifier(agent);
+        entry->symbol = agent_get_identifier(agent);
         entry->next   = unbound_vars;
         unbound_vars  = entry;
     }

@@ -40,7 +40,7 @@ init_symbols(struct agent* agent)
     int i;
 
     for (i = IDENTIFIER_BASE; i < CONSTANT_BASE; ++i)
-        symbols[i] = symtab_get_identifier(agent);
+        symbols[i] = agent_get_identifier(agent);
 }
 
 static void

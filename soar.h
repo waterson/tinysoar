@@ -47,8 +47,24 @@ typedef struct symbol {
 
 #define SYMBOL_IS_NIL(s)        (*((unsigned*) &(s)) == 0)
 
-#define OPERATOR_CONSTANT  1
-#define USER_CONSTANT_BASE 2
+/* Predefined symbols used by the architecture */
+#define ATTRIBUTE_CONSTANT      1
+#define CHOICES_CONSTANT        2
+#define INPUT_LINK_CONSTANT     3
+#define IO_CONSTANT             4
+#define NIL_CONSTANT            5
+#define NONE_CONSTANT           6
+#define NO_CHANGE_CONSTANT      7
+#define OPERATOR_CONSTANT       8
+#define OUTPUT_LINK_CONSTANT    9
+#define QUIESCENCE_CONSTANT    10
+#define STATE_CONSTANT         11
+#define SUPERSTATE_CONSTANT    12
+#define TIE_CONSTANT           13
+#define TYPE_CONSTANT          14
+#define T_CONSTANT             15
+
+#define USER_CONSTANT_BASE     16
 
 struct symbol_list {
     symbol_t symbol;
@@ -493,10 +509,7 @@ typedef void (*wme_enumerator_t)(struct agent* agent, struct wme* wme, void* clo
 extern void
 wmem_enumerate_wmes(struct agent* agent, wme_enumerator_t enumerator, void* closure);
 
-extern void
-symtab_init(struct agent* agent);
-
 extern symbol_t
-symtab_get_identifier(struct agent* agent);
+agent_get_identifier(struct agent* agent);
 
 #endif /* soar_h__ */

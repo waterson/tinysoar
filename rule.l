@@ -10,25 +10,27 @@
 %%
 
 state|impasse return CONTEXT;
-"<<" return LEFT_ANGLE;
-">>" return RIGHT_ANGLE;
-"<>" return NOT_EQUAL;
-"<=" return LESS_THAN_OR_EQUAL;
-">=" return GREATER_THAN_OR_EQUAL;
-"<=>" return SAME_TYPE;
-"-->" return ARROW;
-[0-9]+ yylval.int_constant = atoi(yytext); return INT_CONSTANT;
-"<"[[:alnum:]]+">" return VARIABLE;
-[[:alnum:]]+ return SYM_CONSTANT;
+"<<"               return LEFT_ANGLE;
+">>"               return RIGHT_ANGLE;
+"<>"               return NOT_EQUAL;
+"<="               return LESS_THAN_OR_EQUAL;
+">="               return GREATER_THAN_OR_EQUAL;
+"<=>"              return SAME_TYPE;
+"-->"              return ARROW;
+[0-9]+             yylval.int_constant = atoi(yytext); return INT_CONSTANT;
+"<"[[:alnum:]]+">" yylval.sym_constant = yytext; return VARIABLE;
+[[:alnum:]]+       yylval.sym_constant = yytext; return SYM_CONSTANT;
 "("|")"|"-"|"+"|"."|"^"|"{"|"}"|"="|"<"|">"|"!"|"~"|"@" return yytext[0];
 [ \t\n]+    /* consume whitespace */
 
 %%
 
 struct production*
-soar_parse_rule(const char* rule)
+soar_parse_rule(struct symtab* symtab, const char* rule)
 {
+    struct parser parser;
     YY_BUFFER_STATE state;
+
     struct production* result =
         (struct production*) malloc(sizeof(struct production));
 
@@ -42,8 +44,11 @@ soar_parse_rule(const char* rule)
     result->instantiations   = 0;
     result->num_unbound_vars = 0;
 
+    parser.symtab     = symtab;
+    parser.production = result;
+
     state = yy_scan_string(rule);
-    if (yyparse(result) != 0) {
+    if (yyparse(&parser) != 0) {
         free(result);
         result = 0;
     }
