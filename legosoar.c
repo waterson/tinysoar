@@ -214,6 +214,9 @@ sync_sensor(struct sensor *sensor)
     symbol_t sym_sensor_n;
     symbol_t sym_value;
 
+    /* Power down the sensor so we can read the channel. */
+    PORT6 &= ~(1 << sensor->ad_csr_bits);
+
     /* Request an A/D conversion on the sensor's channel. */
     AD_CSR = sensor->ad_csr_bits;
     AD_CSR |= ADST;
@@ -226,6 +229,9 @@ sync_sensor(struct sensor *sensor)
 
     /* Read the sensor's value. */
     sensor_val = (*(sensor->ad_register) >> 6) & 0x03ff;
+
+    /* Power the sensor back up. */
+    PORT6 |= (1 << sensor->ad_csr_bits);
 
     /* If the value hasn't changed since we last set the preference,
        bail now. */
@@ -369,6 +375,7 @@ _start()
             "\tbclr #7,@_SYSCR:8\n"
             "\tpop r6\n");
 
+        /* Make sure the motors are off. */
         motor_controller = 0;
 
         /* Configure the 16-bit timer compare A IRQ to occur every
@@ -382,20 +389,26 @@ _start()
         T_IER |= TIER_ENABLE_OCA;
 
         /* Wait for the power key to be released. */
-        keystate = 0xf;
-        while (keystate & 0x1)
+        keystate = KEY_ANY;
+        while (keystate & KEY_ON_OFF)
             ;
 
         /* Run until the power gets turned off. */
         runstate |= RUNSTATE_POWER_ON;
 
         while (runstate & RUNSTATE_POWER_ON) {
+            /* Standing man. */
             rcx_lcd_show_icon(LCD_STANDING);
 
             while ((runstate & RUNSTATE_POWER_ON) && !(runstate & RUNSTATE_RUNNING))
                 asm("sleep"); /* Idle. */
 
+            /* Running Man. */
             rcx_lcd_show_icon(LCD_WALKING);
+
+            /* Power up active sensors. */
+            PORT6_DDR = rom_port6_ddr |= 0x7;
+            PORT6 |= 0x7;
 
             while ((runstate & RUNSTATE_POWER_ON) && (runstate & RUNSTATE_RUNNING)) {
                 agent_elaborate(&agent);
@@ -403,6 +416,11 @@ _start()
                 sync_input_link();
             }
 
+            /* Power down active sensors. */
+            PORT6_DDR = rom_port6_ddr &= ~0x7;
+            PORT6 &= ~0x7;
+
+            /* Shut off the motors. */
             motor_controller = 0;
         }
 
