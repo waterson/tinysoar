@@ -109,6 +109,10 @@ malloc(unsigned sz)
         }
     }
 
+#if defined(RCX)
+    debug_wait_button(6969);
+#endif
+
     /* Uh oh, couldn't allocate! */
     return 0;
 }
