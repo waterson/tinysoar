@@ -80,18 +80,15 @@ remove_wme_from_alpha_node(struct agent      *agent,
                            struct alpha_node *node,
                            struct wme        *wme)
 {
-    struct right_memory **link = &node->right_memories;
-    struct right_memory *rm = *link;
-
-    while (rm) {
+    struct right_memory *rm, **link;
+    for (link = &node->right_memories;
+         (rm = *link) != 0;
+         link = &rm->next_in_alpha_node) {
         if (rm->wme == wme) {
             *link = rm->next_in_alpha_node;
             free(rm);
             break;
         }
-
-        link = &rm->next_in_alpha_node;
-        rm = *link;
     }
 }
 
@@ -381,9 +378,7 @@ do_left_removal(struct agent     *agent,
     switch (node->type) {
     case beta_node_type_memory:
         {
-            struct token *doomed;
-            struct token **link;
-
+            struct token *doomed, **link;
             for (link = &node->tokens; (doomed = *link) != 0; link = &doomed->next) {
                 if ((doomed->wme == wme) && (doomed->parent == token)) {
                     struct beta_node *child;
@@ -413,8 +408,7 @@ do_left_removal(struct agent     *agent,
 
     case beta_node_type_negative:
         {
-            struct token **link;
-            struct token *doomed;
+            struct token *doomed, **link;
 
             /* First see if this was a ``blocked'' token, in which
                case its removal will have no side effects */
@@ -492,8 +486,7 @@ do_left_removal(struct agent     *agent,
 
             /* Nuke the token */
             {
-                struct token **link;
-                struct token *doomed;
+                struct token *doomed, **link;
                 for (link = &node->tokens; (doomed = *link) != 0; link = &doomed->next) {
                     if ((doomed->wme == wme) && (doomed->parent == token)) {
                         *link = doomed->next;
@@ -526,8 +519,7 @@ do_left_removal(struct agent     *agent,
 /*static inline*/ void
 do_right_addition(struct agent *agent, struct beta_node *node, struct wme *wme)
 {
-    struct token **link;
-    struct token *token = node->tokens;
+    struct token **link, *token = node->tokens;
 
     switch (node->type) {
     case beta_node_type_positive_join:
@@ -596,8 +588,7 @@ do_right_addition(struct agent *agent, struct beta_node *node, struct wme *wme)
 static inline void
 do_right_removal(struct agent *agent, struct beta_node *node, struct wme *wme)
 {
-    struct token *token = node->tokens;
-    struct token **link;
+    struct token *token = node->tokens, **link;
 
     switch (node->type) {
     case beta_node_type_positive_join:
