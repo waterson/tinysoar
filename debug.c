@@ -187,13 +187,13 @@ debug_dump_variable_binding(variable_binding_t binding)
 void
 debug_dump_test(struct symtab *symtab, struct beta_test *test)
 {
-    switch (test->type) {
+    switch (GET_BETA_TEST_TYPE(test)) {
     case test_type_conjunctive:
     case test_type_disjunctive:
         break;
 
     default:
-        switch (test->field) {
+        switch (GET_BETA_TEST_FIELD(test)) {
         case field_id:      printf("id");     break;
         case field_attr:    printf("attr");   break;
         case field_value:   printf("value");  break;
@@ -202,7 +202,7 @@ debug_dump_test(struct symtab *symtab, struct beta_test *test)
         }
     }
 
-    switch (test->type) {
+    switch (GET_BETA_TEST_TYPE(test)) {
     case test_type_blank:
         printf("0");
         break;
@@ -262,7 +262,7 @@ debug_dump_test(struct symtab *symtab, struct beta_test *test)
         return;
     }
 
-    if (test->relational_type == relational_type_constant) {
+    if (GET_BETA_TEST_RELATIONAL_TYPE(test) == relational_type_constant) {
         printf("%s", debug_symbol_to_string(symtab, test->data.constant_referent));
     }
     else {

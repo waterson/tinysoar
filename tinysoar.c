@@ -460,8 +460,8 @@ print_tests(char                         **result,
 
     /* Look for a variable binding. */
     for (test = node->data.tests; test != 0; test = test->next) {
-        if (test->field == field) {
-            switch (test->type) {
+        if (GET_BETA_TEST_FIELD(test) == field) {
+            switch (GET_BETA_TEST_TYPE(test)) {
             case test_type_goal_id: {
                 /* XXX this is hokey. Why don't goal tests work like
                    other tests? */
@@ -482,7 +482,7 @@ print_tests(char                         **result,
                 break;
 
             case test_type_equality:
-                ASSERT(test->relational_type == relational_type_variable,
+                ASSERT(GET_BETA_TEST_RELATIONAL_TYPE(test) == relational_type_variable,
                        ("expected constant test to be in alpha node"));
 
                 variable = ensure_variable_for(bindings, test->data.variable_referent, depth);
@@ -491,7 +491,7 @@ print_tests(char                         **result,
             default:
                 /* An inequality. */
                 /* XXX there could be more than one here. */
-                inequality = test->type;
+                inequality = GET_BETA_TEST_TYPE(test);
                 referent = ensure_variable_for(bindings, test->data.variable_referent, depth);
                 break;
             }
@@ -501,7 +501,8 @@ print_tests(char                         **result,
     /* Now see if it's a disjunctive test. */
     for (test = node->data.tests; test != 0; test = test->next) {
         /* All the disjuncts will test the same field. */
-        if (test->type == test_type_disjunctive && test->field == field) {
+        if (GET_BETA_TEST_TYPE(test) == test_type_disjunctive &&
+            GET_BETA_TEST_FIELD(test) == field) {
             struct beta_test *disjunct;
 
             vsmcatf(result, sz, "{");
@@ -516,7 +517,7 @@ print_tests(char                         **result,
                 vsmcatf(result, sz, " <v%d>", GET_SYMBOL_VALUE(variable));
 
             for (disjunct = test->data.disjuncts; disjunct != 0; disjunct = disjunct->next) {
-                ASSERT(disjunct->relational_type == relational_type_constant,
+                ASSERT(GET_BETA_TEST_RELATIONAL_TYPE(disjunct) == relational_type_constant,
                        ("expected constant value in disjunct"));
 
                 print_constant(result, sz, disjunct->data.constant_referent);

@@ -147,7 +147,7 @@ check_beta_test(struct agent     *agent,
                 struct token     *token,
                 struct wme       *wme)
 {
-    switch (test->type) {
+    switch (GET_BETA_TEST_TYPE(test)) {
     case test_type_equality:
     case test_type_not_equal:
     case test_type_less:
@@ -157,10 +157,10 @@ check_beta_test(struct agent     *agent,
     case test_type_same_type:
         {
             /* It's a relational test */
-            symbol_t right = get_field_from_wme(wme, test->field);
+            symbol_t right = get_field_from_wme(wme, GET_BETA_TEST_FIELD(test));
             symbol_t left;
 
-            if (test->relational_type == relational_type_constant) {
+            if (GET_BETA_TEST_RELATIONAL_TYPE(test) == relational_type_constant) {
                 left = test->data.constant_referent;
             }
             else {
@@ -181,7 +181,7 @@ check_beta_test(struct agent     *agent,
                 left = get_field_from_wme(left_wme, GET_VARIABLE_BINDING_FIELD(test->data.variable_referent));
             }
 
-            switch (test->type) {
+            switch (GET_BETA_TEST_TYPE(test)) {
             case test_type_equality:
                 if (SYMBOLS_ARE_EQUAL(left, right))
                     return 1;
@@ -204,14 +204,14 @@ check_beta_test(struct agent     *agent,
                     return 0;
 
                 /* We're done if all we were testing was `same type' */
-                if (test->type == test_type_same_type)
+                if (GET_BETA_TEST_TYPE(test) == test_type_same_type)
                     return 1;
 
                 /* If we're doing relational tests, then they'll
                    only work on integer constants */
                 if (GET_SYMBOL_TYPE(left) == symbol_type_integer_constant) {
                     int result = GET_SYMBOL_VALUE(right) - GET_SYMBOL_VALUE(left);
-                    switch (test->type) {
+                    switch (GET_BETA_TEST_TYPE(test)) {
                     case test_type_less:
                         if (result < 0) return 1;
                         break;

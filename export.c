@@ -381,7 +381,7 @@ collect_beta_tests(struct beta_test *test, struct ht *tests, int *id)
 {
     put_index_map_id(tests, test, (*id)++);
 
-    if (test->type == test_type_disjunctive) {
+    if (GET_BETA_TEST_TYPE(test) == test_type_disjunctive) {
         struct beta_test *disjuncts = test->data.disjuncts;
         while (disjuncts) {
             collect_beta_tests(disjuncts, tests, id);
@@ -544,15 +544,15 @@ export_beta_test(FILE *file, struct beta_test *test, struct ht *tests)
 {
     fprintf(file, "  { /* %d (%p) */\n", get_index_map_id(tests, test), test);
 
-    fprintf(file, "    %s, %s, %s,\n",
-            test_type_to_string(test->type),
-            relational_type_to_string(test->relational_type),
-            field_to_string(test->field));
+    fprintf(file, "    %s | %s | %s,\n",
+            test_type_to_string(GET_BETA_TEST_TYPE(test)),
+            relational_type_to_string(GET_BETA_TEST_RELATIONAL_TYPE(test)),
+            field_to_string(GET_BETA_TEST_FIELD(test)));
 
     fprintf(file, "    { ");
 
-    if (test->type != test_type_disjunctive) {
-        if (test->relational_type == relational_type_constant) {
+    if (GET_BETA_TEST_TYPE(test) != test_type_disjunctive) {
+        if (GET_BETA_TEST_RELATIONAL_TYPE(test) == relational_type_constant) {
             symbol_to_word(file, test->data.constant_referent);
         }
         else {
@@ -567,7 +567,7 @@ export_beta_test(FILE *file, struct beta_test *test, struct ht *tests)
     /* XXX ought we be emitting something for the `next' field? */
     fprintf(file, " }, 0 },\n");
 
-    if (test->type == test_type_disjunctive) {
+    if (GET_BETA_TEST_TYPE(test) == test_type_disjunctive) {
         struct beta_test *disjuncts = test->data.disjuncts;
         while (disjuncts) {
             export_beta_test(file, disjuncts, tests);

@@ -68,7 +68,7 @@ typedef enum symbol_type {
 typedef int symbol_t;
 
 #define ASSERT_VALID_SYMBOL_TYPE(t) \
-  ASSERT(((t) & SYMBOL_VALUE_MASK) == 0, ("bad symbol type %d", (t)))
+  ASSERT(((t) & ~SYMBOL_TYPE_MASK) == 0, ("bad symbol type %d", (t)))
 
 #define SYMBOL_TO_WORD(t, v)    ((t) | ((v) << SYMBOL_VALUE_SHIFT))
 #define GET_SYMBOL_VALUE(s)     ((s) >> SYMBOL_VALUE_SHIFT)
@@ -117,27 +117,40 @@ struct symbol_list {
 /* ---------------------------------------------------------------------- */
 
 /*
+ * Fields
+ */
+
+#define FIELD_BITS   2
+#define FIELD_SHIFT  (BITS_PER_WORD - FIELD_BITS)
+#define FIELD_MASK   (((unsigned) (~0)) << FIELD_SHIFT)
+
+#define ASSERT_VALID_FIELD(f) \
+    ASSERT(((f) & ~FIELD_MASK) == 0, ("bad field %d", (f)))
+
+#define GET_FIELD(b) ((b) & FIELD_MASK)
+#define SET_FIELD(b, f) \
+    (ASSERT_VALID_FIELD(f), (b) &= ~FIELD_MASK, (b) |= (f))
+
+typedef enum field {
+    field_id    = 0 << FIELD_SHIFT,
+    field_attr  = 1 << FIELD_SHIFT,
+    field_value = 2 << FIELD_SHIFT
+} field_t;
+
+
+/*
  * Variables
  */
 
-#define BINDING_FIELD_BITS   2
-#define BINDING_FIELD_SHIFT  (BITS_PER_WORD - BINDING_FIELD_BITS) 
-#define BINDING_DEPTH_BITS   BINDING_FIELD_SHIFT
-#define BINDING_FIELD_MASK   ((unsigned)(-1) << BINDING_FIELD_SHIFT)
-#define BINDING_DEPTH_MASK   ~BINDING_FIELD_MASK
-
-typedef enum field {
-    field_id    = 0,
-    field_attr  = 1,
-    field_value = 2
-} field_t;
-
 typedef unsigned variable_binding_t;
 
-#define VARIABLE_BINDING_TO_WORD(f, d)     (((f) << BINDING_FIELD_SHIFT) | (d))
+#define BINDING_DEPTH_BITS   FIELD_SHIFT
+#define BINDING_DEPTH_MASK   ~FIELD_MASK
+
+#define VARIABLE_BINDING_TO_WORD(f, d)     ((f) | (d))
 #define INIT_VARIABLE_BINDING(b, f, d)     ((b) = VARIABLE_BINDING_TO_WORD((f), (d)))
-#define GET_VARIABLE_BINDING_FIELD(b)      (((b) & BINDING_FIELD_MASK) >> BINDING_FIELD_SHIFT)
-#define SET_VARIABLE_BINDING_FIELD(b, f)   ((b) &= ~BINDING_FIELD_MASK, (b) |= (f) << BINDING_FIELD_SHIFT)
+#define GET_VARIABLE_BINDING_FIELD(b)      GET_FIELD(b)
+#define SET_VARIABLE_BINDING_FIELD(b, f)   SET_FIELD(b, f)
 #define GET_VARIABLE_BINDING_DEPTH(b)      ((b) & BINDING_DEPTH_MASK)
 #define SET_VARIABLE_BINDING_DEPTH(b, d)   ((b) &= ~BINDING_DEPTH_MASK, (b) |= (d) & BINDING_DEPTH_MASK)
 #define VARIABLE_BINDINGS_ARE_EQUAL(l, r)  ((l) == (r))
@@ -378,23 +391,22 @@ struct right_memory {
  * Beta Memory
  */
 
-/* XXX using a -1 here will generate a warning, but guarantees correct
-   sign extension when we assign to wider fields. */
+#define RELATIONAL_TYPE_BITS   1
+#define RELATIONAL_TYPE_SHIFT  (FIELD_SHIFT - RELATIONAL_TYPE_BITS)
+#define RELATIONAL_TYPE_MASK   (((unsigned) (~0)) << RELATIONAL_TYPE_SHIFT & ~FIELD_MASK)
+
+#define ASSERT_VALID_RELATIONAL_TYPE(r) \
+    ASSERT(((r) & ~RELATIONAL_TYPE_MASK) == 0, ("bad relational type %d", (r)))
+
 typedef enum relational_type {
-    relational_type_constant = 0,
-    relational_type_variable = -1
+    relational_type_constant = 0 << RELATIONAL_TYPE_SHIFT,
+    relational_type_variable = 1 << RELATIONAL_TYPE_SHIFT
 } relational_type_t;
 
-#define BETA_TEST_FIELD_BITS   2
-#define BETA_TEST_FIELD_SHIFT  (BITS_PER_WORD - BETA_TEST_FIELD_BITS)
-#define RELATIONAL_TYPE_BITS   1
-#define RELATIONAL_TYPE_SHIFT  (BETA_TEST_FIELD_SHIFT - RELATIONAL_TYPE_BITS)
-#define BETA_TEST_TYPE_BITS    RELATIONAL_TYPE_SHIFT
+#define BETA_TEST_TYPE_MASK (~(FIELD_MASK | RELATIONAL_TYPE_MASK))
 
 struct beta_test {
-    test_type_t       type            : BETA_TEST_TYPE_BITS;
-    relational_type_t relational_type : RELATIONAL_TYPE_BITS;
-    field_t           field           : BETA_TEST_FIELD_BITS;
+    unsigned bits;
     union {
         unsigned           raw;
         symbol_t           constant_referent;
@@ -403,6 +415,20 @@ struct beta_test {
     } data;
     struct beta_test *next;
 };
+
+#define GET_BETA_TEST_FIELD(t)    GET_FIELD((t)->bits)
+#define SET_BETA_TEST_FIELD(t, f) SET_FIELD((t)->bits, (f))
+
+#define GET_BETA_TEST_RELATIONAL_TYPE(t) ((t)->bits & RELATIONAL_TYPE_MASK)
+#define SET_BETA_TEST_RELATIONAL_TYPE(t, r) \
+    (ASSERT_VALID_RELATIONAL_TYPE(r), (t)->bits &= ~RELATIONAL_TYPE_MASK, (t)->bits |= (r))
+
+#define ASSERT_VALID_TEST_TYPE(ty) \
+    ASSERT(((ty) & ~BETA_TEST_TYPE_MASK) == 0, ("bad test type %d", (ty)))
+
+#define GET_BETA_TEST_TYPE(t) ((t)->bits & BETA_TEST_TYPE_MASK)
+#define SET_BETA_TEST_TYPE(t, ty) \
+    (ASSERT_VALID_TEST_TYPE(ty), (t)->bits &= ~BETA_TEST_TYPE_MASK, (t)->bits |= (ty))
 
 enum beta_node_type_bits {
     beta_node_type_bit_hashed       = 0x01, /* XXX unused */

@@ -72,10 +72,10 @@ static bool_t
 beta_tests_are_identical(struct beta_test *left, struct beta_test *right)
 {
     for ( ; left && right; left = left->next, right = right->next) {
-        if (left->type != right->type)
+        if (GET_BETA_TEST_TYPE(left) != GET_BETA_TEST_TYPE(right))
             return 0;
 
-        switch (left->type) {
+        switch (GET_BETA_TEST_TYPE(left)) {
         case test_type_conjunctive:
             /* shouldn't hit this; conjunctive tests are converted
                into a list of single tests. */
@@ -102,15 +102,15 @@ beta_tests_are_identical(struct beta_test *left, struct beta_test *right)
         case test_type_greater_or_equal:
         case test_type_same_type:
             /* Are the tests for the same field? */
-            if (left->field != right->field)
+            if (GET_BETA_TEST_FIELD(left) != GET_BETA_TEST_FIELD(right))
                 return 0;
 
             /* Do they test the same kind of relation? */
-            if (left->relational_type != right->relational_type)
+            if (GET_BETA_TEST_RELATIONAL_TYPE(left) != GET_BETA_TEST_RELATIONAL_TYPE(right))
                 return 0;
 
             /* Are the referents the same? */
-            if (left->relational_type == relational_type_constant) {
+            if (GET_BETA_TEST_RELATIONAL_TYPE(left) == relational_type_constant) {
                 if (! SYMBOLS_ARE_EQUAL(left->data.constant_referent,
                                         right->data.constant_referent))
                     return 0;
@@ -307,7 +307,7 @@ process_test(const struct test                  *test,
             if (relative_depth || GET_VARIABLE_BINDING_FIELD(*binding) != field) {
                 /* Don't bother to make vacuous tests. */
                 beta_test = (struct beta_test *) malloc(sizeof(struct beta_test));
-                beta_test->relational_type = relational_type_variable;
+                beta_test->bits = relational_type_variable;
                 beta_test->data.variable_referent = *binding;
 
                 /* Fix up the variable referent's depth (which was stored
@@ -320,14 +320,14 @@ process_test(const struct test                  *test,
             beta_test =
                 (struct beta_test *) malloc(sizeof(struct beta_test));
 
-            beta_test->relational_type = relational_type_constant;
+            beta_test->bits = relational_type_constant;
             beta_test->data.constant_referent = test->data.referent;
         }
         break;
 
     case test_type_goal_id:
         beta_test = (struct beta_test *) malloc(sizeof(struct beta_test));
-        beta_test->relational_type = relational_type_constant;
+        beta_test->bits = relational_type_constant;
         CLEAR_SYMBOL(beta_test->data.constant_referent);
         break;
 
@@ -350,6 +350,7 @@ process_test(const struct test                  *test,
             struct test_list *tests;
 
             beta_test = (struct beta_test *) malloc(sizeof(struct beta_test));
+            beta_test->bits = 0;
             beta_test->data.disjuncts = 0;
 
             for (tests = test->data.disjuncts; tests != 0; tests = tests->next) {
@@ -364,8 +365,8 @@ process_test(const struct test                  *test,
     }
 
     if (beta_test) {
-        beta_test->type  = test->type;
-        beta_test->field = field;
+        SET_BETA_TEST_TYPE(beta_test, test->type);
+        SET_BETA_TEST_FIELD(beta_test, field);
         beta_test->next  = *beta_tests;
         *beta_tests      = beta_test;
     }

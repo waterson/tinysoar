@@ -47,7 +47,7 @@
 #include <stdio.h>
 #endif
 
-#define DEBUG_CHUNKING
+#undef  DEBUG_CHUNKING
 #undef  SOAR_STRICT_COMPATIBILITY /* Define to avoid same-type restrictions in chunks. */
 
 struct preference_list {
@@ -151,12 +151,12 @@ copy_tests(struct beta_test             **dest,
            bulk assign `src' to `test', and then fix up the other
            fields we need to. Will the compiler generate an implicit
            memcpy? */
-        test->type = src->type;
+        test->bits = GET_BETA_TEST_TYPE(src);
         test->next = *dest;
 
         *dest = test;
 
-        switch (test->type) {
+        switch (GET_BETA_TEST_TYPE(test)) {
         case test_type_equality:
         case test_type_not_equal:
         case test_type_less:
@@ -164,17 +164,17 @@ copy_tests(struct beta_test             **dest,
         case test_type_less_or_equal:
         case test_type_greater_or_equal:
         case test_type_same_type:
-            test->relational_type = src->relational_type;
-            test->field           = src->field;
+            SET_BETA_TEST_RELATIONAL_TYPE(test, GET_BETA_TEST_RELATIONAL_TYPE(src));
+            SET_BETA_TEST_FIELD(test, GET_BETA_TEST_FIELD(src));
 
-            if (test->relational_type == relational_type_variable) {
+            if (GET_BETA_TEST_RELATIONAL_TYPE(test) == relational_type_variable) {
                 symbol_t variable
                     = rete_get_variable_binding(src->data.variable_referent, token);
 
                 if (justification) {
                     /* Don't variablize the identifier; instead, just
                        add a constant test. */
-                    test->relational_type = relational_type_constant;
+                    SET_BETA_TEST_RELATIONAL_TYPE(test, relational_type_constant);
                     test->data.constant_referent = variable;
                 }
                 else {
@@ -186,7 +186,8 @@ copy_tests(struct beta_test             **dest,
 
                     binding =
                         ensure_variable_binding(bindings, variable,
-                                                test->field, depth);
+                                                GET_BETA_TEST_FIELD(test),
+                                                depth);
 
                     test->data.variable_referent = *binding;
 
@@ -195,7 +196,7 @@ copy_tests(struct beta_test             **dest,
                         depth - GET_VARIABLE_BINDING_DEPTH(test->data.variable_referent);
 
                     if (relative_depth == 0 &&
-                        GET_VARIABLE_BINDING_FIELD(test->data.variable_referent) == test->field) {
+                        GET_VARIABLE_BINDING_FIELD(test->data.variable_referent) == GET_BETA_TEST_FIELD(test)) {
                         /* Don't create vacuous tests; i.e., that test the
                            same field at the same level. */
                         *dest = test->next;
@@ -226,7 +227,7 @@ copy_tests(struct beta_test             **dest,
                compiler. */
 
         case test_type_goal_id:
-            test->field = src->field;
+            SET_BETA_TEST_FIELD(test, GET_BETA_TEST_FIELD(src));
             break;
         }
     }
@@ -240,7 +241,7 @@ static bool_t
 tests_check_superstate(struct agent *agent, struct beta_test *tests, struct token *token, int level)
 {
     for ( ; tests != 0; tests = tests->next) {
-        switch (tests->type) {
+        switch (GET_BETA_TEST_TYPE(tests)) {
         case test_type_equality:
         case test_type_not_equal:
         case test_type_less:
@@ -248,7 +249,8 @@ tests_check_superstate(struct agent *agent, struct beta_test *tests, struct toke
         case test_type_less_or_equal:
         case test_type_greater_or_equal:
         case test_type_same_type:
-            if (tests->field == field_id && tests->relational_type == relational_type_variable) {
+            if (GET_BETA_TEST_FIELD(tests) == field_id &&
+                GET_BETA_TEST_RELATIONAL_TYPE(tests) == relational_type_variable) {
                 symbol_t id = rete_get_variable_binding(tests->data.variable_referent, token);
                 if (agent_get_id_level(agent, id) < level)
                     return 1;
@@ -456,9 +458,8 @@ ensure_consistent_test(struct beta_test             **tests,
 
     if (get_variable_binding(*bindings, variable)) {
         test = (struct beta_test *) malloc(sizeof(struct beta_test));
-        test->type            = test_type_equality;
-        test->relational_type = relational_type_variable;
-        test->field           = field;
+        test->bits = test_type_equality | relational_type_variable | field;
+
         test->data.variable_referent =
             *ensure_variable_binding(bindings, variable, field, depth);
 
@@ -483,8 +484,7 @@ add_goal_test(struct beta_test **tests)
     struct beta_test *test =
         (struct beta_test *) malloc(sizeof(struct beta_test));
 
-    test->type  = test_type_goal_id;
-    test->field = field_id;
+    test->bits = test_type_goal_id | field_id;
     test->next  = *tests;
 
     *tests = test;
@@ -598,10 +598,7 @@ apply_restrictions(struct chunk                 *chunk,
 #endif
 
                 test = (struct beta_test *) malloc(sizeof(struct beta_test));
-                test->type = restriction->type;
-                test->relational_type = relational_type;
-
-                test->field = get_field_with_value(token, restriction->value);
+                test->bits = restriction->type | relational_type | get_field_with_value(token, restriction->value);
 
                 if (relational_type == relational_type_constant)
                     test->data.constant_referent = restriction->referent;
@@ -893,7 +890,7 @@ collect_restrictions(struct restriction **link,
                      struct beta_test    *test)
 {
     for ( ; test != 0; test = test->next) {
-        switch (test->type) {
+        switch (GET_BETA_TEST_TYPE(test)) {
         case test_type_less:
         case test_type_greater:
         case test_type_less_or_equal:
@@ -913,14 +910,14 @@ collect_restrictions(struct restriction **link,
             symbol_t value, referent;
 
             /* Resolve the value. */
-            switch (test->field) {
+            switch (GET_BETA_TEST_FIELD(test)) {
             case field_id:    value = token->wme->slot->id;   break;
             case field_attr:  value = token->wme->slot->attr; break;
             case field_value: value = token->wme->value;      break;
             }
 
             /* Resolve the referent. */
-            referent = (test->relational_type == relational_type_variable)
+            referent = (GET_BETA_TEST_RELATIONAL_TYPE(test) == relational_type_variable)
                 ? rete_get_variable_binding(test->data.variable_referent, token)
                 : test->data.constant_referent;
 
@@ -928,7 +925,7 @@ collect_restrictions(struct restriction **link,
             for (restriction = *link;
                  restriction != 0;
                  restriction = restriction->next) {
-                if (restriction->type == test->type) {
+                if (restriction->type == GET_BETA_TEST_TYPE(test)) {
                     if ((restriction->value == value &&
                          restriction->referent == referent) ||
                         (restriction->value == referent &&
@@ -942,13 +939,13 @@ collect_restrictions(struct restriction **link,
 #ifdef DEBUG_CHUNKING
                 printf("collected restriction: %s %s %s\n",
                        debug_symbol_to_string(&symtab, value),
-                       debug_test_type_to_string(test->type),
+                       debug_test_type_to_string(GET_BETA_TEST_TYPE(test)),
                        debug_symbol_to_string(&symtab, referent));
 #endif
 
                 restriction = malloc(sizeof(struct restriction));
 
-                restriction->type     = test->type;
+                restriction->type     = GET_BETA_TEST_TYPE(test);
                 restriction->value    = value;
                 restriction->referent = referent;
                 restriction->next     = *link;
