@@ -8,7 +8,7 @@
  * 
  */
 
-OUTPUT_FORMAT("coff-h8300")
+OUTPUT_FORMAT(srec)
 OUTPUT_ARCH(h8300)
 ENTRY("_kmain")
 
@@ -39,6 +39,7 @@ SECTIONS {
     lcd_hide      = 0x1e4a ;
     lcd_number    = 0x1ff2 ;
     lcd_clear     = 0x27ac ;
+    lcd_refresh   = 0x27c8 ;
     power_init    = 0x2964 ;
     sound_system  = 0x299a ;
     power_off     = 0x2a62 ;
