@@ -13,7 +13,8 @@
   . Handle acceptable preference testing (needs work in the rete
     network and elsewhere first).
 
-  . Implement `negated conjunctive conditions'.
+  . Implement `negated conjunctive conditions'. Properly detect when
+    we need to return a simple condition vs. an NCC.
 
   . Clean up condition and condition_list stuff. I think the RHS stuff
     worked out much more cleanly.
