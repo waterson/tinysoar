@@ -56,10 +56,10 @@ TINYSOAR_OBJS = \
 all: tinysoar.so
 
 y.tab.c: rule.y
-	$(YACC) -d rule.y
+	$(YACC) -d $(srcdir)/rule.y
 
 lex.yy.c: rule.l
-	$(LEX) rule.l
+	$(LEX) $(srcdir)/rule.l
 
 tinysoar.so: $(TINYSOAR_OBJS) $(PARSER_OBJS) $(RUNTIME_OBJS) $(SHARED_OBJS)
 	$(CC) -shared -o $@ $^ -ltcl
