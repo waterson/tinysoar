@@ -363,7 +363,7 @@ process_test(const struct test                  *test,
 
     switch (test->type) {
     case test_type_equality:
-        if (symbol_type != symbol_type_variable && !constant->val) {
+        if (symbol_type != symbol_type_variable && !GET_SYMBOL_VALUE(*constant)) {
             /* It's a constant, and we can install an alpha test */
             *constant = test->data.referent;
             break;
@@ -650,7 +650,7 @@ process_rhs_value(struct rhs_value             *value,
                   unsigned                      depth)
 {
     if ((value->type == rhs_value_type_symbol) &&
-        (value->val.symbol.type == symbol_type_variable)) {
+        (GET_SYMBOL_TYPE(value->val.symbol) == symbol_type_variable)) {
         /* Look up the binding for the variable. There'd better be
            one, or this trip'll end real quick. */
         const variable_binding_t *binding =

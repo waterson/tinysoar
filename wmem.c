@@ -494,7 +494,7 @@ instantiate_rhs_value(struct rhs_value   *value,
     }
 
     /* Sanity check the result */
-    ASSERT(result.type != symbol_type_variable, ("rhs_value bound to variable"));
+    ASSERT(GET_SYMBOL_TYPE(result) != symbol_type_variable, ("rhs_value bound to variable"));
 
     return result;
 }
@@ -1014,7 +1014,7 @@ run_operator_semantics_on(struct agent        *agent,
 
                 for (p = preferences; p != 0; p = p->next_in_slot) {
                     if ((p->type == preference_type_binary_indifferent)
-                        && (SYMBOLS_ARE_EQUAL(p->referent, referent)))
+                        && (SYMBOLS_ARE_EQUAL(p->referent, referent->symbol)))
                         break; /* Found a binary-indifferente for the referent! */
                 }
 
@@ -1190,7 +1190,7 @@ select_operator(struct agent *agent)
                 for (i = 0; i < depth; ++i)
                     printf("  ");
 
-                printf("[%d]: %d", goal->symbol.val, selected_op.val);
+                printf("[%d]: %d", GET_SYMBOL_VALUE(goal->symbol), GET_SYMBOL_VALUE(selected_op));
                 printf("\n");
 #endif
 

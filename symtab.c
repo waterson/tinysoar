@@ -6,14 +6,14 @@
 static bool_t
 compare_symbols(const struct symtab_entry *e1, const struct symtab_entry *e2)
 {
-    return e1->symbol.type == e2->symbol.type
+    return GET_SYMBOL_TYPE(e1->symbol) == GET_SYMBOL_TYPE(e2->symbol)
         && strcmp(e1->name, e2->name) == 0;
 }
 
 static inline unsigned
 hash_symbol(const char *name, symbol_type_t type)
 {
-    unsigned h = (unsigned) type;
+    unsigned h = ((unsigned) type) >> SYMBOL_TYPE_SHIFT;
     for ( ; *name != 0; ++name)
         h = (h >> (BITS_PER_WORD - 4)) ^ (h << 4) ^ *name;
 
@@ -29,7 +29,7 @@ add_symbol(struct symtab *symtab, struct ht_entry_header **entryp, const char *n
     struct symtab_entry *entry =
         (struct symtab_entry *) HT_ENTRY_DATA(header);
 
-    unsigned hash = hash_symbol(name, symbol.type);
+    unsigned hash = hash_symbol(name, GET_SYMBOL_TYPE(symbol));
 
     entry->name   = strdup(name);
     entry->symbol = symbol;
@@ -38,7 +38,7 @@ add_symbol(struct symtab *symtab, struct ht_entry_header **entryp, const char *n
         struct symtab_entry key;
 
         key.name = (char *) name;
-        key.symbol.type = symbol.type;
+        SET_SYMBOL_TYPE(key.symbol, GET_SYMBOL_TYPE(symbol));
 
         entryp = ht_lookup(&symtab->table, hash, &key);
 
@@ -58,7 +58,7 @@ symtab_lookup(struct symtab *symtab, symbol_type_t type, const char *name, bool_
     symbol_t result;
 
     key.name = (char *) name;
-    key.symbol.type = type;
+    SET_SYMBOL_TYPE(key.symbol, type);
 
     entryp = ht_lookup(&symtab->table, hash, &key);
 

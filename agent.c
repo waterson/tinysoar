@@ -168,7 +168,7 @@ agent_operator_no_change(struct agent *agent, symbol_t goal)
     push_goal_id(agent, state);
 
 #ifdef DEBUG
-    printf("operator-no-change => [%d]\n", state.val);
+    printf("operator-no-change => [%d]\n", GET_SYMBOL_VALUE(state));
 #endif
 
     MAKE_ARCH_PREF(state, SYM(SUPERSTATE_CONSTANT), goal);
@@ -188,7 +188,7 @@ agent_state_no_change(struct agent *agent, symbol_t goal)
     push_goal_id(agent, state);
 
 #ifdef DEBUG
-    printf("state-no-change => [%d]\n", state.val);
+    printf("state-no-change => [%d]\n", GET_SYMBOL_VALUE(state));
 #endif
 
     MAKE_ARCH_PREF(state, SYM(SUPERSTATE_CONSTANT), goal);
@@ -207,7 +207,7 @@ agent_operator_conflict(struct agent *agent, symbol_t goal, struct symbol_list *
     push_goal_id(agent, state);
 
 #ifdef DEBUG
-    printf("operator-conflict => [%d]\n", state.val);
+    printf("operator-conflict => [%d]\n", GET_SYMBOL_VALUE(state));
 #endif
 
     MAKE_ARCH_PREF(state, SYM(SUPERSTATE_CONSTANT), goal);
@@ -228,7 +228,7 @@ agent_operator_tie(struct agent *agent, symbol_t goal, struct symbol_list *opera
     push_goal_id(agent, state);
 
 #ifdef DEBUG
-    printf("operator-tie => [%d]\n", state.val);
+    printf("operator-tie => [%d]\n", GET_SYMBOL_VALUE(state));
 #endif
 
     MAKE_ARCH_PREF(state, SYM(SUPERSTATE_CONSTANT), goal);

@@ -118,7 +118,7 @@ sync_sensor_1(struct preference **sensor_pref)
 
     sensor_1_val = (AD_C >> 6) & 0x03ff;
 
-    if (pref && pref->value.val == sensor_1_val)
+    if (pref && GET_SYMBOL_VALUE(pref->value) == sensor_1_val)
         return;
 
     MAKE_SYMBOL(sym_input_link, symbol_type_identifier, 3 /*XXX*/);

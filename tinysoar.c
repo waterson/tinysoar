@@ -143,14 +143,14 @@ preferences -r <pref>";
         while (pref) {
             printf("%u: ", (unsigned) pref);
 
-            switch (pref->value.type) {
+            switch (GET_SYMBOL_TYPE(pref->value)) {
             case symbol_type_symbolic_constant:
                 printf("%s ", symtab_find_name(&symtab, pref->value));
                 break;
             
             case symbol_type_integer_constant:
             case symbol_type_identifier:
-                printf("%d ", pref->value.val);
+                printf("%d ", GET_SYMBOL_VALUE(pref->value));
                 break;
 
             default:
@@ -173,14 +173,14 @@ preferences -r <pref>";
             }
 
             if (pref->type & preference_type_binary) {
-                switch (pref->referent.type) {
+                switch (GET_SYMBOL_TYPE(pref->referent)) {
                 case symbol_type_symbolic_constant:
                     printf("%s ", symtab_find_name(&symtab, pref->referent));
                     break;
             
                 case symbol_type_integer_constant:
                 case symbol_type_identifier:
-                    printf("%d ", pref->referent.val);
+                    printf("%d ", GET_SYMBOL_VALUE(pref->referent));
                     break;
 
                 default:
@@ -263,17 +263,17 @@ print_enumerator(struct agent *agent, struct wme *wme, void *closure)
     if (SYMBOLS_ARE_EQUAL(*id, wme->slot->id)) {
         printf(" ^%s ", symtab_find_name(&symtab, wme->slot->attr));
 
-        switch (wme->value.type) {
+        switch (GET_SYMBOL_TYPE(wme->value)) {
         case symbol_type_symbolic_constant:
             printf("%s", symtab_find_name(&symtab, wme->value));
             break;
 
         case symbol_type_identifier:
-            printf("[%d]", wme->value.val);
+            printf("[%d]", GET_SYMBOL_VALUE(wme->value));
             break;
 
         case symbol_type_integer_constant:
-            printf("%d", wme->value.val);
+            printf("%d", GET_SYMBOL_VALUE(wme->value));
             break;
 
         case symbol_type_variable:
@@ -309,7 +309,7 @@ print_command(ClientData data, Tcl_Interp *interp, int argc, char *argv[])
             while (--j > 0)
                 printf("  ");
 
-            printf("[%d]\n", goal->symbol.val);
+            printf("[%d]\n", GET_SYMBOL_VALUE(goal->symbol));
         }
 
         ++i;
@@ -319,7 +319,7 @@ print_command(ClientData data, Tcl_Interp *interp, int argc, char *argv[])
         symbol_t id;
         MAKE_SYMBOL(id, symbol_type_identifier, atoi(argv[i++]));
 
-        printf("([%d]", id.val);
+        printf("([%d]", GET_SYMBOL_VALUE(id));
         wmem_enumerate_wmes(&agent, print_enumerator, &id);
         printf(")\n");
     }

@@ -772,24 +772,24 @@ symbol_to_string(struct symtab *symtab, symbol_t symbol)
     if (SYMBOL_IS_NIL(symbol))
         return "*";
 
-    switch (symbol.type) {
+    switch (GET_SYMBOL_TYPE(symbol)) {
     case symbol_type_symbolic_constant:
         if (symtab)
             return symtab_find_name(symtab, symbol);
 
-        sprintf(buf, "(%d)", symbol.val);
+        sprintf(buf, "(%d)", GET_SYMBOL_VALUE(symbol));
         break;
 
     case symbol_type_identifier:
-        sprintf(buf, "[%d]", symbol.val);
+        sprintf(buf, "[%d]", GET_SYMBOL_VALUE(symbol));
         break;
 
     case symbol_type_integer_constant:
-        sprintf(buf, "%d", symbol.val);
+        sprintf(buf, "%d", GET_SYMBOL_VALUE(symbol));
         break;
 
     case symbol_type_variable:
-        sprintf(buf, "<%d>", symbol.val);
+        sprintf(buf, "<%d>", GET_SYMBOL_VALUE(symbol));
         break;
     }
 

@@ -12,45 +12,29 @@
 #define SYMBOL_TYPE_BITS   2
 #define SYMBOL_TYPE_SHIFT  (BITS_PER_WORD - SYMBOL_TYPE_BITS)
 #define SYMBOL_VALUE_BITS  SYMBOL_TYPE_SHIFT
+#define SYMBOL_TYPE_MASK   ((unsigned)(-1) << SYMBOL_TYPE_SHIFT)
+#define SYMBOL_VALUE_MASK  ~SYMBOL_TYPE_MASK
 
 typedef enum symbol_type {
-    symbol_type_identifier           =  0,
-    symbol_type_variable             =  1,
-    symbol_type_symbolic_constant    = -2,
-    symbol_type_integer_constant     = -1
+    symbol_type_identifier        =  0 << SYMBOL_TYPE_SHIFT,
+    symbol_type_variable          =  1 << SYMBOL_TYPE_SHIFT,
+    symbol_type_symbolic_constant = -2 << SYMBOL_TYPE_SHIFT,
+    symbol_type_integer_constant  = -1 << SYMBOL_TYPE_SHIFT
 } symbol_type_t;
 
-typedef struct symbol {
-    symbol_type_t type : SYMBOL_TYPE_BITS;
-    int           val  : SYMBOL_VALUE_BITS;
-} symbol_t;
+typedef unsigned symbol_t;
 
-#define GET_SYMBOL_VALUE(s)    ((s).val)
-#define SET_SYMBOL_VALUE(s, v) ((s).val = (v))
-#define GET_SYMBOL_TYPE(s)     ((s).type)
-#define SET_SYMBOL_TYPE(s, t)  ((s).type = (t))
-
-#define DECLARE_SYMBOL(t, v) \
-  { (t), (v) }
-
-#define DECLARE_NIL_SYMBOL \
-  { 0, 0 }
-
-#define MAKE_SYMBOL(s, t, v)     \
-  BEGIN_MACRO                    \
-  (s).type = (t); (s).val = (v); \
-  END_MACRO
-
-#define CLEAR_SYMBOL(s)     \
-   BEGIN_MACRO              \
-   *((unsigned *) &(s)) = 0; \
-   END_MACRO
-
-#define SYMBOLS_ARE_EQUAL(l, r) (*((unsigned *) &(l)) == *((unsigned *) &(r)))
-
-#define SYMBOL_IS_NIL(s)        (*((unsigned *) &(s)) == 0)
-
-#define SYMBOL_TO_WORD(t, v)    (unsigned)((((unsigned)(t)) << SYMBOL_TYPE_SHIFT) | (unsigned)(v))
+#define GET_SYMBOL_VALUE(s)     ((s) & SYMBOL_VALUE_MASK)
+#define SET_SYMBOL_VALUE(s, v)  ((s) &= ~SYMBOL_VALUE_MASK, (s) |= (v) & SYMBOL_VALUE_MASK)
+#define GET_SYMBOL_TYPE(s)      ((s) & SYMBOL_TYPE_MASK)
+#define SET_SYMBOL_TYPE(s, t)   ((s) &= ~SYMBOL_TYPE_MASK, (s) |= (t) & SYMBOL_TYPE_MASK)
+#define DECLARE_SYMBOL(t, v)    ((t) | (v))
+#define DECLARE_NIL_SYMBOL      0
+#define MAKE_SYMBOL(s, t, v)    ((s) = DECLARE_SYMBOL((t), (v)))
+#define CLEAR_SYMBOL(s)         ((s) = 0)
+#define SYMBOLS_ARE_EQUAL(l, r) ((l) == (r))
+#define SYMBOL_IS_NIL(s)        SYMBOLS_ARE_EQUAL((s), 0)
+#define SYMBOL_TO_WORD(t, v)    DECLARE_SYMBOL((t), (v))
 
 /* Predefined symbols used by the architecture */
 #define ATTRIBUTE_CONSTANT      1

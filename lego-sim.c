@@ -42,7 +42,7 @@ sync_sensor_1(struct preference **sensor_pref)
     symbol_t sym_sensor_1;
     symbol_t sym_value;
 
-    if (pref && pref->value.val == sensor_1_val)
+    if (pref && GET_SYMBOL_VALUE(pref->value) == sensor_1_val)
         return;
 
     MAKE_SYMBOL(sym_input_link, symbol_type_identifier, 3 /*XXX*/);
