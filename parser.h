@@ -3,12 +3,6 @@
 
 #include "soar.h"
 
-struct preference_specifier_list {
-    struct preference_specifier_list* next;
-    preference_type_t type;
-    struct rhs_value  referent;
-}; 
-
 struct parser {
     struct symtab*     symtab;
     struct production* production;

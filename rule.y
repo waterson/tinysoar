@@ -1,10 +1,14 @@
 %{
-/* #define YYDEBUG 1 */
 #include "soar.h"
 #include "parser.h"
 #include "symtab.h"
 #include <stdlib.h>
+#include <string.h>
 
+/* So we'll get verbose error reporting */
+#define YYERROR_VERBOSE 1
+
+/* So we'll have a parameter passed in to yyparse() */
 #define YYPARSE_PARAM yyparse_param
 
 #if YYDEBUG != 0
@@ -37,8 +41,6 @@ struct condition_list {
     bool_t              negated;
     struct action       action;
     struct action*      action_list;
-    struct preference_specifier_list  preference_specifier;
-    struct preference_specifier_list* preference_specifier_list;
 }
 
 %token LEFT_ANGLE
@@ -71,16 +73,15 @@ struct condition_list {
 %type <negated> opt_negated;
 
 %type <rhs_value> rhs_value
-%type <action> attr_value_make
-%type <action> value_make
-%type <action> value_make_list
-%type <action> rhs_action
+%type <action> preference_specifier;
+%type <action_list> preference_specifier_list;
+%type <action_list> value_make
+%type <action_list> attr_value_make
+%type <action_list> value_make_list
+%type <action_list> rhs_action
 %type <action_list> attr_value_make_list
 %type <action_list> rhs_action_list
 %type <action_list> rhs
-
-%type <preference_specifier> preference_specifier;
-%type <preference_specifier_list> preference_specifier_list;
 
 %type <symbol> constant
 %type <symbol> single_test
@@ -112,6 +113,7 @@ rule: lhs ARROW rhs
             (struct condition*) malloc(sizeof(struct condition));
 
         *(production->conditions) = $1;
+        production->actions = $3;
     }
     ;
 
@@ -417,27 +419,20 @@ rhs_action_list: /* empty */
                { $$ = 0; }
                | rhs_action_list rhs_action
                {
-                   struct action* action =
-                       (struct action*) malloc(sizeof(struct action));
-
-                   *action = $2;
-
                    if ($1) {
-                       struct action* link = $1;
+                       struct action* action = $1;
+                       while (action->next)
+                           action = action->next;
 
-                       /* XXX O(n^2) because we have to find the end
-                          of the list */
-                       while (link->next)
-                           link = link->next;
+                       action->next = $2;
 
-                       link->next = action;
                        $$ = $1;
                    }
-                   else $$ = action;
+                   else $$ = $2;
                }
                ;
 
-rhs_action: '(' VARIABLE attr_value_make attr_value_make_list ')'
+rhs_action: '(' VARIABLE attr_value_make_list ')'
           {
               struct parser* parser =
                   (struct parser*) yyparse_param;
@@ -445,15 +440,20 @@ rhs_action: '(' VARIABLE attr_value_make attr_value_make_list ')'
               symbol_t id =
                   symtab_lookup(parser->symtab, symbol_type_variable, $2, 1);
 
-              struct action* action = &$3;
-              struct action** link = &action->next;
+              struct action* action = $3;
 
-              while (action) {
+              /* At least one element must be specified in the
+                 `attr_value_make_list' */
+              if (! action)
+                  YYERROR;
+
+              /* Fill in the `id' slot for each of the actions */
+              for ( ; action != 0; action = action->next) {
                   action->id.type = rhs_value_type_symbol;
                   action->id.val.symbol = id;
               }
 
-              *link = $4;
+              $$ = $3;
           }
           ;
 
@@ -461,68 +461,130 @@ attr_value_make_list: /* empty */
                     { $$ = 0; }
                     | attr_value_make_list attr_value_make
                     {
-                        struct action* new_action =
-                            (struct action*) malloc(sizeof(struct action));
-
-                        *new_action = $2;
-
                         if ($1) {
                             struct action* action = $1;
 
                             while (action->next)
                                 action = action->next;
 
-                            action->next = $1;
+                            action->next = $2;
+
+                            $$ = $1;
                         }
-                        else $$ = new_action;
+                        else $$ = $2;
                     }
                     ;
 
-attr_value_make: '^' rhs_value value_make value_make_list
+attr_value_make: '^' rhs_value value_make_list
                {
-                   $$.preference_type = preference_type_acceptable; /* XXX */
-                   $$.support_type = 0; /* XXX */
-                   $$.attr  = $2;
+                   struct action* action = $3;
+
+                   /* There must be at least one action in the
+                      `value_make_list' */
+                   if (! action)
+                       YYERROR;
+
+                   /* Fill in the `attr' slot for each of the actions */
+                   for ( ; action != 0; action = action->next)
+                       action->attr = $2;
+
+                   $$ = $3;
                }
                ;
 
 
 value_make_list: /* empty */
-               { /* XXX */ }
+               { $$ = 0; }
                | value_make_list value_make
+               {
+                   if ($1) {
+                       struct action* action = $1;
+
+                       while (action->next)
+                           action = action->next;
+
+                       action->next = $2;
+
+                       $$ = $1;
+                   }
+                   else $$ = $2;
+               }
                ;
 
 value_make: rhs_value preference_specifier_list
-          { /* XXX */ }
+          {
+              if ($2) {
+                  /* There's a preference specifier list. */
+                  struct action* action = $2;
+
+                  /* Fill in the value for each action */
+                  for ( ; action != 0; action = action->next)
+                      action->value = $1;
+
+                  $$ = $2;
+              }
+              else {
+                  /* There's no preference specifier list; that means
+                     that we'll create a default `acceptable'
+                     preference action */
+                  $$ = (struct action*) malloc(sizeof(struct action));
+                  $$->next  = 0;
+                  $$->preference_type = preference_type_acceptable;
+                  $$->support_type    = 0; /* XXX */
+                  $$->value           = $1;
+              }
+          }
           ;
 
 preference_specifier_list: /* empty */
                          { $$ = 0; }
                          | preference_specifier_list preference_specifier
+                         {
+                             struct action* new_action =
+                                 (struct action*) malloc(sizeof(struct action));
+
+                             *new_action = $2;
+
+                             new_action->next = 0;
+
+                             if ($1) {
+                                 /* Append the new action to the list
+                                    of actions specified */
+                                 struct action* action = $1;
+
+                                 while (action->next)
+                                     action = action->next;
+
+                                 action->next = new_action;
+
+                                 $$ = $1;
+                             }
+                             else $$ = new_action;
+                         }
                          ;
 
 preference_specifier: '+'
-                    { $$.type = preference_type_acceptable; }
+                    { $$.preference_type = preference_type_acceptable; }
                     | '-'
-                    { $$.type = preference_type_reject; }
+                    { $$.preference_type = preference_type_reject; }
                     | '!'
-                    { $$.type = preference_type_require; }
+                    { $$.preference_type = preference_type_require; }
                     | '~'
-                    { $$.type = preference_type_prohibit; }
+                    { $$.preference_type = preference_type_prohibit; }
                     | '@'
-                    { $$.type = preference_type_reconsider; }
+                    { $$.preference_type = preference_type_reconsider; }
                     | '>' rhs_value
-                    { $$.type = preference_type_better; $$.referent = $2; }
+                    { $$.preference_type = preference_type_better; $$.referent = $2; }
                     | '=' rhs_value
-                    { $$.type = preference_type_binary_indifferent; $$.referent = $2; }
+                    { $$.preference_type = preference_type_binary_indifferent; $$.referent = $2; }
                     | '<' rhs_value
-                    { $$.type = preference_type_worse; $$.referent = $2; }
+                    { $$.preference_type = preference_type_worse; $$.referent = $2; }
                     | '>' 
-                    { $$.type = preference_type_best; } %prec
+                    { $$.preference_type = preference_type_best; } %prec
                     | '='
-                    { $$.type = preference_type_unary_indifferent; } %prec
+                    { $$.preference_type = preference_type_unary_indifferent; } %prec
                     | '<'
-                    { $$.type = preference_type_worst; } %prec
+                    { $$.preference_type = preference_type_worst; } %prec
                     ;
 
 rhs_value: VARIABLE
@@ -532,7 +594,7 @@ rhs_value: VARIABLE
 
              $$.type = rhs_value_type_symbol;
              $$.val.symbol =
-                 symtab_lookup(parser->symtab, symbol_type_symbolic_constant, $1, 1);
+                 symtab_lookup(parser->symtab, symbol_type_variable, $1, 1);
          }
          | constant
          {
