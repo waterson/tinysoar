@@ -1,5 +1,11 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
+Sunday, December 16, 2001
+
+Got a proper run-loop for the RCX; i.e., one that actually pays
+attention to the `Run' and `On-Off' buttons.
+
+
 Saturday, December 15, 2001
 
 Converted symbol_t and variable_binding_t from bit-packed structures
