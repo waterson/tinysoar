@@ -29,7 +29,11 @@ PARSER_OBJS = \
         symtab.obj \
         $(NULL)
 
-all: rete-test.exe parser-test.exe
+TINYSOAR_OBJS = \
+        tinysoar.obj \
+        $(NULL)
+
+all: rete-test.exe parser-test.exe tinysoar.dll
 
 parser-test.exe: parser-test.obj $(PARSER_OBJS) $(SHARED_OBJS)
         $(LINK) $(LFLAGS) /nologo /out:$@ $**
@@ -47,9 +51,20 @@ lex.yy.c: rule.l
 lex.yy.obj: lex.yy.c y.tab.h
 
 rete-test.exe: 	rete-test.obj $(RUNTIME_OBJS) $(SHARED_OBJS)
-        $(LINK) $(LFLAGS) /nologo /out:$@ $**
+        $(LINK) $(LFLAGS) /out:$@ $**
 
 rete-test.obj: rete-test.c soar.h alloc.h config.h defs.h
+
+
+TCL_DIR=c:\tcl
+
+TINYSOAR_LIBS=$(TCL_DIR)\lib\tcl83.lib
+
+tinysoar.dll: $(TINYSOAR_OBJS) $(PARSER_OBJS) $(RUNTIME_OBJS) $(SHARED_OBJS)
+        $(LINK) $(LFLAGS) $(TINYSOAR_LIBS) /dll /out:$@ $**
+
+tinysoar.obj: tinysoar.c
+        $(CC) /c $(CFLAGS) /I$(TCL_DIR)\include $**
 
 alloc.obj: alloc.c alloc.h config.h defs.h
 agent.obj: agent.c soar.h alloc.h config.h defs.h
