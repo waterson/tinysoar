@@ -2,6 +2,7 @@
 #define rete_h__
 
 #include "types.h"
+#include "pool.h"
 
 typedef enum test_type {
     test_type_blank,
@@ -129,9 +130,9 @@ struct token {
 
 struct rete {
     struct beta_node root;
-    struct pool* beta_node_pool;
-    struct pool* beta_test_pool;
-    struct pool* variable_binding_pool;
+    struct pool beta_node_pool;
+    struct pool beta_test_pool;
+    struct pool variable_binding_list_pool;
 };
 
 extern void

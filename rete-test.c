@@ -1,14 +1,14 @@
 #include "rete.h"
 
 struct condition conditions[] = {
-    { condition_type_positive, { { { test_type_goal_id, { { 1, symbol_type_variable } } },
-                                   { test_type_blank,   { { 0, symbol_type_identifier } } },
-                                   { test_type_blank,   { { 0, symbol_type_identifier } } } } },
+    { condition_type_positive, { { { test_type_goal_id, { DECLARE_SYMBOL(1, symbol_type_variable) } },
+                                   { test_type_blank,   { DECLARE_SYMBOL(0, symbol_type_identifier) } },
+                                   { test_type_blank,   { DECLARE_SYMBOL(0, symbol_type_identifier) } } } },
       &conditions[1] },
 
-    { condition_type_positive, { { { test_type_equality, { { 1, symbol_type_variable } } },
-                                   { test_type_equality, { { 2, symbol_type_symbolic_constant } } },
-                                   { test_type_equality, { { 3, symbol_type_symbolic_constant } } } } },
+    { condition_type_positive, { { { test_type_equality, { DECLARE_SYMBOL(1, symbol_type_variable) } },
+                                   { test_type_equality, { DECLARE_SYMBOL(2, symbol_type_symbolic_constant) } },
+                                   { test_type_equality, { DECLARE_SYMBOL(3, symbol_type_symbolic_constant) } } } },
       0 }                                   
 };
 

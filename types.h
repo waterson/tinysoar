@@ -30,8 +30,10 @@ struct symbol {
 #define GET_SYMBOL_VALUE(s)    ((s).val)
 #define SET_SYMBOL_VALUE(s, v) (((s).val) = (v))
 
+#define DECLARE_SYMBOL(s, t) { (s), (t) }
 #define MAKE_SYMBOL(s, t, v) do { (s).type = (t); (s).val = (v); } while (0)
 
+#define CLEAR_SYMBOL(s) do *((unsigned*) &(s)) = 0; while (0)
 #define SYMBOLS_ARE_EQUAL(l, r) (*((unsigned*) &(l)) == *((unsigned*) &(r)))
 #else /* !HAS_C_PACKED_FIELDS */
 typedef unsigned symbol_t;
@@ -48,8 +50,13 @@ typedef unsigned symbol_t;
 
 #define SET_SYMBOL_VALUE(s, v)  (((s) &= SYMBOL_TYPE_MASK),\
                                  ((s) |= (v)))
+#define DECLARE_SYMBOL(s, t) (((t) << SYMBOL_VALUE_BITS) | (s))
 
 #define MAKE_SYMBOL(s, t, v) do { (s) = ((t) << SYMBOL_VALUE_BITS) | (s) } while (0)
+
+#define CLEAR_SYMBOL(s) do (s) = 0 while (0)
+
+#define SYMBOLS_ARE_EQUAL(l, r) ((l) == (r))
 
 #endif /* !HAS_C_PACKED_FIELDS */
 

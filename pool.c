@@ -30,7 +30,7 @@ pool_alloc(struct pool* pool)
     void* result;
 
     if (! pool->freelist) {
-        unsigned i;
+        int i;
         struct free_entry* last_entry = 0;
 
         /* Allocate a new block */
@@ -49,6 +49,7 @@ pool_alloc(struct pool* pool)
 
         block->next = pool->blocks;
         pool->blocks = block;
+        pool->freelist = last_entry;
     }
 
     result = pool->freelist;
