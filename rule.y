@@ -329,6 +329,15 @@ attr_value_test_list: /* empty */
                                for the attribute and value tests. */
                             $<condition>0.data.simple.attr_test = $2.data.simple.attr_test;
                             $<condition>0.data.simple.value_test = $2.data.simple.value_test;
+
+                            /* XXX I'm a little bit nervous about
+                               whacking the type like this,
+                               but...
+
+                               Copy the test type (positive, negative)
+                               from the attribute-value test to
+                               correctly propagate negative tests. */
+                            $<condition>0.type = $2.type;
                         }
                         else {
                             struct condition* cond;
