@@ -266,6 +266,7 @@ agent_operator_conflict(struct agent *agent, symbol_t goal, struct symbol_list *
 #endif
 
     MAKE_ARCH_PREF(state, SYM(SUPERSTATE_CONSTANT), goal);
+    MAKE_ARCH_PREF(state, SYM(CHOICES_CONSTANT),    SYM(MULTIPLE_CONSTANT));
     MAKE_ARCH_PREF(state, SYM(TYPE_CONSTANT),       SYM(STATE_CONSTANT));
     MAKE_ARCH_PREF(state, SYM(ATTRIBUTE_CONSTANT),  SYM(OPERATOR_CONSTANT));
     MAKE_ARCH_PREF(state, SYM(IMPASSE_CONSTANT),    SYM(CONFLICT_CONSTANT));
