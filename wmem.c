@@ -149,9 +149,11 @@ mark_slot_modified(struct agent *agent, struct slot *slot)
 
 /*
  * Given a list of preferences, compute candidate symbol values.
+ * Conditionally process reject and prohibits preferences.
  */
 static void
 collect_candidates(struct preference   *preferences,
+                   bool_t               process_rejects,
                    struct symbol_list **candidates)
 {
     struct preference *pref;
@@ -180,25 +182,27 @@ collect_candidates(struct preference   *preferences,
         }
     }
 
-    /* Iterate through all the preferences again, removing any
-       candidates that are masked by `prohibit' or `reject'
-       preferences */
-    for (pref = preferences; pref != 0; pref = pref->next_in_slot) {
-        if ((pref->state == preference_state_live)
-            && ((pref->type == preference_type_prohibit)
-                || (pref->type == preference_type_reject))) {
-            struct symbol_list *candidate = *candidates;
-            struct symbol_list **link = candidates;
+    if (process_rejects) {
+        /* Iterate through all the preferences again, removing any
+           candidates that are masked by `prohibit' or `reject'
+           preferences. */
+        for (pref = preferences; pref != 0; pref = pref->next_in_slot) {
+            if ((pref->state == preference_state_live)
+                && ((pref->type == preference_type_prohibit)
+                    || (pref->type == preference_type_reject))) {
+                struct symbol_list *candidate = *candidates;
+                struct symbol_list **link = candidates;
 
-            while (candidate != 0) {
-                if (SYMBOLS_ARE_EQUAL(candidate->symbol, pref->value)) {
-                    *link = candidate->next;
-                    free(candidate);
-                    break;
+                while (candidate != 0) {
+                    if (SYMBOLS_ARE_EQUAL(candidate->symbol, pref->value)) {
+                        *link = candidate->next;
+                        free(candidate);
+                        break;
+                    }
+
+                    link = &candidate->next;
+                    candidate = candidate->next;
                 }
-
-                link = &candidate->next;
-                candidate = candidate->next;
             }
         }
     }
@@ -254,10 +258,15 @@ decide_slots(struct agent *agent)
         next = slots->next;
 
         if (pref) {
-            /* Okay, there are preferences in this slot. Compute the
-               candidate values for the slot. */
+            /* Okay, there are preferences in this slot.  Compute the
+               candidate values for the slot, but only process rejects
+               if this is *not* an operator slot.  This ensures that
+               1) nobody but the architecture can remove a selected
+               operator, and 2) we can properly handle rejected
+               operator proposals without entering into an infinite
+               fire-retract loop. */
             struct symbol_list *candidates = 0;
-            collect_candidates(pref, &candidates);
+            collect_candidates(pref, !operator_slot, &candidates);
 
             /* Add wmes that aren't in the slot */
             {
@@ -1437,11 +1446,10 @@ run_operator_semantics_for(struct agent *agent,
     struct symbol_list *candidates = 0;
     symbol_t result;
 
-    /* Re-collect the candidate operators.
-
-       XXX We could just collect the acceptable wme's and use those,
-       rather than re-do this work... */
-    collect_candidates(preferences, &candidates);
+    /* Re-collect the candidate operators, but this time, apply the
+       reject and prohibits preferences to cull out any proposals that
+       have been rejected. */
+    collect_candidates(preferences, 1, &candidates);
 
     result = run_operator_semantics_on(agent, goal, preferences, &candidates, can_make_new_impasse);
 

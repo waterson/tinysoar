@@ -981,3 +981,21 @@ grounded out.  So, we'd either need to prove that a restriction for a
 potential that doesn't ground out becomes irrelevant somehow.  Or,
 more strongly, a restriction for a potential is added if and only if
 that restriction is relevant.
+
+---
+
+So chunk-14.soar doesn't work in TinySoar (but does work in Soar8)
+because the operator slot is treated specially. Specifically, rejects
+on the operator slot don't result in the removal of the acceptable
+WMEs from working memory. It turns out that this is pretty easy to
+fix, since we re-collect the candidates in run_operator_semantics_for.
+
+---
+
+chunk-15.soar doesn't work in TinySoar (this is basically just
+chunk-14.soar, but run once through) because we don't resolve the
+impasse in the top state. We don't resolve the impasse because we've
+got an operator-tie: we've proposed the "recognize" operator twice,
+once for the rule that builds the chunk in the substate, and once for
+the chunk itself. In other words, I think we've stumbled into the
+dreaded "refraction" problem.

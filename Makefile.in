@@ -51,18 +51,8 @@ LDFLAGS	= @LDFLAGS@
 
 CHUNKING = @CHUNKING@
 
-# ----------------------------------------------------------------------
-#
-# Top-level targets
-#
-
-all: tcl-extension
-
-clean:
-	rm -rf .deps tinysoar.$(DSO_SUFFIX) legosoar test-alloc y.tab.* lex.yy.c *.o *.a *.map core *~
-
-distclean: clean
-	rm -f Makefile config.cache config.log config.status defs.h
+TCLSH    = tclsh
+TCLLIBS  = -DUSE_TCL_STUBS -L/sw/lib -ltclstub
 
 # ----------------------------------------------------------------------
 #
@@ -71,7 +61,7 @@ distclean: clean
 
 MDDEPDIR=.deps
 
-%.o: %.c $(MDDEPDIR)
+%.o: %.c
 	$(CC) -c $(CFLAGS) -Wp,-MD,$(MDDEPDIR)/$*.pp -o $@ $<
 
 all: $(MDDEPDIR)
@@ -84,6 +74,19 @@ $(MDDEPDIR):
 ifdef MDDEPFILES
 include $(MDDEPFILES)
 endif
+
+# ----------------------------------------------------------------------
+#
+# Top-level targets
+#
+
+all: tcl-extension
+
+clean:
+	rm -rf .deps tinysoar.$(DSO_SUFFIX) legosoar test-alloc y.tab.* lex.yy.c *.o *.a *.map core *~
+
+distclean: clean
+	rm -f Makefile config.cache config.log config.status defs.h
 
 # ----------------------------------------------------------------------
 #
@@ -164,7 +167,7 @@ TINYSOAR_OBJS = \
 libtinysoar.a: $(TINYSOAR_OBJS)
 
 tinysoar.$(DSO_SUFFIX): tinysoar.c libtinysoar.a $(PARSER_LIBNAME) $(RUNTIME_LIBNAME) $(BASE_LIBNAME)
-	$(CC) $(CFLAGS) $(DSO_LDOPTS) -o $@ $< -ltcl -L. -ltinysoar -l$(PARSER) -l$(RUNTIME) -l$(BASE)
+	$(CC) $(CFLAGS) $(DSO_LDOPTS) -o $@ $< $(TCLLIBS) -L. -ltinysoar -l$(PARSER) -l$(RUNTIME) -l$(BASE)
 	cp $(srcdir)/pkgIndex.tcl .
 
 # ----------------------------------------------------------------------
@@ -176,7 +179,7 @@ TEST_LIST = $(srcdir)/tests/test-list
 test: tcl-extension
 	@for t in `cat $(TEST_LIST)`; do \
 		echo -n "$$t..." ; \
-		TCLLIBPATH=`pwd` tclsh $(srcdir)/tests/run-test.tcl $(srcdir)/tests/$$t 1> /dev/null ; \
+		TCLLIBPATH=`pwd` $(TCLSH) $(srcdir)/tests/run-test.tcl $(srcdir)/tests/$$t 1> /dev/null ; \
 		if [ $$? = 0 ]; then \
 			echo "succeeded." ; \
 		else \
