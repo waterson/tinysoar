@@ -684,6 +684,8 @@ chunk_if_results(struct agent         *agent,
 #endif
 
 #ifdef DEBUG
+extern struct symtab symtab;
+
 void
 debug_indent_by(int nest);
 
