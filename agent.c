@@ -98,6 +98,14 @@ agent_init(struct agent* agent)
             MAKE_SYMBOL(constants[i], symbol_type_symbolic_constant, i);
     }
 
+#ifdef CONF_SOAR_RETE_CREATE
+    /* Create a new RETE network if one doesn't exist already. */
+    if (! agent->root_node)
+        rete_create(agent);
+#endif
+
+    rete_init(agent);
+
     wmem_init(agent);
 
     agent->goals = agent->impasses = 0;

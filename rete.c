@@ -681,14 +681,9 @@ do_right_removal(struct agent* agent, struct beta_node* node, struct wme* wme)
  *
  * ---------------------------------------------------------------------- */
 
-/*
- * Initialize the rete network.
- *
- * XXX this belongs somewhere else (i.e., not in the main runtime),
- * since we could have a statically initialized agent struct.
- */
+#ifdef CONF_SOAR_RETE_CREATE
 void
-rete_init(struct agent* agent)
+rete_create(struct agent* agent)
 {
     int i;
 
@@ -717,7 +712,17 @@ rete_init(struct agent* agent)
 
     agent->assertions = agent->retractions = 0;
 }
+#endif
 
+void
+rete_init(struct agent* agent)
+{
+    struct beta_node* node = agent->root_node->children;
+    while (node) {
+        do_left_addition(agent, node, &agent->root_token, 0);
+        node = node->siblings;
+    }
+}
 
 void
 rete_operate_wme(struct agent* agent, struct wme* wme, wme_operation_t op)
@@ -791,7 +796,11 @@ symbol_to_string(struct symtab* symtab, symbol_t symbol)
 
     switch (symbol.type) {
     case symbol_type_symbolic_constant:
-        return symtab_find_name(symtab, symbol);
+        if (symtab)
+            return symtab_find_name(symtab, symbol);
+
+        sprintf(buf, "(%d)", symbol.val);
+        break;
 
     case symbol_type_identifier:
         sprintf(buf, "[%d]", symbol.val);
@@ -989,6 +998,7 @@ dump_beta_node(struct symtab* symtab, struct beta_node* node, int nest, int recu
 
     if (recur) {
         switch (node->type) {
+        case beta_node_type_root:
         case beta_node_type_memory:
         case beta_node_type_memory_positive_join:
         case beta_node_type_negative:

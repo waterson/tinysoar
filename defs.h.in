@@ -3,3 +3,4 @@
 #undef HAVE_MALLOC_H
 #undef HAVE_VPRINTF
 #undef SIZEOF_INT
+#undef CONF_SOAR_RETE_CREATE

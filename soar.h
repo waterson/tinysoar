@@ -484,6 +484,11 @@ struct agent {
 extern void
 rete_init(struct agent* agent);
 
+#ifdef CONF_SOAR_RETE_CREATE
+extern void
+rete_create(struct agent* agent);
+#endif
+
 extern void
 rete_finish(struct agent* agent);
 

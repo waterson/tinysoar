@@ -461,7 +461,14 @@ export_beta_nodes(FILE*             file,
     else
         fprintf(file, "0,");
 
-    fprintf(file, "\n    0, 0, ");
+    fprintf(file, "\n    ");
+
+    if (node->type == beta_node_type_root)
+        fprintf(file, "&agent.root_token, ");
+    else
+        fprintf(file, "0, ");
+
+    fprintf(file, "0, ");
 
     switch (node->type) {
     case beta_node_type_positive_join:
@@ -784,6 +791,8 @@ soar_export(FILE* file, struct agent* agent, struct symtab* symtab)
     fprintf(file, "static struct production productions[] = {\n");
     export_productions(file, agent->root_node, &productions, &actions);
     fprintf(file, "};\n\n");
+
+    fprintf(file, "static struct agent agent;\n\n");
 
     fprintf(file, "static struct beta_node betas[] = {\n");
     export_beta_nodes(file, agent->root_node, &alphas, &betas, &tests, &productions);

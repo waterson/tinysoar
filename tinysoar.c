@@ -369,7 +369,6 @@ Tinysoar_Init(Tcl_Interp* interp)
     Tcl_PkgProvide(interp, "TinySoar", "1.0");
 
     agent_init(&agent);
-    rete_init(&agent);
     symtab_init(&symtab);
 
     Tcl_CreateCommand(interp, "dump-rete",   dump_rete_command,   0, 0);

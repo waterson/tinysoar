@@ -17,6 +17,19 @@ AC_CHECK_SIZEOF(int)
 dnl Checks for library functions.
 AC_FUNC_VPRINTF
 
+dnl Configuration Options
+
+RETE_CREATE="yes"
+AC_ARG_WITH(rete-create,
+[  --without-rete-create   Do not include RETE creation code],
+[  if test "$withval" = "no"; then
+     RETE_CREATE="no"
+   fi ])
+
+if test "$RETE_CREATE" = "yes"; then
+  AC_DEFINE(CONF_SOAR_RETE_CREATE)
+fi
+
 AC_CONFIG_HEADER(defs.h)
 
 AC_OUTPUT(Makefile)
