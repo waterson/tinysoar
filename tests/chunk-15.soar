@@ -1,0 +1,66 @@
+# Here's a test based on chunk-14.soar that deals with the refraction
+# that occurs for operator proposal when we build a chunk that
+# proposes the same operator that's being proposed by something from a
+# substate.
+
+package require TinySoar
+set cycles 7
+
+sp {top-state*elaborate
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^stimulus one ^learn two)}
+
+sp {snc*propose*learn-one
+    (state <s> ^superstate <ss> ^impasse no-change ^type state)
+    (<ss> ^stimulus one)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name learn ^value one)}
+
+sp {snc*propose*learn-two
+    (state <s> ^superstate <ss> ^impasse no-change ^type state)
+    (<ss> ^stimulus one)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name learn ^value two)}
+
+sp {snc*propose*learn-three
+    (state <s> ^superstate <ss> ^impasse no-change ^type state)
+    (<ss> ^stimulus one)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name learn ^value three)}
+
+sp {snc*reject*non-response
+    (state <s> ^superstate <ss> ^impasse no-change ^type state ^operator <o> +)
+    (<o> ^name learn ^value <v>)
+    (<ss> ^learn { <vv> <> <v> })
+    -->
+    (<s> ^operator <o> -)}
+
+sp {snc*implement*learn*chunk
+    (state <s> ^superstate <ss> ^impasse no-change ^type state ^operator <o>)
+    (<o> ^name learn ^value <v>)
+    -->
+    (<ss> ^operator <ss*o> +)
+    (<ss*o> ^name response ^value <v>)}
+
+sp {top-state*implement*response
+    (state <s> ^operator <o>)
+    (<o> ^name response ^value <v>)
+    -->
+    (<s> ^response <v>)}
+
+sp {top-state*recognize*success
+    (state <s> ^response two ^io.output-link <out>)
+    -->
+    (<out> ^success t)}
+
+set post {string compare [print chunk-1] \
+"chunk-1
+(state <v1> ^stimulus one)
+-->
+(<v1> ^operator <v2> +)
+(<v2> ^name response +)
+(<v2> ^value two +)"}
