@@ -185,6 +185,10 @@ push_goal_id(struct agent *agent, symbol_t id)
 
     agent_set_id_level(agent, id, level);
 
+#ifdef CONF_SOAR_CHUNKING
+    agent->bottom_level = level;
+#endif
+
     return entry;
 }
 
@@ -605,7 +609,12 @@ agent_pop_subgoals(struct agent *agent, struct goal_stack *bottom)
     struct goal_stack *goal;
     struct wmem_sweep_data gc = { agent, 1 };
 #ifdef CONF_SOAR_CHUNKING
-    struct token *queue = 0;
+    /* We'll mask off the low bit before dereferencing. This is a hack
+       so that we don't have to iterate through the queue in
+       wmem_remove_instantiation to see if a token has been put on the
+       queue: if the token has a non-zero `next' pointer, we'll know
+       it's been queued. */
+    struct token *queue = (struct token *) 1;
 #endif
 
     ASSERT(bottom != 0, ("no subgoals to pop"));
@@ -655,6 +664,10 @@ agent_pop_subgoals(struct agent *agent, struct goal_stack *bottom)
            retractions that must be processed immediately. */
         struct match *retractions = agent->retractions;
         agent->retractions = 0;
+
+        /* `Pull up' the bottom level so that we don't try to save
+           tokens for any retractions below the new bottom. */
+        agent->bottom_level = gc.level;
 #endif
 
         /* Remove preferences and wmes for the soon-to-be unreachable
@@ -704,8 +717,17 @@ agent_pop_subgoals(struct agent *agent, struct goal_stack *bottom)
     } while (goal);
 
     /* Clean up unreachable tokens. */
-    while (queue) {
-        struct token *doomed = queue;
+    while (1) {
+        struct token *doomed =
+            (struct token *)(((unsigned int) queue) & ~0x1);
+
+        if (! doomed)
+            break;
+
+#ifdef DEBUG_TOKEN
+        printf("destroy_token: token@%p\n", doomed);
+#endif
+
         queue = queue->next;
         free(doomed);
     }

@@ -534,6 +534,9 @@ struct agent {
     struct token        root_token;
     struct alpha_node  *alpha_nodes[16];
     struct goal_stack  *goals;
+#ifdef CONF_SOAR_CHUNKING
+    int                 bottom_level;
+#endif
     struct match       *assertions;
     struct match       *retractions;
 

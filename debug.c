@@ -141,6 +141,8 @@ debug_dump_token(struct symtab *symtab, struct token *token)
         debug_dump_wme(symtab, token->wme);
     else
         printf("(null)");
+    if (token->shared)
+        printf(" shared");
     printf(">");
 }
 

@@ -998,8 +998,12 @@ wmem_remove_instantiation(struct agent          *agent,
             do {
                 struct token *parent = token->parent;
 
-                /* If this is a `real' token, and it's shared or is
-                   reachable from the rete network, we're done. */
+                /* If this is a `real' token, and it's shared, is
+                   already queued for destruction, or is reachable
+                   from the rete network, we're done.
+
+                   Checking token->next is sufficient because we
+                   assume the queue is never non-zero. */
                 if (token->node) {
                     if (token->shared || token->next || token_is_reachable(token))
                         break;
@@ -1007,13 +1011,20 @@ wmem_remove_instantiation(struct agent          *agent,
 
                 /* Thread the token onto the queue of tokens to be
                    destroyed, or just destroy it if we aren't queuing
-                   token destruction. */
+                   token destruction. We can re-use the `next' field
+                   because the token is no longer in the RETE net. */
                 if (queue) {
                     token->next = *queue;
                     *queue = token;
                 }
-                else
+                else {
+#ifdef DEBUG_TOKEN
+                    printf("destroy_token: ");
+                    debug_dump_token(&symtab, token);
+                    printf("\n");
+#endif
                     free(token);
+                }
 
                 token = parent;
             } while (token && token != &agent->root_token);

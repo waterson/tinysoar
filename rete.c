@@ -67,6 +67,13 @@ create_token(struct beta_node *node,
     result->node   = node;
     result->wme    = wme;
     result->shared = 0;
+
+#ifdef DEBUG_TOKEN
+    printf("create_token: ");
+    debug_dump_token(&symtab, result);
+    printf("\n");
+#endif
+
     return result;
 }
 
@@ -418,11 +425,23 @@ do_left_removal(struct agent     *agent,
                 *link = doomed->next;
 
                 if (token_saved) {
+#ifdef DEBUG_TOKEN
+                    printf("share_token: ");
+                    debug_dump_token(&symtab, token);
+                    printf("\n");
+#endif
                     token->shared = 1;
                     doomed->next = 0;
                 }
-                else
+                else {
+#ifdef DEBUG_TOKEN
+                    printf("destroy_token: ");
+                    debug_dump_token(&symtab, doomed);
+                    printf("\n");
+#endif
+
                     free(doomed);
+                }
 
                 break;
             }
@@ -458,8 +477,15 @@ do_left_removal(struct agent     *agent,
             if ((doomed->wme == wme) && (doomed->parent == token)) {
                 *link = doomed->next;
 
-                if (! token_saved)
+                if (! token_saved) {
+#ifdef DEBUG_TOKEN
+                    printf("destroy_token: ");
+                    debug_dump_token(&symtab, doomed);
+                    printf("\n");
+#endif
+
                     free(doomed);
+                }
 
                 break;
             }
@@ -482,11 +508,23 @@ do_left_removal(struct agent     *agent,
                     *link = doomed->next;
 
                     if (token_saved) {
+#ifdef DEBUG_TOKEN
+                        printf("share_token: ");
+                        debug_dump_token(&symtab, token);
+                        printf("\n");
+#endif
                         doomed->next = 0;
                         token->shared = 1;
                     }
-                    else
+                    else {
+#ifdef DEBUG_TOKEN
+                        printf("destroy_token: ");
+                        debug_dump_token(&symtab, doomed);
+                        printf("\n");
+#endif
+
                         free(doomed);
+                    }
 
                     break;
                 }
@@ -538,7 +576,12 @@ do_left_removal(struct agent     *agent,
 
                     if (! match) {
                         /* Gotcha. Allocate a new match and place on the
-                           retraction queue */
+                           retraction queue. */
+
+#ifdef CONF_SOAR_CHUNKING
+                        int level;
+#endif
+
                         match = (struct match *) malloc(sizeof(struct match));
                         match->data.instantiation = inst;
                         match->production         = node->data.production;
@@ -555,10 +598,13 @@ do_left_removal(struct agent     *agent,
                            chunking. We probably ought to have a
                            (compile-time?)  option to look at the goal
                            stack and do bottom-up chunking. */
-                        if (rete_get_instantiation_level(agent, inst) > 1)
+                        level = rete_get_instantiation_level(agent, inst);
+                        if (level > 1 && level <= agent->bottom_level)
                             token_saved = 1;
-                        else
+                        else {
+                            ASSERT(!token_saved, ("leaking a token"));
                             inst->token = 0;
+                        }
 #endif
 
                         agent->retractions = match;
@@ -579,11 +625,23 @@ do_left_removal(struct agent     *agent,
                     *link = doomed->next;
 
                     if (token_saved) {
+#ifdef DEBUG_TOKEN
+                        printf("share_token: ");
+                        debug_dump_token(&symtab, token);
+                        printf("\n");
+#endif
                         token->shared = 1;
                         doomed->next = 0;
                     }
-                    else
+                    else {
+#ifdef DEBUG_TOKEN
+                        printf("destroy_token: ");
+                        debug_dump_token(&symtab, doomed);
+                        printf("\n");
+#endif
+
                         free(doomed);
+                    }
 
                     break;
                 }
@@ -1016,7 +1074,7 @@ rete_operate_wme(struct agent *agent, struct wme *wme, wme_operation_t op)
     int offset = (wme->type == wme_type_normal) ? 0 : 8;
     int i;
 
-#if 0 /* Use to debug wme additions and removals. */
+#ifdef DEBUG_WMES
     extern struct symtab symtab;
     static void dump_wme(struct symtab *symtab, struct wme *wme);
     printf("%c ", (op == wme_operation_add ? '+' : '-'));
