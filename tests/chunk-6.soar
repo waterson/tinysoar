@@ -1,4 +1,7 @@
+# This is a more elaborate test for backtracing.
+
 package require TinySoar;
+set cycles {14 4}
 
 sp {elaborate*top-state
     (state <s> ^superstate nil)
@@ -12,7 +15,7 @@ sp {elaborate*snc
     (<p*s> ^name count)}
 
 for {set count 0}  {$count < 3} {incr count 1} {
-  sp "propose*count
+  sp "propose*count-$count
       (state <s> ^problem-space.name count ^superstate <ss>)
       (<ss> ^ball <b>)
       (<s> -^counted <b> ^count $count)
@@ -51,3 +54,27 @@ sp {terminate*return-result
     -->
     (<s> ^operator <o> @)}
 
+sp {propose*wait
+    (state <s> ^superstate nil ^count <c>)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name wait)}
+
+sp {terminate*wait
+    (state <s> ^operator <o>)
+    (<o> ^name wait)
+    -->
+    (<s> ^operator <o> @)}
+
+sp {detect*success
+    (state <s> ^superstate nil ^count <c> ^io.output-link <out>)
+    -->
+    (<out> ^success t)}
+
+set post {string compare [print chunk-1]
+"chunk-1
+(state <v1> ^ball <v2>)
+(<v1> ^ball <v3>)
+(<v1> ^ball <v4>)
+-->
+(<v1> ^count 3 +)"}

@@ -1,6 +1,14 @@
 # Tests chunking through an operator in a sub-state.
+#
+# As with chunk-1.soar, we'll expect a chunk like:
+#
+#  chunk-1
+#  (state <v1> ^ball <v2>)
+#  -->
+#  (<v2> ^counted t +)
 
 package require TinySoar;
+set cycles {6 4}
 
 sp {elaborate*top-state
     (state <s> ^superstate nil)
@@ -49,3 +57,13 @@ sp {terminate*foo
     -->
     (<s> ^operator <o> @)}
 
+sp {detect*success
+    (state <s> ^ball.counted t ^io.output-link <out>)
+    -->
+    (<out> ^success t)}
+
+set post {string compare [print chunk-1] \
+"chunk-1
+(state <v1> ^ball <v2>)
+-->
+(<v2> ^counted t +)"}

@@ -1,4 +1,11 @@
+# This tests a couple things. First, it determines whether or not we
+# can backtrace through an attribute that's created by the
+# architecture; namely, the `^item' attribute. Second, it tests
+# whether or not we'll pick up the not-equal test when creating the
+# chunk.
+
 package require TinySoar;
+set cycles {3 4}
 
 sp {propose*one*two
     (state <s> ^superstate nil)
@@ -19,5 +26,12 @@ sp {onc*prefer*one
     -->
     (<ss> ^operator <o1> > <o2>)}
 
+set post {string compare [print chunk-1] \
+"chunk-1
+(state <v1> ^operator <v2> +)
+(<v1> ^operator { <v3> <> <v2> } +)
+(<v2> ^name one)
+(<v3> ^name two)
+-->
+(<v1> ^operator <v2> > <v3>)"}
 
-    

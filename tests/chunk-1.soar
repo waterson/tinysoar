@@ -1,6 +1,15 @@
 # Tests simple chunking.
+# 
+# We expect a chunk something like this to get created:
+#
+#   chunk-1
+#   (state <v1> ^ball <v2>)
+#   -->
+#   (<v2> ^counted t +)
+#
 
 package require TinySoar;
+set cycles {5 4}
 
 sp {elaborate*top-state
     (state <s> ^superstate nil)
@@ -48,3 +57,15 @@ sp {terminate*wait
     (<o> ^name wait)
     -->
     (<s> ^operator <o> @)}
+
+sp {detect*success
+    (state <s> ^ball.counted t ^io.output-link <out>)
+    -->
+    (<out> ^success t)}
+
+# Verify that the chunk looks reasonable.
+set post {string compare [print chunk-1] \
+"chunk-1
+(state <v1> ^ball <v2>)
+-->
+(<v2> ^counted t +)"}

@@ -2,6 +2,7 @@
 # variables.
 
 package require TinySoar
+set cycles {3 4}
 
 sp {elaborate*top-state
     (state <s> ^superstate nil)
@@ -16,3 +17,15 @@ sp {make-chunk
     -->
     (<ss> ^attr <att> ^value <val>)}
 
+sp {detect*success
+    (state <s> ^value blue ^attr color ^io.output-link <out>)
+    -->
+    (<out> ^success t)}
+
+set post {string compare [print chunk-1] \
+"chunk-1
+(state <v1> ^ball <v2>)
+(<v2> ^color blue)
+-->
+(<v1> ^value blue +)
+(<v1> ^attr color +)"}

@@ -1,6 +1,7 @@
 # This test checks to see if we can return complex results.
 
 package require TinySoar
+set cycles {4 4}
 
 sp {elaborate*top-state
     (state <s> ^superstate nil)
@@ -28,3 +29,18 @@ sp {terminate*make-junk
     -->
     (<s> ^operator <o> @)}
 
+sp {detect*success
+    (state <s> ^ball <b> ^io.output-link <out>)
+    (<b> ^color <c>)
+    (<c> ^value randy ^hue big ^saturation left)
+    -->
+    (<out> ^success t)}
+
+set post {string compare [print chunk-1] \
+"chunk-1
+(state <v1> ^ball <v2>)
+-->
+(<v2> ^color <v3> +)
+(<v3> ^value randy +)
+(<v3> ^hue big +)
+(<v3> ^saturation left +)"}
