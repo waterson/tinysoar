@@ -1,6 +1,19 @@
+/* -*- Mode: C; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+
 /*
- * rete.c
- */
+
+  The Rete Network
+
+
+  TO DO
+  -----
+
+  . Implement o-support
+
+  . Implement conjunctive negative conditions
+
+*/
+
 #include "soar.h"
 #include "alloc.h"
 
@@ -971,11 +984,9 @@ do_left_removal(struct agent* agent,
         {
             struct right_memory* rm;
             for (rm = node->alpha_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
-                if (token->wme == rm->wme) {
-                    struct beta_node* child;
-                    for (child = node->children; child != 0; child = child->siblings)
-                        do_left_removal(agent, child, token, rm->wme);
-                }
+                struct beta_node* child;
+                for (child = node->children; child != 0; child = child->siblings)
+                    do_left_removal(agent, child, token, rm->wme);
             }
         }
         break;
