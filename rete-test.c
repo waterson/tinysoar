@@ -1,5 +1,4 @@
-#include "wmem.h"
-#include "rete.h"
+#include "soar.h"
 
 struct test_list test_list[2];
 struct condition conditions[2];
@@ -69,6 +68,7 @@ init_productions()
 
 struct wmem wmem;
 struct rete net;
+struct prefmem prefmem;
 
 int
 main(int argc, char* argv[])
@@ -77,6 +77,7 @@ main(int argc, char* argv[])
 
     wmem_init(&wmem);
     rete_init(&net, &wmem);
+    pref_init(&prefmem);
 
     init_productions();
     rete_add_production(&net, &productions[0]);
@@ -88,6 +89,8 @@ main(int argc, char* argv[])
 
     wme = wmem_add(&wmem, symtab[IDENTIFIER_S1], symtab[CONSTANT_INPUT_LINK], symtab[IDENTIFIER_I1], wme_type_normal);
     rete_add_wme(&net, wme);
+
+    pref_process_matches(&prefmem, net.assertions, net.retractions);
 
     return 0;
 }

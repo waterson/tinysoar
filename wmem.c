@@ -1,4 +1,5 @@
-#include "wmem.h"
+#include "soar.h"
+#include "pool.h"
 
 void
 wmem_init(struct wmem* wmem)

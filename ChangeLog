@@ -1,3 +1,8 @@
+Monday, December 25, 2000
+
+Debugged a single-condition production. Now I'm bombing in a
+production with two positive conditions. Gotta fix that.
+
 Tuesday, December 19, 2000
 
 I've got the basic stuff for alpha nodes, memory nodes, and positive

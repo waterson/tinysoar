@@ -11,15 +11,16 @@ LFLAGS=$(LFLAGS) /debug
 !endif
 
 
-OBJS=rete-test.obj pool.obj rete.obj wmem.obj
+OBJS=rete-test.obj pool.obj rete.obj wmem.obj pref.obj
 
 rete-test.exe: $(OBJS)
         $(LINK) $(LFLAGS) /out:$@ $(OBJS)
 
-rete-test.obj: rete-test.c
-pool.obj: pool.c
-rete.obj: rete.c
-wmem.obj: wmem.c
+rete-test.obj: rete-test.c soar.h pool.h config.h
+pool.obj: pool.c pool.h config.h
+rete.obj: rete.c soar.h pool.h config.h
+wmem.obj: wmem.c soar.h pool.h config.h
+pref.obj: pref.c soar.h pool.h config.h
 
 clean:
         del *.obj *.exe *.pdb *.ilk *~

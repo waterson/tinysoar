@@ -15,4 +15,9 @@
 #error "I can't tell what platform you're on"
 #endif
 
+typedef unsigned char bool_t;
+
+#define BEGIN_MACRO do {
+#define END_MACRO   } while (0)
+
 #endif /* config_h__ */

@@ -2,8 +2,7 @@
  * rete.c
  */
 #include "pool.h"
-#include "wmem.h"
-#include "rete.h"
+#include "soar.h"
 
 static void
 do_left_addition(struct rete* net, struct beta_node* node, struct token* token, struct wme* wme);
@@ -131,6 +130,23 @@ create_token(struct rete* net, struct beta_node* node, struct token* parent, str
     node->tokens = result;
 
     return result;
+}
+
+/*
+ * Are the two tokens equal?
+ */
+static INLINE bool_t
+tokens_are_equal(struct token* left, struct token* right)
+{
+    while (left && right) {
+        if (left->wme != right->wme)
+            return 0;
+
+        left = left->parent;
+        right = right->parent;
+    }
+
+    return (left == 0) && (right == 0);
 }
 
 /*
@@ -785,7 +801,28 @@ do_left_addition(struct rete* net, struct beta_node* node, struct token* token, 
     case beta_node_type_production:
         {
             struct token* new_token = create_token(net, node, token, wme);
-            /* XXX uh, add to match set buffer? */
+            struct match** link;
+            struct match* match;
+
+            /* See if this match had been retracted */
+            for (link = &net->retractions, match = net->retractions;
+                 match != 0;
+                 link = &match->next, match = match->next) {
+                if (tokens_are_equal(match->token, new_token)) {
+                    /* Yep. Remove from the retraction queue */
+                    (*link)->next = match->next;
+                    pool_free(&net->match_pool, match);
+                    break;
+                }
+            }
+
+            /* Otherwise, allocate a new match and place on the firing
+               queue */
+            match = (struct match*) pool_alloc(&net->match_pool);
+            match->token = new_token;
+            match->production = node->data.production;
+            match->next = net->assertions;
+            net->assertions = match;
         }
         break;
 
@@ -865,12 +902,15 @@ rete_init(struct rete* net, struct wmem* wmem)
     pool_init(&net->variable_binding_list_pool, sizeof(struct variable_binding_list), 8);
     pool_init(&net->token_pool, sizeof(struct token), 8);
     pool_init(&net->goal_impasse_pool, sizeof(struct symbol_list), 8);
+    pool_init(&net->match_pool, sizeof(struct match), 8);
 
     for (i = 0; i < (sizeof(net->alpha_nodes) / sizeof(struct alpha_node *)); ++i)
         net->alpha_nodes[i] = 0;
 
     net->wmem = wmem;
     net->goals = net->impasses = 0;
+
+    net->assertions = net->retractions = 0;
 }
 
 
@@ -967,4 +1007,14 @@ rete_pop_goal_id(struct rete* net)
     net->goals = doomed->next;
     pool_free(&net->goal_impasse_pool, doomed);
     return last;
+}
+
+symbol_t
+rete_get_variable_binding(variable_binding_t binding, struct token* token)
+{
+    int depth = (int) binding.depth;
+    while (--depth > 0)
+        token = token->parent;
+
+    return get_field_from_wme(token->wme, binding.field);
 }
