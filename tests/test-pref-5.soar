@@ -2,7 +2,8 @@
 # for the `operator' attribute) or `deep' (determined by the value in
 # the operator slot).
 
-package require Soar;
+package require TinySoar;
+set cycles 5
 
 sp {foo*propose
     (state <s> ^superstate nil -^ran-foo)
@@ -29,3 +30,7 @@ sp {foo*reconsider
     -->
     (<s> ^operator <o> @)}
 
+sp {detect*success
+    (state <s> ^ran-foo t -^bar bar ^io.output-link <out>)
+    -->
+    (<out> ^success t)}

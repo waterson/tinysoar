@@ -7,6 +7,7 @@
 #
 
 package require TinySoar;
+set cycles 5
 
 sp {propose*one*two*three
     (state <s> ^superstate nil)
@@ -22,3 +23,14 @@ sp {propose*one*better*two
     (<o2> ^name two)
     -->
     (<s> ^operator <o1> > <o2>)}
+
+sp {detect*success
+    (state <s> ^superstate <ss> ^choices multiple ^impasse tie
+               ^item <o1> -^item <o2> ^item <o3> ^quiescence t ^type state)
+
+    (<ss> ^io.output-link <out>)
+    (<o1> ^name one)
+    (<o2> ^name two)
+    (<o3> ^name three)
+    -->
+    (<out> ^success t)}

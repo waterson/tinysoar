@@ -1,22 +1,39 @@
 package require TinySoar
+set cycles 5
 
+# Create an element on the top state.
 sp {elaborate
     (state <s> ^superstate nil)
     -->
     (<s> ^foo bar)}
 
+# Test for it, using disjunction.
 sp {disjunct*1
     (state <s> ^superstate nil ^foo << bar baz >>)
     -->
     (<s> ^disjunct-1 succeeded)}
 
-sp {disjunct*2*a
-    (state <s> ^superstate nil ^foo { <f> << bar baz >> })
-    -->
-    (<s> ^foo-2 <f>)}
-
-sp {disjunct*2*b
-    (state <s> ^superstate nil ^foo-2 bar)
+# Reverse the test.
+sp {disjunct*2
+    (state <s> ^superstate nil ^foo << baz bar >>)
     -->
     (<s> ^disjunct-2 succeeded)}
 
+# Test for variable binding, using disjunction
+sp {disjunct*3*a
+    (state <s> ^superstate nil ^foo { <f> << bar baz >> })
+    -->
+    (<s> ^foo-3 <f>)}
+
+sp {disjunct*3*b
+    (state <s> ^superstate nil ^foo-3 bar)
+    -->
+    (<s> ^disjunct-3 succeeded)}
+
+sp {detect*success
+    (state <s> ^io.output-link <out>
+               ^disjunct-1 succeeded
+               ^disjunct-2 succeeded
+               ^disjunct-3 succeeded)
+    -->
+    (<out> ^success t)}

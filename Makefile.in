@@ -161,6 +161,23 @@ tinysoar.so: tinysoar.c libtinysoar.a $(PARSER_LIBNAME) $(RUNTIME_LIBNAME) $(BAS
 
 # ----------------------------------------------------------------------
 #
+# Run tests
+#
+TEST_LIST = $(srcdir)/tests/test-list
+
+test: tcl-extension
+	@for t in `cat $(TEST_LIST)`; do \
+		echo -n "$$t..." ; \
+		TCLLIBPATH=`pwd` tclsh $(srcdir)/tests/run-test.tcl $(srcdir)/tests/$$t 1> /dev/null ; \
+		if [ $$? == 0 ]; then \
+			echo "succeeded." ; \
+		else \
+			echo "failed." ; \
+		fi ; \
+	done
+
+# ----------------------------------------------------------------------
+#
 # A Soar agent from the Lego RCX.
 #
 
@@ -179,3 +196,4 @@ legosoar: $(LEGO_OBJS) $(RUNTIME_LIBNAME) $(BASE_LIBNAME)
 #
 
 test-alloc: test-alloc.c alloc.o debug.o
+

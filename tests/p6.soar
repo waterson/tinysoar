@@ -10,7 +10,8 @@
 #
 
 
-package require Soar;
+package require TinySoar;
+set cycles 6
 
 sp {elaborate*top-state
     (state <s> ^superstate nil)
@@ -29,4 +30,10 @@ sp {elaborate*snc*copy-ball
     (<ss> ^ball <b>)
     -->
     (<b> ^junk <r>)}
+
+sp {detect*success
+    (state <s> ^ball.junk <j> ^io.output-link <out>)
+    (<j> ^opacity clear ^texture smooth ^size small)
+    -->
+    (<out> ^success t)}
 

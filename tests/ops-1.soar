@@ -3,6 +3,7 @@
 # operator after running this test.
 
 package require TinySoar;
+set cycles 4
 
 sp {propose*two*best
     (state <s> ^superstate nil)
@@ -17,3 +18,8 @@ sp {propose*one*better
     (<o2> ^name two)
     -->
     (<s> ^operator <o1> > <o2>)}
+
+sp {implement*one
+    (state <s> ^operator.name one ^io.output-link <out>)
+    -->
+    (<out> ^success t)}

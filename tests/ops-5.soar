@@ -2,6 +2,7 @@
 # ``best'' operator? In Soar-8.2, the ``best'' operator wins.
 
 package require TinySoar;
+set cycles 3
 
 sp {propose*one*best*two*three
     (state <s> ^superstate nil)
@@ -10,3 +11,8 @@ sp {propose*one*best*two*three
     (<o1> ^name one)
     (<o2> ^name two)
     (<o3> ^name three)}
+
+sp {implement*one
+    (state <s> ^operator.name one ^io.output-link <out>)
+    -->
+    (<out> ^success t)}

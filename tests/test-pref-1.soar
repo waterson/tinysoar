@@ -1,7 +1,8 @@
 # In Soar8, binary preferences aren't allowed for non-operators. So
 # `prefer*foo*bar' is an illegal production.
 
-package require Soar
+package require TinySoar
+set cycles 3
 
 sp {elaborate*foo*bar
     (state <s> ^superstate nil)
@@ -17,3 +18,8 @@ sp {prefer*foo*bar
     (state <s> ^foo bar ^foo baz)
     -->
     (<s> ^foo bar > baz)}
+
+sp {detect*success
+    (state <s> ^io.output-link <out> ^foo bar ^foo baz)
+    -->
+    (<out> ^success t)}

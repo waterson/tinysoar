@@ -1,8 +1,14 @@
 # Test integer comparison
 
 package require TinySoar;
+set cycles 3
+
+sp {elaborate
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^foo 34)}
 
 sp {test-integer-comparison
-    (state <s> ^foo > 10)
+    (state <s> ^io.output-link <out> ^foo > 10)
     -->
-    (<s> ^matched t)}
+    (<out> ^success t)}

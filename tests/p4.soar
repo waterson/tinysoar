@@ -1,5 +1,6 @@
 # Test to see if acceptable preference test works
 package require TinySoar;
+set cycles 5
 
 sp {test-propose-a
     (state <s> ^superstate nil)
@@ -19,4 +20,9 @@ sp {test-prefer-a
     (<b> ^name b)
     -->
     (<s> ^operator <a> > <b>)}
+
+sp {implement*a
+    (state <s> ^operator.name a ^io.output-link <out>)
+    -->
+    (<out> ^success t)}
 

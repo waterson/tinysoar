@@ -1,6 +1,7 @@
 # Does better matter more than best/worst? Yes.
 
 package require TinySoar;
+set cycles 4
 
 sp {propose*one*two
     (state <s> ^superstate nil)
@@ -15,3 +16,9 @@ sp {propose*two*better*one
     (<o2> ^name two)
     -->
     (<s> ^operator <o2> > <o1>)}
+
+sp {implement*one
+    (state <s> ^operator.name two ^io.output-link <out>)
+    -->
+    (<out> ^success t)}
+

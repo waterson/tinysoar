@@ -1,6 +1,7 @@
 # Simple chunk test
 
 package require TinySoar;
+set cycles 5
 
 sp {propose*left
     (state <s> ^superstate nil)
@@ -22,4 +23,9 @@ sp {prefer*left
     (<o2> ^name right)
     -->
     (<ss> ^operator <o1> > <o2>)}
+
+sp {implement*left
+    (state <s> ^operator.name left ^io.output-link <out>)
+    -->
+    (<out> ^success t)}
 

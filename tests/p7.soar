@@ -1,6 +1,6 @@
 # Test to see if variablization is conservative or liberal.
 
-package require Soar;
+package require TinySoar;
 
 sp {elaborate*top-state
     (state <s> ^superstate nil)

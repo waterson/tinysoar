@@ -2,6 +2,7 @@
 # ``best'' operator? In Soar-8.2, we end up with an operator conflict.
 
 package require TinySoar;
+set cycles 5
 
 sp {propose*one*best*two*three
     (state <s> ^superstate nil)
@@ -24,3 +25,14 @@ sp {propose*three*better*two
     (<o3> ^name three)
     -->
     (<s> ^operator <o3> > <o2>)}
+
+sp {detect*success
+    (state <s> ^superstate <ss> ^choices multiple ^impasse conflict
+               -^item <o1> ^item <o2> ^item <o3> ^quiescence t ^type state)
+
+    (<ss> ^superstate nil ^io.output-link <out>)
+    (<o1> ^name one)
+    (<o2> ^name two)
+    (<o3> ^name three)
+    -->
+    (<out> ^success t)}

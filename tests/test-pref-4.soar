@@ -4,7 +4,8 @@
 # preference for `^baz' will oscillate with the i-supporeted reject
 # preference.
 
-package require Soar
+package require TinySoar
+set cycles 10
 
 # An i-supported production that will add `^foo'
 sp {elaborate*assert-foo
@@ -45,3 +46,8 @@ sp {reconsider*make-baz
     -->
     (<s> ^operator <o> @)}
 
+
+sp {detect*success
+    (state <s> ^io.output-link <out> ^baz bap)
+    -->
+    (<out> ^success t)}
