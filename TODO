@@ -30,7 +30,8 @@
     (e.g., `struct wme **link').  I could cram both bits into the
     `slot' pointer, but that means I'll need to ensure four-byte
     alignment on the RCX (currently, only two-byte alignment is all
-    that's needed).
+    that's needed).  I started with the former approach in the patch,
+    below.
 
   - Use generic list structure and remove duplicate code that's all
     over.
@@ -54,3 +55,225 @@
   mechanism to avoid busy-waiting (...but we're busy-waiting anyway
   with the |wait| operator).
 
+----8<-------
+Index: agent.c
+===================================================================
+RCS file: /cvsroot/tinysoar/tinysoar/agent.c,v
+retrieving revision 1.29
+diff -u -r1.29 agent.c
+--- agent.c	17 Oct 2002 00:03:07 -0000	1.29
++++ agent.c	17 Oct 2002 00:30:05 -0000
+@@ -126,9 +126,9 @@
+        preference. */
+     for (wme = wmem_get_wmes(agent, superstate, SYM(OPERATOR_CONSTANT));
+          wme != 0;
+-         wme = wme->next) {
+-        if ((wme->state == wme_state_live) &&
+-            (wme->type == wme_type_acceptable) &&
++         wme = GET_WME_NEXT(wme)) {
++        if ((GET_WME_STATE(wme) == wme_state_live) &&
++            (GET_WME_TYPE(wme) == wme_type_acceptable) &&
+             (wme->value == operator)) {
+             break;
+         }
+@@ -345,7 +345,7 @@
+             mark_if_unused(agent, pref->referent);
+     }
+ 
+-    for (wme = slot->wmes; wme != 0; wme = wme->next)
++    for (wme = slot->wmes; wme != 0; wme = GET_WME_NEXT(wme))
+         mark_if_unused(agent, wme->value);
+ 
+     return ht_enumerator_result_ok;
+Index: rete.c
+===================================================================
+RCS file: /cvsroot/tinysoar/tinysoar/rete.c,v
+retrieving revision 1.71
+diff -u -r1.71 rete.c
+--- rete.c	16 Oct 2002 22:39:19 -0000	1.71
++++ rete.c	17 Oct 2002 00:30:05 -0000
+@@ -87,10 +87,10 @@
+ 
+     switch (field) {
+     case field_id:
+-        return wme->slot->id;
++        return GET_WME_SLOT(wme)->id;
+ 
+     case field_attr:
+-        return wme->slot->attr;
++        return GET_WME_SLOT(wme)->attr;
+ 
+     default:
+         /* XXX gcc generates better code when we write the switch
+@@ -242,7 +242,7 @@
+         break;
+ 
+     case test_type_goal_id:
+-        return agent_is_goal(agent, wme->slot->id);
++        return agent_is_goal(agent, GET_WME_SLOT(wme)->id);
+ 
+     case test_type_disjunctive:
+         {
+@@ -957,7 +957,7 @@
+             /* XXX we'll probably need to store the level in the token
+                to avoid confusion when an identifier promotion occurs
+                without resolving the impasse. */
+-            int id_level = agent_get_id_level(agent, token->wme->slot->id);
++            int id_level = agent_get_id_level(agent, GET_WME_SLOT(token->wme)->id);
+ 
+             ASSERT(id_level != 0, ("identifier without assigned level"));
+ 
+@@ -1071,7 +1071,7 @@
+ void
+ rete_operate_wme(struct agent *agent, struct wme *wme, wme_operation_t op)
+ {
+-    int offset = (wme->type == wme_type_normal) ? 0 : 8;
++    int offset = (GET_WME_TYPE(wme) == wme_type_normal) ? 0 : 8;
+     int i;
+ 
+ #ifdef DEBUG_WMES
+Index: rete.h
+===================================================================
+RCS file: /cvsroot/tinysoar/tinysoar/rete.h,v
+retrieving revision 1.19
+diff -u -r1.19 rete.h
+--- rete.h	8 May 2002 16:27:07 -0000	1.19
++++ rete.h	17 Oct 2002 00:30:05 -0000
+@@ -76,9 +76,9 @@
+ wme_matches_alpha_node(const struct wme *wme, const struct alpha_node *node)
+ {
+     return (SYMBOL_IS_NIL(node->id) ||
+-            SYMBOLS_ARE_EQUAL(node->id, wme->slot->id)) &&
++            SYMBOLS_ARE_EQUAL(node->id, GET_WME_SLOT(wme)->id)) &&
+         (SYMBOL_IS_NIL(node->attr) ||
+-         SYMBOLS_ARE_EQUAL(node->attr, wme->slot->attr)) &&
++         SYMBOLS_ARE_EQUAL(node->attr, GET_WME_SLOT(wme)->attr)) &&
+         (SYMBOL_IS_NIL(node->value) ||
+          SYMBOLS_ARE_EQUAL(node->value, wme->value));
+ }
+Index: soar.h
+===================================================================
+RCS file: /cvsroot/tinysoar/tinysoar/soar.h,v
+retrieving revision 1.61
+diff -u -r1.61 soar.h
+--- soar.h	17 Oct 2002 00:03:07 -0000	1.61
++++ soar.h	17 Oct 2002 00:30:05 -0000
+@@ -257,16 +257,40 @@
+ 
+ typedef enum wme_state {
+     wme_state_live   =  0,
+-    wme_state_zombie = -1
++    wme_state_zombie =  1
+ } wme_state_t;
+ 
+ struct wme {
+-    struct slot *slot;
+-    symbol_t     value;
+-    wme_type_t   type : 1;
+-    wme_state_t  state : 1;
+-    struct wme  *next;
++    unsigned slots_type;
++    unsigned next_state;
++    symbol_t value;
+ };
++
++#define ASSERT_ALIGNED_POINTER(p) \
++    ASSERT((((unsigned) (p)) & 0x1) == 0, ("unaligned pointer %p", (p)))
++
++#define WME_SLOTS_MASK (~0x1)
++
++#define GET_WME_SLOT(w)    ((struct slot *) ((w)->slots_type & WME_SLOTS_MASK))
++#define SET_WME_SLOT(w, s) (ASSERT_ALIGNED_POINTER(s), (w)->slots_type &= ~WME_SLOTS_MASK, (w)->slots_type |= ((unsigned) (s)))
++
++#define WME_TYPE_MASK (~WME_SLOTS_MASK)
++#define ASSERT_VALID_WME_TYPE(t) \
++    ASSERT(((t) & ~WME_TYPE_MASK) == 0, ("bad wme type %d", (t)))
++
++#define GET_WME_TYPE(w)    ((wme_type_t) ((w)->slots_type & WME_TYPE_MASK))
++#define SET_WME_TYPE(w, t) (ASSERT_VALID_WME_TYPE(t), (w)->slots_type &= ~WME_TYPE_MASK, (w)->slots_type |= (t))
++
++#define WME_NEXT_MASK (~0x1)
++#define GET_WME_NEXT(w)    ((struct wme *) ((w)->next_state & WME_NEXT_MASK))
++#define SET_WME_NEXT(w, n) (ASSERT_ALIGNED_POINTER(n), (w)->next_state &= ~WME_NEXT_MASK, (w)->next_state |= ((unsigned) (n)))
++
++#define WME_STATE_MASK (~WME_NEXT_MASK)
++#define ASSERT_VALID_WME_STATE(s) \
++    ASSERT(((s) & ~WME_STATE_MASK) == 0, ("bad wme state %d", (s)))
++
++#define GET_WME_STATE(w)    ((wme_state_t) ((w)->next_state & WME_STATE_MASK))
++#define SET_WME_STATE(w, s) (ASSERT_VALID_WME_STATE(s), (w)->next_state &= ~WME_STATE_MASK, (w)->next_state |= (s))
+ 
+ struct slot_list {
+     struct slot      *slot;
+Index: wmem.c
+===================================================================
+RCS file: /cvsroot/tinysoar/tinysoar/wmem.c,v
+retrieving revision 1.62
+diff -u -r1.62 wmem.c
+--- wmem.c	17 Oct 2002 00:03:07 -0000	1.62
++++ wmem.c	17 Oct 2002 00:30:05 -0000
+@@ -273,8 +273,8 @@
+                 struct symbol_list *candidate;
+                 for (candidate = candidates; candidate != 0; candidate = candidate->next) {
+                     struct wme *wme;
+-                    for (wme = slots->slot->wmes; wme != 0; wme = wme->next) {
+-                        if ((wme->state == wme_state_live) &&
++                    for (wme = slots->slot->wmes; wme != 0; wme = GET_WME_NEXT(wme)) {
++                        if ((GET_WME_STATE(wme) == wme_state_live) &&
+                             SYMBOLS_ARE_EQUAL(wme->value, candidate->symbol)) {
+                             break;
+                         }
+@@ -287,11 +287,11 @@
+                         struct wme_list *entry;
+ 
+                         wme = (struct wme *) malloc(sizeof(struct wme));
+-                        wme->slot  = slots->slot;
++                        SET_WME_SLOT(wme, slots->slot);
+                         wme->value = candidate->symbol;
+-                        wme->type  = operator_slot ? wme_type_acceptable : wme_type_normal;
+-                        wme->state = wme_state_live;
+-                        wme->next  = slots->slot->wmes;
++                        SET_WME_TYPE(wme, operator_slot ? wme_type_acceptable : wme_type_normal);
++                        SET_WME_STATE(wme, wme_state_live);
++                        SET_WME_NEXT(wme, slots->slot->wmes);
+                         slots->slot->wmes = wme;
+ 
+                         rete_operate_wme(agent, wme, wme_operation_add);
+@@ -300,7 +300,7 @@
+                            assign an appropriate goal level to it,
+                            unless it already has one. */
+                         if (GET_SYMBOL_TYPE(wme->value) == symbol_type_identifier) {
+-                            int id_level = agent_get_id_level(agent, wme->slot->id);
++                            int id_level = agent_get_id_level(agent, GET_WME_SLOT(wme)->id);
+                             if (! id_level) {
+                                 /* The identifier doesn't have a level
+                                    assigned to it; we'll have to assign
+@@ -329,7 +329,7 @@
+                 struct wme *wme, **link = &slots->slot->wmes;
+ 
+                 while ((wme = *link) != 0) {
+-                    if (wme->state == wme_state_live) {
++                    if (GET_WME_STATE(wme) == wme_state_live) {
+                         struct symbol_list *candidate;
+                         for (candidate = candidates; candidate != 0; candidate = candidate->next) {
+                             if (SYMBOLS_ARE_EQUAL(wme->value, candidate->symbol))
+@@ -344,16 +344,16 @@
+                                need it for backtracing; otherwise,
+                                just unlink and destroy it. */
+                             if (save)
+-                                wme->state = wme_state_zombie;
++                                SET_WME_STATE(wme, wme_state_zombie);
+                             else {
+-                                *link = wme->next;
++                                SET_WME_NEXT(*link, GET_WME_NEXT(wme));
+                                 free(wme);
+                                 continue;
+                             }
+                         }
+                     }
+ 
+-                    link = &wme->next;
++                    link = (struct wme *) &wme->next_state;
+                 }
+             }
+ 
