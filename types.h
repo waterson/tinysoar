@@ -13,10 +13,10 @@ typedef unsigned char bool_t;
 #define SYMBOL_VALUE_BITS  SYMBOL_TYPE_SHIFT
 
 typedef enum symbol_type {
-    symbol_type_variable,
-    symbol_type_identifier,
-    symbol_type_symbolic_constant,
-    symbol_type_integer_constant
+    symbol_type_variable             =  0,
+    symbol_type_identifier           =  1,
+    symbol_type_symbolic_constant    = -2,
+    symbol_type_integer_constant     = -1
 } symbol_type_t;
 
 typedef struct symbol {

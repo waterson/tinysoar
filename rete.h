@@ -119,9 +119,9 @@ struct right_memory {
 #define BINDING_DEPTH_BITS   BINDING_FIELD_SHIFT
 
 typedef enum field {
-    field_id,
-    field_attr,
-    field_value
+    field_id    =  0,
+    field_attr  =  1,
+    field_value = -2
 } field_t;
 
 typedef struct variable_binding {
@@ -136,7 +136,7 @@ typedef struct variable_binding {
  */
 
 typedef enum relational_type {
-    relational_type_constant,
+    relational_type_constant, /* XXX sign extension? */
     relational_type_variable
 } relational_type_t;
 
