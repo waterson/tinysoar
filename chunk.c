@@ -404,6 +404,8 @@ make_production(struct agent            *agent,
                     test->next = node->data.tests;
                     node->data.tests = test;
                 }
+                else
+                    ensure_variable_binding(&bindings, tokens->token->wme->slot->id, field_id, depth);
 
                 if (get_variable_binding(bindings, tokens->token->wme->value)) {
                     /* Bind the value. */
@@ -422,6 +424,8 @@ make_production(struct agent            *agent,
                     test->next = node->data.tests;
                     node->data.tests = test;
                 }
+                else
+                    ensure_variable_binding(&bindings, tokens->token->wme->value, field_value, depth);
 
                 if (! tested_goal) {
                     /* Make sure the id is-a goal. */
@@ -430,6 +434,8 @@ make_production(struct agent            *agent,
                     test->field = field_id;
                     test->next = node->data.tests;
                     node->data.tests = test;
+
+                    ensure_variable_binding(&bindings, tokens->token->wme->slot->id, field_id, depth);
 
                     tested_goal = 1;
                 }
