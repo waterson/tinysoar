@@ -1,3 +1,11 @@
+Sunday, January 21, 2001
+
+I've got some weird corruption crasher going on, Linux only, after
+loading `p1.soar' and elaborating a couple of times. It looks like a
+preference is holding a dangling pointer in its
+`next_in_instantiation' field.
+
+
 Tuesday, January 16, 2001
 
 Got a crude stab at getting the operator decision logic implemented. I
