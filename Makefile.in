@@ -51,8 +51,8 @@ LDFLAGS	= @LDFLAGS@
 
 CHUNKING = @CHUNKING@
 
-TCLSH    = tclsh
-TCLLIBS  = -DUSE_TCL_STUBS @LIB_TCLSTUB@
+TCLSH    = @TCLSH@
+TCLLIBS  = @TCLLIBS@
 
 # ----------------------------------------------------------------------
 #

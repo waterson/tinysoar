@@ -94,19 +94,39 @@ if test "$target" = "$host"; then
 
   AC_SUBST(TCL_VERSION)
 
-  if test -z "$LIB_TCLSTUB"; then
-    AC_CHECK_LIB(tclstub, Tcl_InitStubs, LIB_TCLSTUB=-ltclstub, LIB_TCLSTUB=)
+  if test -z "$TCLLIBS"; then
+    case "$TCL_VERSION" in
+    8.0)
+      AC_CHECK_LIB(tcl, Tcl_PkgProvide, TCLLIBS=-ltcl, TCLLIBS=)
+
+      if test -z "$TCLLIBS"; then
+        AC_MSG_ERROR([Could not find tcl library; please specify TCLLIBS.])
+      fi
+      ;;
+
+    8.*)
+      if test -z "$LIB_TCLSTUB"; then
+        AC_CHECK_LIB(tclstub, Tcl_InitStubs, LIB_TCLSTUB=-ltclstub, LIB_TCLSTUB=)
+      fi
+
+      if test -z "$LIB_TCLSTUB"; then
+        AC_CHECK_LIB(tclstub$TCL_VERSION, Tcl_InitStubs, LIB_TCLSTUB=-ltclstub$TCL_VERSION, LIB_TCLSTUB=)
+      fi
+
+      if test -z "$LIB_TCLSTUB"; then
+        AC_MSG_ERROR([Could not find tclstub library; please specify LIB_TCLSTUB.])
+      fi
+
+      TCLLIBS="-DUSE_TCL_STUBS $LIB_TCLSTUB"
+      ;;
+
+    *)
+      AC_MSG_ERROR([Unsupported Tcl version.])
+      ;;
+    esac
   fi
 
-  if test -z "$LIB_TCLSTUB"; then
-    AC_CHECK_LIB(tclstub$TCL_VERSION, Tcl_InitStubs, LIB_TCLSTUB=-ltclstub$TCL_VERSION, LIB_TCLSTUB=)
-  fi
-
-  if test -z "$LIB_TCLSTUB"; then
-    AC_MSG_ERROR([Could not find tclstub library; please specify LIB_TCLSTUB.])
-  fi
-
-  AC_SUBST(LIB_TCLSTUB)
+  AC_SUBST(TCLLIBS)
 
   dnl Handle platform-specific issues.
   case "$target" in
