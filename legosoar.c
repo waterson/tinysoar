@@ -20,6 +20,22 @@ lcd_show_number(unsigned format, int value, unsigned scalecode)
        );
 }
 
+extern volatile unsigned char PORT4;
+
+void
+debug_wait_button(int value)
+{
+    lcd_show_int16(value);
+
+    /* Wait for the button to be pressed */
+    while (! (PORT4 & (1 << 2)))
+        ;
+
+    /* Wait for the button to be released */
+    while (PORT4 & (1 << 2))
+        ;
+}
+
 /*
  * The RCX wants to find this string to unlock the firmware.
  */
@@ -69,11 +85,11 @@ extern volatile unsigned AD_B;
 /*
  * Motor interface
  */
-extern volatile char motor_controller;
+extern volatile unsigned char motor_controller;
 
-const unsigned char dm_a_pattern[] = { 0xc0, 0x40, 0x80, 0x00 };
-const unsigned char dm_b_pattern[] = { 0x0c, 0x04, 0x08, 0x00 };
-const unsigned char dm_c_pattern[] = { 0x03, 0x01, 0x02, 0x00 };
+const unsigned char dm_a_pattern[] = { 0x00, 0x80, 0x40, 0xc0 };
+const unsigned char dm_b_pattern[] = { 0x00, 0x08, 0x04, 0x0c };
+const unsigned char dm_c_pattern[] = { 0x00, 0x02, 0x01, 0x03 };
 
 typedef enum motor_direction {
   motor_direction_off = 0,
@@ -126,10 +142,11 @@ sync_sensor_1(struct preference **sensor_pref)
 static void
 sync_motor(unsigned motor, const unsigned char pattern[])
 {
+    static unsigned char output = 0;
     struct wme *wme;
     symbol_t sym_output_link;
     symbol_t sym_motor_n;
-    motor_direction_t direction;
+    motor_direction_t direction = motor_direction_off;
 
     MAKE_SYMBOL(sym_output_link, symbol_type_identifier, 4 /*XXX*/);
     MAKE_SYMBOL(sym_motor_n, symbol_type_symbolic_constant, motor);
@@ -152,29 +169,41 @@ sync_motor(unsigned motor, const unsigned char pattern[])
         wme = wme->next;
     }
 
-    if (! wme)
-        direction = motor_direction_off;
+    output &= ~(pattern[motor_direction_brake]);
+    output |= pattern[direction];
 
-    motor_controller &= ~(pattern[motor_direction_off]);
-    motor_controller |= pattern[direction];
+    motor_controller = output;
 }
 
 static struct preference *sensor_1_pref = 0;
+
+extern char __bss, __bss_end;
+
+static void
+bss_init()
+{
+    char *p;
+    for (p = &__bss; p < &__bss_end; ++p)
+        *p = 0;
+}
 
 __attribute__((noreturn))
 void
 _start()
 {
+    motor_controller = 0;
+
+    bss_init();
     heap_init(addrs, sizeof addrs / sizeof addrs[0]);
     agent_init(&agent);
 
-    while (1) {
+    do {
         agent_elaborate(&agent);
 
         sync_motor(SYM_MOTOR_A, dm_a_pattern);
         sync_motor(SYM_MOTOR_C, dm_c_pattern);
 
         sync_sensor_1(&sensor_1_pref);
-    }
+    } while (1);
 }
 
