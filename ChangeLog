@@ -4,6 +4,16 @@ Got a crude stab at getting the operator decision logic implemented. I
 think I might be running into another RETE bug; can't seem to the the
 `reconsider' production to fire in `p1.soar'.
 
+                          *       *       *
+
+Okay, so I think I figured out what was wrong: had an off-by-one in
+the rete code and was notifying the rete network with the wrong wme
+:-/. Now I keep selected `reconsider*wait* over and over again;
+however, I'm a bit worried because I don't get new identifiers. Not
+that I *expected* to, but I think that `real' Soar might regenerate
+identifiers for each new operator that gets selected. Is that
+necessary?
+
 
 Monday, January 15, 2001
 
