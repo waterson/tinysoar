@@ -654,11 +654,26 @@ do_right_removal(struct agent *agent, struct beta_node *node, struct wme *wme)
         /* Iterate through the blocked tokens to see if any will be
            unblocked by the right-memory removal. */
         for (link = &node->blocked; (token = *link) != 0; link = &token->next) {
-            if (!node->data.tests ||
-                check_beta_tests(agent, node->data.tests, token, wme)) {
-                /* If there are no beta tests, or the beta tests
-                   all pass, then this blocked token just became
-                   unblocked. Propagate it downward. */
+            /* Check the remaining right memories (we'll skip the one
+               that we're removing) to see if the token is still
+               blocked. */
+            struct right_memory *rm;
+            for (rm = node->alpha_node->right_memories;
+                 rm != 0;rm = rm->next_in_alpha_node) {
+                if (rm->wme != wme)
+                    continue;
+
+                /* If there are no beta tests, or the beta tests all
+                   pass, then this token is still blocked. */
+                if (!node->data.tests ||
+                    check_beta_tests(agent, node->data.tests, token, rm->wme)) {
+                    break;
+                }
+            }
+
+            if (! rm) {
+                /* We didn't find any right-memories that block the
+                   token. Propagate it downwards. */
                 struct beta_node *child;
                 for (child = node->children; child != 0; child = child->siblings)
                     do_left_addition(agent, child, token, 0);
