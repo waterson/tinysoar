@@ -298,6 +298,7 @@ conds_for_one_id: '(' id_test attr_value_test_list ')'
 id_test: test
        {
            $$.type = condition_type_positive;
+           $$.acceptable = 0;
            $$.data.simple.id_test = $1;
            $$.data.simple.attr_test.type = test_type_blank;
            $$.data.simple.value_test.type = test_type_blank;
