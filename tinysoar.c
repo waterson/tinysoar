@@ -284,6 +284,9 @@ preferences -r <pref>";
             if (pref->support == support_type_osupport)
                 printf(" :O");
 
+            if (pref->instantiation && pref->instantiation->production)
+                printf(" (%s)", pref->instantiation->production->name);
+
             printf("\n");
             pref = pref->next_in_slot;
         }
