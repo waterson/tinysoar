@@ -1,3 +1,7 @@
+2002-10-21  Chris Waterson  <waterson@maubi.net>
+
+	* rule.l, rule.y: Parse comments.
+
 2002-10-16  Chris Waterson  <waterson@maubi.net>
 
 	* agent.c, chunk.c, debug.c, soar.h, wmem.c:
