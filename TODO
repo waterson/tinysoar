@@ -9,7 +9,6 @@
 
 . Chunking:
 
-  - return complex results (i.e., compute result closure)
   - figure out how to do bottom-up chunking (instead of all-goals)
   - clean up the horror that is make_production
   - look for leaks
