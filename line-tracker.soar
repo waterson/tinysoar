@@ -1,0 +1,76 @@
+#----------------------------------------------------------------------
+# Find line
+sp {find-line*propose
+    (state <s> ^input-link <in>)
+    (<in> ^sensor-2 > 75) # white
+
+   -(<s> ^found-line t)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name find-line)}
+
+sp {find-line*implement*detect-line
+    (state <s> ^operator <o> ^input-link <in>)
+    (<o> ^name find-line)
+
+    (<in> ^sensor-2 < 25) # black
+    -->
+    (<s> ^found-line t)}
+
+sp {find-line*implement*move-forward
+    (state <s> ^operator <o> ^output-link <out>)
+    (<o> ^name find-line)
+    -->
+    (<out> ^motor-a 100 ^motor-c 100)}
+
+sp {find-line*reconsider
+    (state <s> ^operator <o>)
+    (<o> ^name find-line)
+    -->
+    (<s> ^operator <o> @)}
+
+#----------------------------------------------------------------------
+# Track line
+sp {track-line*propose
+    (state <s> ^input-link <in>)
+    (<in> ^sensor-2 < 25) # black
+
+    (<s> ^found-line t)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name track-line)}
+
+sp {track-line*implement
+    (state <s> ^operator <o> ^output-link <out>)
+    (<o> ^name track-line)
+    -->
+    (<s> ^motor-a 100 ^motor-c 100)}
+
+sp {track-line*reconsider
+    (state <s> ^operator <o>)
+    (<o> ^name track-line)
+    -->
+    (<s> ^operator <o> @)}
+
+#----------------------------------------------------------------------
+# Spin
+sp {spin*propose
+    (state <s> ^input-link <in>)
+    (<in> ^sensor-2 > 75) # white
+
+    (<s> ^found-line t)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name spin)}
+
+sp {spin*implement
+    (state <s> ^operator <o> ^output-link <out>)
+    (<o> ^name spin)
+    -->
+    (<out> ^motor-a -100 ^motor-c 100)}
+
+sp {spin*reconsider
+    (state <s> ^operator <o>)
+    (<o> ^name spin)
+    -->
+    (<s> ^operator <o> @)}

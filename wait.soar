@@ -1,0 +1,13 @@
+sp {wait*propose
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name wait)
+    };
+
+sp {wait*reconsider
+   (state <s> ^operator <o>)
+   (<o> ^name wait)
+   -->
+   (<s> ^operator <o> @)
+   }

@@ -1,0 +1,22 @@
+CFLAGS=-Wall -g
+MDDEPDIR=.deps
+
+.c.o:
+	$(CC) -c $(CFLAGS) -Wp,-MD,$(MDDEPDIR)/$*.pp -o $@ $<
+
+all: $(MDDEPDIR) rete-test
+
+MDDEPFILES := $(wildcard $(MDDEPDIR)/*.pp)
+
+$(MDDEPDIR):
+	mkdir $@
+
+ifdef MDDEPFILES
+include $(MDDEPFILES)
+endif
+
+rete-test: rete-test.o rete.o wmem.o
+
+clean:
+	rm -rf .deps rete-test *.o *~
+

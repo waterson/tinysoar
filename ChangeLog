@@ -1,0 +1,15 @@
+Monday, December 4, 2000
+
+The rete propogation stuff is buggy right now. The problem is that:
+
+1) I'm just naively letting stuff meander down the net. This'll cause
+instantiation nodes to get tickled more than once. I think I need to
+make the tests more restrictive by default; esp. simple_test() should
+return zero at the end?
+
+2) (Maybe the same as 1, above) I need to be able to go out and check
+working memory for values. When I see a WME in simple_test() that
+doesn't have the same attribute as the node I'm looking at, I should
+go out to working memory and see if there is any element that'll
+satisfy my conditions, and only then propogate the stuff onward...
+
