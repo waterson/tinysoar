@@ -386,9 +386,7 @@ wmem_remove_preference(struct agent* agent, struct preference* doomed)
 
     ASSERT(slot != 0, ("no slot"));
 
-    for (pref = slot->preferences, link = &slot->preferences;
-         pref != 0;
-         link = &pref->next_in_slot, pref = pref->next_in_slot) {
+    for (link = &slot->preferences; (pref = *link) != 0; link = &pref->next_in_slot) {
         if (pref == doomed) {
             if (pref->prev_in_instantiation) {
                 /* Splice the pref out of the instantiation list. */
@@ -756,7 +754,8 @@ run_operator_semantics_on(struct agent*        agent,
     for (candidate = *candidates; candidate != 0; candidate = candidate->next) {
         struct preference* p;
         for (p = preferences; p != 0; p = p->next_in_slot) {
-            if ((p->type == preference_type_better || p->type == preference_type_worse)
+            if ((p->type == preference_type_better ||
+                 p->type == preference_type_worse)
                 && SYMBOLS_ARE_EQUAL(p->value, candidate->symbol)) {
                 struct symbol_list* referent;
                 struct preference* q;
@@ -793,7 +792,8 @@ run_operator_semantics_on(struct agent*        agent,
                     if (p == q)
                         continue;
 
-                    if (q->type == preference_type_better || q->type == preference_type_worse) {
+                    if (q->type == preference_type_better ||
+                        q->type == preference_type_worse) {
                         /* If |q| is a ``better'' or ``worse''
                            preference, then it may conflict.
 

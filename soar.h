@@ -331,6 +331,8 @@ struct right_memory {
  * Beta Memory
  */
 
+/* XXX using a -1 here will generate a warning, but guarantees correct
+   sign extension when we assign to wider fields. */
 typedef enum relational_type {
     relational_type_constant = 0,
     relational_type_variable = -1

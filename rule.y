@@ -518,9 +518,7 @@ single_test: VARIABLE
                struct symbol_list* entry;
                struct symbol_list** link;
 
-               for (entry = parser->lhs_vars, link = &parser->lhs_vars;
-                    entry != 0;
-                    link = &entry->next, entry = entry->next) {
+               for (link = &parser->lhs_vars; (entry = *link) != 0; link = &entry->next) {
                    if (SYMBOLS_ARE_EQUAL(entry->symbol, $1))
                        break;
                }
@@ -743,9 +741,7 @@ rhs_variable: VARIABLE
 
                     /* Is it an unbound RHS variable we already know
                        about? */
-                    for (entry = parser->rhs_unbound_vars, link = &parser->rhs_unbound_vars;
-                         entry != 0;
-                         link = &entry->next, entry = entry->next) {
+                    for (link = &parser->rhs_unbound_vars; (entry = *link) != 0; link = &entry->next) {
                         if (SYMBOLS_ARE_EQUAL(entry->symbol, $1))
                             break;
 

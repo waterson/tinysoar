@@ -384,9 +384,7 @@ do_left_removal(struct agent*     agent,
             struct token* doomed;
             struct token **link;
 
-            for (link = &node->tokens, doomed = *link;
-                 doomed != 0;
-                 link = &doomed->next, doomed = *link) {
+            for (link = &node->tokens; (doomed = *link) != 0; link = &doomed->next) {
                 if ((doomed->wme == wme) && (doomed->parent == token)) {
                     struct beta_node* child;
                     for (child = node->children; child != 0; child = child->siblings)
@@ -420,9 +418,7 @@ do_left_removal(struct agent*     agent,
 
             /* First see if this was a ``blocked'' token, in which
                case its removal will have no side effects */
-            for (link = &node->blocked, doomed = *link;
-                 doomed != 0;
-                 link = &doomed->next, doomed = *link) {
+            for (link = &node->blocked; (doomed = *link) != 0; link = &doomed->next) {
                 if ((doomed->wme == wme) && (doomed->parent == token)) {
                     *link = doomed->next;
                     free(doomed);
@@ -433,9 +429,7 @@ do_left_removal(struct agent*     agent,
             if (! doomed) {
                 /* Okay, it must've been one of the tokens that we'd propagated
                    downwards. Find it and yank it. */
-                for (link = &node->tokens, doomed = *link;
-                     doomed != 0;
-                     link = &doomed->next, doomed = *link) {
+                for (link = &node->tokens; (doomed = *link) != 0; link = &doomed->next) {
                     if ((doomed->wme == wme) && (doomed->parent == token)) {
                         struct beta_node* child;
                         for (child = node->children; child != 0; child = child->siblings)
@@ -460,9 +454,7 @@ do_left_removal(struct agent*     agent,
             {
                 struct match** link;
 
-                for (link = &agent->assertions, match = *link;
-                     match != 0;
-                     link = &match->next, match = *link) {
+                for (link = &agent->assertions; (match = *link) != 0; link = &match->next) {
                     if ((match->data.token->wme == wme) && (match->data.token->parent == token)) {
                         /* Yep. Remove from the assertion queue */
                         *link = match->next;
@@ -476,9 +468,7 @@ do_left_removal(struct agent*     agent,
                 /* It's not a new match. Find the instantiation that
                    we need to retract */
                 struct instantiation* inst;
-                for (inst = node->data.production->instantiations;
-                     inst != 0;
-                     inst = inst->next) {
+                for (inst = node->data.production->instantiations; inst != 0; inst = inst->next) {
                     if ((inst->token->wme == wme) && (inst->token->parent == token)) {
                         /* See if this match is already on the retraction queue */
                         for (match = agent->retractions; match != 0; match = match->next) {
@@ -504,9 +494,7 @@ do_left_removal(struct agent*     agent,
             {
                 struct token** link;
                 struct token* doomed;
-                for (link = &node->tokens, doomed = *link;
-                     token != 0;
-                     link = &doomed->next, doomed = *link) {
+                for (link = &node->tokens; (doomed = *link) != 0; link = &doomed->next) {
                     if ((doomed->wme == wme) && (doomed->parent == token)) {
                         *link = doomed->next;
                         free(doomed);
@@ -571,10 +559,9 @@ do_right_addition(struct agent* agent, struct beta_node* node, struct wme* wme)
     case beta_node_type_negative:
         /* Iterate through the ``active'' tokens to see if any will be
            blocked by this addition */
-        for (link = &node->tokens, token = *link;
-             token != 0;
-             link = &token->next, token = *link) {
-            if (!node->data.tests || check_beta_tests(agent, node->data.tests, token, wme)) {
+        for (link = &node->tokens; (token = *link) != 0; link = &token->next) {
+            if (!node->data.tests ||
+                check_beta_tests(agent, node->data.tests, token, wme)) {
                 /* If there are no beta tests, or the beta tests
                    all pass, then the negative condition has
                    matched. We need to remove any tokens that had
@@ -642,10 +629,9 @@ do_right_removal(struct agent* agent, struct beta_node* node, struct wme* wme)
     case beta_node_type_negative:
         /* Iterate through the blocked tokens to see if any will be
            unblocked by the right-memory removal. */
-        for (link = &node->blocked, token = *link;
-             token != 0;
-             link = &token->next, token = *link) {
-            if (!node->data.tests || check_beta_tests(agent, node->data.tests, token, wme)) {
+        for (link = &node->blocked; (token = *link) != 0; link = &token->next) {
+            if (!node->data.tests ||
+                check_beta_tests(agent, node->data.tests, token, wme)) {
                 /* If there are no beta tests, or the beta tests
                    all pass, then this blocked token just became
                    unblocked. Propagate it downward. */
@@ -707,7 +693,8 @@ rete_create(struct agent* agent)
     agent->root_token.wme    = 0;
     agent->root_token.next   = 0;
 
-    for (i = 0; i < (sizeof(agent->alpha_nodes) / sizeof(struct alpha_node *)); ++i)
+#define NUM_ALPHA_NODES (sizeof(agent->alpha_nodes) / sizeof(struct alpha_node *))
+    for (i = NUM_ALPHA_NODES - 1; i >= 0; --i)
         agent->alpha_nodes[i] = 0;
 
     agent->assertions = agent->retractions = 0;
