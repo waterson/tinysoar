@@ -598,15 +598,29 @@ create_instantiation(struct agent       *agent,
             /* Oooh, an o-supported reject preference! These are
                special, and we'll process them later. We bastardize
                the preferences structure to get the work done: we'll
-               fill in the slot `by hand' (n.b., we might not find a
-               slot with the specified `id' and `attr')... */
+               fill in the slot `by hand'.
+
+               XXX There's going to be a bit of a problem here if we
+               create both acceptable and o-reject preferences for the
+               same slot in the same instantiation _if_ the slot
+               doesn't exist yet. If the acceptable is created first,
+               things will work; if the o-reject is created first, it
+               won't mask the acceptable (because find_slot will
+               return null). Oh well. */
             pref->slot = find_slot(agent, id, attr, 0);
 
-            /* ...and since we'll not be needing that `next' field
-               anymore, use it to thread the list of o-supported
-               rejects */
-            pref->next_in_slot = *o_rejects;
-            *o_rejects = pref;
+            if (pref->slot) {
+                /* Since we'll not be needing that `next' field
+                   anymore, use it to thread the list of o-supported
+                   rejects */
+                pref->next_in_slot = *o_rejects;
+                *o_rejects = pref;
+            }
+            else {
+                /* No slot exists, so just toss the pref and forget we
+                   saw the o-reject. */
+                free(pref);
+            }
         }
         else {
             /* hash the preference into the slots table */

@@ -1,5 +1,11 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
+Wednesday, January 23, 2002
+
+Fix a problem with o-rejects: if an o-reject is created and there's
+not slot to apply it on, we crash!
+
+
 Wednesday, January 9, 2002
 
 Fix lexer to grok signed integer constants. Swap type and value bits
