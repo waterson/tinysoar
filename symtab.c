@@ -154,6 +154,10 @@ symtab_init(struct symtab* symtab)
             if (def->val > symtab->next_variable)
                 symtab->next_variable = def->val;
             break;
+
+        default:
+            ERROR(("integer constant in symbol table"));
+            break;
         }
     }
 }
