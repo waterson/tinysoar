@@ -10,7 +10,7 @@
 
 OUTPUT_FORMAT(srec)
 OUTPUT_ARCH(h8300)
-ENTRY("_kmain")
+ENTRY("__start")
 
 MEMORY {
     rom (r)  : o = 0x0000, l = 0x8000
