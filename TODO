@@ -1,8 +1,5 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
-(1) Implement o-support stuff in rule.y, test to make sure it really
-    works.
-
 (2) Get acceptable preference testing to work. I think it's
     implemented properly in rule.y, and just needs to be made to work
     right in rete.c.
