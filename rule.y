@@ -524,9 +524,6 @@ rhs_action_list: /* empty */
 
 rhs_action: '(' rhs_variable attr_value_make_list ')'
           {
-              struct parser* parser =
-                  (struct parser*) yyparse_param;
-
               struct action* action = $3;
 
               /* At least one element must be specified in the
