@@ -309,7 +309,7 @@ dump_rete_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
                 printf("\n");
             }
 
-            for (beta = alpha->children; beta != 0; beta = beta->siblings)
+            for (beta = alpha->children; beta != 0; beta = beta->next_with_same_alpha_node)
                 dump_beta_node(beta, 1, 0);
 
             alpha = alpha->siblings;
