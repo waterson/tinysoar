@@ -6,7 +6,7 @@
 #define BITS_PER_WORD 32
 #include <assert.h>
 
-#elif defined(CONF_RCX_COMPILER)
+#elif defined(__H8300__)
 
 #define BITS_PER_WORD 16
 #define assert(x)
