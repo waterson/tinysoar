@@ -12,5 +12,5 @@ rete.obj: rete.c
 wmem.obj: wmem.c
 
 clean:
-        del *.obj *.exe *~
+        del *.obj *.exe *.pdb *.ilk *~
 
