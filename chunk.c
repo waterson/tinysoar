@@ -142,7 +142,8 @@ copy_tests(struct beta_test             **dest,
            struct beta_test              *src,
            struct variable_binding_list **bindings,
            int                            depth,
-           struct token                  *token)
+           struct token                  *token,
+           bool_t                         justification)
 {
     struct beta_test *test;
 
@@ -170,35 +171,43 @@ copy_tests(struct beta_test             **dest,
             test->field           = src->field;
 
             if (test->relational_type == relational_type_variable) {
-                /* Convert the variable bindings from the source test
-                   into variable bindings that are equivalent in the
-                   destination test. */
-                variable_binding_t *binding;
-                symbol_t variable;
-                int relative_depth;
+                symbol_t variable
+                    = rete_get_variable_binding(src->data.variable_referent, token);
 
-                variable = rete_get_variable_binding(src->data.variable_referent, token);
-
-                binding =
-                    ensure_variable_binding(bindings, variable,
-                                            test->field, depth);
-
-                test->data.variable_referent = *binding;
-
-                /* Convert the depth to be relative. */
-                relative_depth =
-                    depth - GET_VARIABLE_BINDING_DEPTH(test->data.variable_referent);
-
-                if (relative_depth == 0 &&
-                    GET_VARIABLE_BINDING_FIELD(test->data.variable_referent) == test->field) {
-                    /* Don't create vacuous tests; i.e., that test the
-                       same field at the same level. */
-                    *dest = test->next;
-                    free(test);
+                if (justification) {
+                    /* Don't variablize the identifier; instead, just
+                       add a constant test. */
+                    test->relational_type = relational_type_constant;
+                    test->data.constant_referent = variable;
                 }
                 else {
-                    SET_VARIABLE_BINDING_DEPTH(test->data.variable_referent,
-                                               relative_depth);
+                    /* Convert the variable bindings from the source test
+                       into variable bindings that are equivalent in the
+                       destination test. */
+                    variable_binding_t *binding;
+                    int relative_depth;
+
+                    binding =
+                        ensure_variable_binding(bindings, variable,
+                                                test->field, depth);
+
+                    test->data.variable_referent = *binding;
+
+                    /* Convert the depth to be relative. */
+                    relative_depth =
+                        depth - GET_VARIABLE_BINDING_DEPTH(test->data.variable_referent);
+
+                    if (relative_depth == 0 &&
+                        GET_VARIABLE_BINDING_FIELD(test->data.variable_referent) == test->field) {
+                        /* Don't create vacuous tests; i.e., that test the
+                           same field at the same level. */
+                        *dest = test->next;
+                        free(test);
+                    }
+                    else {
+                        SET_VARIABLE_BINDING_DEPTH(test->data.variable_referent,
+                                                   relative_depth);
+                    }
                 }
             }
             else
@@ -210,7 +219,7 @@ copy_tests(struct beta_test             **dest,
             /* Recursively copy the disjuncts. */
             test->data.disjuncts = 0;
             copy_tests(&test->data.disjuncts, src->data.disjuncts,
-                       bindings, depth, token);
+                       bindings, depth, token, justification);
             break;
 
         case test_type_conjunctive:
@@ -391,7 +400,7 @@ make_rhs(struct agent                 *agent,
         /* Give the chunk a name. */
         static int number = 0;
         char buf[24];
-        sprintf(buf, "chunk-%d", ++number);
+        sprintf(buf, "%s-%d", (justification ? "justification" : "chunk"), ++number);
         production->name = strdup(buf);
     }
 #endif
@@ -407,6 +416,9 @@ make_rhs(struct agent                 *agent,
     node->siblings = parent->children;
     node->children = 0;
     parent->children = node;
+
+    /* Create the back-pointer from the production. */
+    production->node = node;
 
     /* Create tokens! */
     rete_initialize_matches(agent, node, parent);
@@ -517,7 +529,7 @@ create_negative_node(struct agent                  *agent,
        the referents to be bound.
        XXX it'd be nice to assert that. */
     copy_tests(&node->data.tests, orig->parent->data.tests, bindings,
-               depth, token);
+               depth, token, chunk->justification);
 
     /* We'd better not be the first test that's testing a
        goal, either.
@@ -713,7 +725,7 @@ make_production(struct agent           *agent,
 
             node->data.tests = 0;
             copy_tests(&node->data.tests, orig->parent->data.tests, &bindings,
-                       depth, tokens->token);
+                       depth, tokens->token, chunk->justification);
 
             /* If the `id' field is a goal, and we haven't yet added a
                test for the goal, then make one now. */
@@ -996,6 +1008,11 @@ collect(struct agent          *agent,
     visited->inst = inst;
     visited->next = chunk->visited;
     chunk->visited = visited;
+
+    /* If the production we're backtracing is a justification, then we
+       can't use it to build a chunk. */
+    if (inst->production->justification)
+        chunk->justification = 1;
 
     /* Iterate through each token in the instantiation. For a positive
        condition, check if it's a higher-level goal: if so, then add

@@ -1119,7 +1119,6 @@ rete_get_variable_binding(variable_binding_t binding, struct token *token)
     return get_field_from_wme(token->wme, GET_VARIABLE_BINDING_FIELD(binding));
 }
 
-
 void
 rete_finish(struct agent *agent)
 {

@@ -344,6 +344,7 @@ struct production {
 #endif
     struct condition     *conditions;
     struct action        *actions;
+    struct beta_node     *node;
     struct instantiation *instantiations;
     int                   num_unbound_vars;
     support_type_t        support;
@@ -575,6 +576,9 @@ rete_ensure_alpha_node(struct agent *agent,
                        symbol_t      attr,
                        symbol_t      value,
                        wme_type_t    type);
+
+void
+rete_excise(struct agent *agent, struct production *prod);
 
 extern void
 rete_finish(struct agent *agent);

@@ -905,6 +905,56 @@ token_is_reachable(struct token *doomed)
 
     return 0;
 }
+
+/*
+ * Remove the justification from the network.
+ */
+static void
+excise_justification(struct agent *agent, struct production *prod)
+{
+    struct beta_node *node;
+
+    /* Iterate until we reach the top node, or until we reach a node
+       that is shared in the network. */
+    node = prod->node;
+    while (node->parent && !node->siblings && !node->children && node->parent->children == node) {
+        struct beta_node *parent = node->parent;
+        struct beta_node *sibling, **link;
+        struct token *token;
+
+        /* Remove any tokens that the node has. */
+        token = node->tokens;
+        while (token) {
+            struct token *doomed = token;
+            token = token->next;
+            free(doomed);
+        }
+
+        /* Splice from our parent beta node. */
+        for (link = &node->parent->children; (sibling = *link) != 0; link = &sibling->siblings) {
+            if (sibling == node) {
+                *link = node->siblings;
+                break;
+            }
+        }
+
+        /* Splice out of the alpha node. */
+        if (node->alpha_node) {
+            struct beta_node *sibling, **link;
+            for (link = &node->alpha_node->children;
+                 (sibling = *link) != 0;
+                 link = &sibling->next_with_same_alpha_node) {
+                if (sibling == node) {
+                    *link = node->next_with_same_alpha_node;
+                    break;
+                }
+            }
+        }
+
+        free(node);
+        node = parent;
+    }
+}
 #endif
 
 /*
@@ -1037,6 +1087,12 @@ wmem_remove_instantiation(struct agent          *agent,
 
                 token = parent;
             } while (token && token != &agent->root_token);
+        }
+
+        /* If this was a justification, then excise it now. */
+        if (inst->production && inst->production->justification) {
+            ASSERT(inst->next == 0, ("justification was generalized"));
+            excise_justification(agent, inst->production);
         }
 
 #endif

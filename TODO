@@ -9,7 +9,10 @@
 
 . Chunking:
 
-  - justifications
+  - justifications:
+    1) avoid variablization for bothtests and negative nodes
+    2) remove justifications when they're retracted
+
   - figure out how to do bottom-up chunking (instead of all-goals)
   - figure out why the eight-puzzle isn't working
   - look for leaks

@@ -1014,3 +1014,41 @@ results in the superstate.  We can do this trivially (I think) by
 added a call to wmem_remove_preference() as we clean up the results
 list in chunk().
 
+---
+
+To handle justifications, there are two things we need to do.  First,
+we need to make sure that it isn't generalized; i.e., there can be
+only one instantiation.  Second, we need to remove the rule from the
+network when its one-and-only instantiation is retracted.
+
+The problem with avoiding generalization is that I've played
+fast-and-loose with identifiers and variables in the chunking code so
+far.  It may be possible to finesse this by just passing a
+"justification" flag to copy_tests() (and any other place that's
+building a beta_test struct).  When this flag is set, we'll simply
+insert a test that is relational_type_constant instead of
+relational_type_variable, and insert the identifier directly instead
+of the variable binding.
+
+At first blush, removing the rule seems simple.  When we retract the
+instantiation for a justification, all we need to do is walk up the
+network, removing nodes until we arrive at a node that is shared.
+However, looking a bit more deeply reveals that this could, in fact,
+be pretty tricky.  One problem is that we may need to keep the
+justification around for backtracing (I ought to verify that this is
+really the case).
+
+I wrote chunk-17.soar to test whether or not Soar8 keeps
+justifications around for backtracing.  After looking at a trace
+("watch backtracing -on"), it looks like justifications are kept
+around, maybe attached to the instantiation that built them?  Anyway,
+it does look like we'll need to keep justifications "alive" until the
+instantiation can no longer be backtraced.
+
+After looking at the code a bit more, it looks like this may not be so
+hard to do after all.  I think we can simply keep the justifcation
+around until we remove the instantiation.  We've already got a ton of
+logic in there to manage the lifetime of the instantiations for
+backtracing, and the lifetime of the justification is certainly no
+different than that of its instantiation.
+
