@@ -1,5 +1,6 @@
 # This test checks to see if we can trace through an operator
-# instantiation.
+# instantiation. It also tests to check if we can trace a negative
+# condition, and builds a pretty useless chunk!
 
 package require TinySoar
 
