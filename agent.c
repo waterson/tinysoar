@@ -156,7 +156,20 @@ agent_elaborate(struct agent* agent)
 void
 agent_operator_no_change(struct agent* agent, symbol_t goal)
 {
-    UNIMPLEMENTED();
+    symbol_t state = agent_get_identifier(agent);
+
+    push_goal_id(agent, state);
+
+#ifdef DEBUG
+    printf("operator-no-change => [%d]\n", state.val);
+#endif
+
+    MAKE_ARCH_PREF(state, SYM(SUPERSTATE_CONSTANT), goal);
+    MAKE_ARCH_PREF(state, SYM(ATTRIBUTE_CONSTANT),  SYM(OPERATOR_CONSTANT));
+    MAKE_ARCH_PREF(state, SYM(CHOICES_CONSTANT),    SYM(NONE_CONSTANT));
+    MAKE_ARCH_PREF(state, SYM(IMPASSE_CONSTANT),    SYM(NO_CHANGE_CONSTANT));
+    MAKE_ARCH_PREF(state, SYM(QUIESCENCE_CONSTANT), SYM(T_CONSTANT));
+    MAKE_ARCH_PREF(state, SYM(TYPE_CONSTANT),       SYM(STATE_CONSTANT));
 }
 
 
