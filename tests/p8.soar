@@ -1,0 +1,70 @@
+# An example of chunking across operators. Soar8 comes up with this
+# chunk:
+#
+# sp {chunk-1*d5*snochange*1
+#     :chunk
+#     (state <s1> ^ball <b1> ^ball <b2> ^ball <b3>)
+#     -->
+#     (<s1> ^count 3 +)
+# }
+#
+# It isn't qute what you want (because <b1>, <b2>, and <b3> could all
+# match the same element), but it's probably a pretty good test for
+# tracing across operators.
+
+package require Soar;
+
+sp {elaborate*top-state
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^ball <b1> ^ball <b2> ^ball <b3>)}
+
+sp {elaborate*snc
+    (state <s> ^impasse no-change ^attribute state)
+    -->
+    (<s> ^count 0)}
+
+sp {propose*count
+    (state <s> ^superstate <ss> ^count <c>)
+    (<ss> ^ball <b>)
+   -(<s> ^counted <b>)
+    -->
+    (<s> ^operator <o> + =)
+    (<o> ^name count ^object <b> ^value (+ <c> 1))}
+
+sp {implement*count*mark-counted
+    (state <s> ^operator <o>)
+    (<o> ^name count ^object <b>)
+    -->
+    (<s> ^counted <b>)}
+
+sp {implement*count*increment
+    (state <s> ^operator <o> ^count <old*c>)
+    (<o> ^name count ^value <new*c>)
+    -->
+    (<s> ^count <old*c> -)
+    (<s> ^count <new*c>)}
+
+sp {reconsider*count
+    (state <s> ^operator <o>)
+    (<o> ^name count)
+    -->
+    (<s> ^operator <o> @)}
+
+sp {propose*return
+    (state <s> ^superstate <ss> ^count <c>)
+    -->
+    (<s> ^operator <o> + <)
+    (<o> ^name return ^value <c>)}
+
+sp {implement*return
+    (state <s> ^superstate <ss> ^operator <o>)
+    (<o> ^name return ^value <c>)
+    -->
+    (<ss> ^count <c>)}
+
+sp {reconsider*return
+    (state <s> ^operator <o>)
+    (<o> ^name return)
+    -->
+    (<s> ^operator <o> @)}
