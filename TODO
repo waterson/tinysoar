@@ -24,9 +24,5 @@
 
 (9) Implement semantic verification in rule.y.
 
-(11) Why isn't p8.soar's |propose*count*one| production matching? The
-     problem appears to be with the negative condition creating
-     something that's skewed just a little bit in the RETE
-     network. Specifically, it looks like the test is _almost_ right:
-     it's currently |value==<1,value> id==<3,value>| when what I think
-     it should be is just |id==<3,value>|.
+(11) Why isn't p8.soar's |propose*count*one| production matching?
+
