@@ -15,7 +15,7 @@ sp {implement*find-line*move-forward
     (<o> ^name find-line)
     (<io> ^output-link <out>)
     -->
-    (<out> ^motor-a 100 ^motor-c 100)}
+    (<out> ^motor-a forward ^motor-c forward)}
 
 
 sp {implement*find-line*detect-line

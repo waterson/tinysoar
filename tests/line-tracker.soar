@@ -27,7 +27,7 @@ sp {find-line*implement*move-forward
     (state <s> ^operator <o> ^output-link <out>)
     (<o> ^name find-line)
     -->
-    (<out> ^motor-a 100 ^motor-c 100)}
+    (<out> ^motor-a forward ^motor-c forward)}
 
 sp {find-line*reconsider
     (state <s> ^operator <o>)
@@ -50,7 +50,7 @@ sp {track-line*implement
     (state <s> ^operator <o> ^output-link <out>)
     (<o> ^name track-line)
     -->
-    (<out> ^motor-a 100 ^motor-c 100)}
+    (<out> ^motor-a forward ^motor-c forward)}
 
 sp {track-line*reconsider
     (state <s> ^operator <o>)
@@ -73,7 +73,7 @@ sp {spin*implement
     (state <s> ^operator <o> ^output-link <out>)
     (<o> ^name spin)
     -->
-    (<out> ^motor-a -100 ^motor-c 100)}
+    (<out> ^motor-a reverse ^motor-c forward)}
 
 sp {spin*reconsider
     (state <s> ^operator <o>)

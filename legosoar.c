@@ -323,12 +323,31 @@ sync_motor(struct motor *motor)
 
     /* If we find one, and it's got an integer value, then set the
        direction appropriately. */
-    if (wme && GET_SYMBOL_TYPE(wme->value) == symbol_type_integer_constant) {
-        int speed = GET_SYMBOL_VALUE(wme->value);
-        if (speed > 0)
+    if (wme) {
+        switch (GET_SYMBOL_VALUE(wme->value)) {
+#ifdef SYM_FORWARD
+        case SYM_FORWARD:
             direction = motor_direction_forward;
-        else if (speed < 0)
+            break;
+#endif
+
+#ifdef SYM_REVERSE
+        case SYM_REVERSE:
             direction = motor_direction_reverse;
+            break;
+#endif
+
+#ifdef SYM_BRAKE
+        case SYM_BRAKE:
+            direction = motor_direction_brake;
+            break;
+#endif
+
+        default:
+            /* Either SYM_OFF or something random. Leave the default
+               value of motor_direction_off untouched. */
+            break;
+        }
     }
 
     /* Compute and output the waveform. */

@@ -10,7 +10,7 @@ sp {propose*drive
 sp {implement*drive
     (state <s> ^operator.name drive ^io.output-link <out>)
     -->
-    (<out> ^motor-a 100 ^motor-c 100)}
+    (<out> ^motor-a forward ^motor-c forward)}
 
 sp {drive*reconsider
     (state <s> ^operator <o>)
