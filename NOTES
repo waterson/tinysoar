@@ -96,6 +96,13 @@ h8300-hitachi-hms-objdump --section-headers *.o |\
  awk '{ print $3; }' |\
  perl -e 'while (<>) { $sum += hex($_); } print "$sum\n";'
 
+or...
+
+objdump --section-headers alloc.o agent.o rete.o wmem.o ht.o debug.o |\
+ grep .text |\
+ awk '{ printf "0x%s\n", $3; }' |\
+ xargs printf "%d\n"
+
 ---
 
 I was thinking that it might be possible to shrink WMEs and generally
@@ -537,3 +544,11 @@ situation where we _remove_ a preference, and in doing so, lose some
 important backtrace information. For example, counting. I took a stab
 at this with p8.soar, but am too groggy right now to figure out if
 what it's doing is magic.
+
+---
+
+Okay, I've just implemented o-support, and I think I see some smoke on
+the horizon with respect to my ownership model. Specifically, if a
+preference is o-supported, and its instantiation dies, I destroy the
+instantiation object (after clearing back-pointers from the
+preference).

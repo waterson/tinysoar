@@ -205,8 +205,12 @@ wmem_get_wmes(struct agent* agent, symbol_t id, symbol_t attr)
     return slot ? slot->wmes : 0;
 }
 
+/*
+ * Return non-zero if the specified slot's identifier is a goal on the
+ * goal stack.
+ */
 static bool_t
-is_context_slot(struct agent* agent, struct slot* slot)
+is_goal_slot(struct agent* agent, struct slot* slot)
 {
     if (SYMBOLS_ARE_EQUAL(SYM(OPERATOR_CONSTANT), slot->attr)) {
         struct symbol_list* goal;
@@ -233,7 +237,7 @@ decide_slots(struct agent* agent)
         struct preference* pref =
             get_preferences_for_slot(agent, slots->slot);
 
-        bool_t context_slot = is_context_slot(agent, slots->slot);
+        bool_t goal_slot = is_goal_slot(agent, slots->slot);
 
         next = slots->next;
 
@@ -255,12 +259,12 @@ decide_slots(struct agent* agent)
 
                     if (! wme) {
                         /* Make a new wme. Note that wme's that go
-                           into a context slot are `acceptable', not
+                           into a goal slot are `acceptable', not
                            `normal'. */
                         wme = (struct wme*) malloc(sizeof(struct wme));
                         wme->slot  = slots->slot;
                         wme->value = candidate->symbol;
-                        wme->type  = context_slot ? wme_type_acceptable : wme_type_normal;
+                        wme->type  = goal_slot ? wme_type_acceptable : wme_type_normal;
                         wme->next  = slots->slot->wmes;
                         slots->slot->wmes = wme;
 
@@ -386,14 +390,16 @@ wmem_remove_preference(struct agent* agent, struct preference* doomed)
          pref != 0;
          link = &pref->next_in_slot, pref = pref->next_in_slot) {
         if (pref == doomed) {
-            /* Splice out of instantiation list */
-            pref->prev_in_instantiation->next_in_instantiation
-                = pref->next_in_instantiation;
+            if (pref->prev_in_instantiation) {
+                /* Splice the pref out of the instantiation list. */
+                pref->prev_in_instantiation->next_in_instantiation
+                    = pref->next_in_instantiation;
 
-            pref->next_in_instantiation->prev_in_instantiation
-                = pref->prev_in_instantiation;
+                pref->next_in_instantiation->prev_in_instantiation
+                    = pref->prev_in_instantiation;
+            }
 
-            /* Splice out of slot's preferences */
+            /* Splice the pref out of preferences for the slot */
             *link = pref->next_in_slot;
 
             free(pref);
@@ -541,7 +547,7 @@ create_instantiation(struct agent* agent,
 
         pref->next_in_slot = 0;
 
-        pref->support = 0; /*XXX*/
+        pref->support = production->support;
         pref->type    = action->preference_type;
 
         id          = instantiate_rhs_value(&action->id,    token, unbound_vars);
@@ -620,12 +626,23 @@ remove_instantiation(struct agent* agent,
         ASSERT(scan != 0, ("couldn't find instantiation"));
     }
 
-    /* Remove all the preferences associated with the instantiation */
+    /* Remove all the i-supported preferences associated with the
+       instantiation. */
     {
         struct preference* pref = inst->preferences.next_in_instantiation;
         while (pref != &inst->preferences) {
             struct preference* next = pref->next_in_instantiation;
-            wmem_remove_preference(agent, pref);
+
+            if (pref->support == support_type_isupport) {
+                /* If the preference is only i-supported, remove it. */
+                wmem_remove_preference(agent, pref);
+            }
+            else {
+                /* Otherwise, splice it out of the list to avoid any
+                   dangling pointers. */
+                pref->next_in_instantiation = pref->prev_in_instantiation = 0;
+            }
+
             pref = next;
         }
     }

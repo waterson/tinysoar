@@ -38,6 +38,14 @@ sp {propose*wait
     (<s> ^operator <o> +)
     (<o> ^name wait)}
 
+sp {implement*wait
+    (state <s> ^operator <o> ^io <io>)
+    (<o> ^name wait)
+    (<io> ^output-link <out>)
+    (<out> ^motor-a <a> ^motor-c <c>)
+    -->
+    (<out> ^motor-a <a> - ^motor-c <c> -)}
+
 sp {reconsider*wait
     (state <s> ^operator <o>)
     (<o> ^name wait)

@@ -274,8 +274,7 @@ struct rhs_value {
 
 struct action {
     struct action*    next;
-    preference_type_t preference_type : PREFERENCE_TYPE_BITS;
-    support_type_t    support_type    : SUPPORT_TYPE_BITS;
+    preference_type_t preference_type;
     struct rhs_value  id;
     struct rhs_value  attr;
     struct rhs_value  value;
@@ -293,6 +292,7 @@ struct production {
     struct action*        actions;
     struct instantiation* instantiations;
     unsigned              num_unbound_vars;
+    support_type_t        support;
 };
 
 /*----------------------------------------------------------------------*/

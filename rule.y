@@ -39,6 +39,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+static bool_t
+is_operator_test(struct test* test);
+
 /*
  * So we'll get verbose error reporting if YYERROR is defined
  */
@@ -73,6 +76,13 @@ extern int yylex(); /* Can't give it types, because we don't have
  * just being able to pass a parameter into yylex()!
  */
 %pure_parser
+
+/*
+ * There are thirteen shift-reduce conflicts; specifically, due to the
+ * fact that we can parser a |CONTEXT| as a |constant|, and due to
+ * several of the |preference_specifier| non-terminals.
+ */
+%expect 13
 
 /*
  * The YYSTYPE
@@ -357,6 +367,17 @@ attr_value_test: opt_negated '^' attr_test dot_attr_list value_test opt_acceptab
                    $$.data.simple.value_test = $5;
                    $$.next = 0;
 
+                   if (!$6 && is_operator_test(&$3)) {
+                       /* If we're not testing acceptable preferences
+                          and we're testing an ^operator attribute,
+                          then mark the production as generating
+                          o-supported preferences. (This seems a bit
+                          too liberal, but I think it's how Soar8
+                          works.) */
+                       struct parser* parser = (struct parser*) yyparse_param;
+                       parser->production->support = support_type_osupport;
+                   }
+
                    /* XXX need to handle dot_attr_list! */
                }
                ;
@@ -619,7 +640,6 @@ value_make: rhs_value preference_specifier_list
                   $$ = (struct action*) malloc(sizeof(struct action));
                   $$->next            = 0;
                   $$->preference_type = preference_type_acceptable;
-                  $$->support_type    = 0; /* XXX o-support? i-support? */
                   $$->value           = $1;
               }
           }
@@ -800,3 +820,32 @@ yyprint(struct parser* parser, FILE* stream, int token, YYSTYPE lval)
     }
 }
 #endif /* YYDEBUG */
+
+static bool_t
+is_operator_test(struct test* test)
+{
+    switch (test->type) {
+    case test_type_equality:
+        return SYMBOLS_ARE_EQUAL(test->data.referent, SYM(OPERATOR_CONSTANT));
+
+    case test_type_conjunctive:
+    case test_type_disjunctive: {
+        /* If any of the conjuncts or disjuncts test for ^operator,
+           we'll call this an ``operator test''. Too liberal? */
+        struct test_list* tests;
+
+        /* |struct test|'s |conjuncts| and |disjuncts| fields overlap,
+           so we'll just use |conjuncts| regardless. */
+        for (tests = test->data.conjuncts; tests != 0; tests = tests->next) {
+            if (is_operator_test(&tests->test))
+                return 1;
+        }
+    }
+    break;
+
+    default:
+        break;
+    }
+
+    return 0;
+}

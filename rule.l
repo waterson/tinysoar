@@ -91,6 +91,7 @@ soar_parse_rule(struct symtab* symtab, const char* rule)
     result->actions          = 0;
     result->instantiations   = 0;
     result->num_unbound_vars = 0;
+    result->support          = support_type_isupport;
 
     parser.symtab           = symtab;
     parser.production       = result;
