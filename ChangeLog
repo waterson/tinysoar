@@ -7,6 +7,9 @@
 	  Get rid of bitfields in `struct beta_test'.
 
 	* Makefile.in: make `legosoar' target create MDDEPDIR.
+
+	* Makefile.in, configure.in, configure: Switch default make target
+	based on what target architecture. Better optimize/debug defaults.
 	
 2002-10-11  Chris Waterson  <waterson@maubi.net>
 
