@@ -750,6 +750,9 @@ create_instantiation(struct agent       *agent,
             (struct preference *) malloc(sizeof(struct preference));
 
         symbol_t id, attr;
+#ifdef CONF_SOAR_CHUNKING
+        int id_level;
+#endif
 
         pref->next_in_slot = 0;
 
@@ -774,7 +777,8 @@ create_instantiation(struct agent       *agent,
            made for a higher-level identifier, give it i-support. */
         if ((pref->type == preference_type_reconsider)
 #ifdef CONF_SOAR_CHUNKING
-            || (agent_get_id_level(agent, id) < level)
+            || (((id_level = agent_get_id_level(agent, id)) != 0)
+                && (id_level < level))
 #endif
             )
             pref->support = support_type_isupport;
