@@ -1,3 +1,7 @@
+2002-11-01  Chris Waterson  <waterson@maubi.net>
+
+	* rule.y, rule.l: parse 'production type' as no-op.
+
 2002-10-30  Chris Waterson  <waterson@maubi.net>
 
 	* configure.in: emacs now supports autoconf mode.

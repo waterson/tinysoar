@@ -145,6 +145,8 @@ extern int yylex(); /* Can't give it types, because we don't have
 %token GREATER_THAN_OR_EQUAL
 %token SAME_TYPE
 
+%token DEFAULT CHUNK JUSTIFICATION O_SUPPORT I_SUPPORT
+
 %token COMMENT
 
 %token <context> CONTEXT
@@ -199,7 +201,7 @@ extern int yylex(); /* Can't give it types, because we don't have
 %type <symbol_list> constants
 %%
 
-rule: name opt_comment lhs ARROW rhs
+rule: name opt_comment opt_ptype lhs ARROW rhs
     {
         struct parser *parser =
             (struct parser *) yyparse_param;
@@ -210,8 +212,8 @@ rule: name opt_comment lhs ARROW rhs
         production->conditions =
             (struct condition *) malloc(sizeof(struct condition));
 
-        *(production->conditions) = $3;
-        production->actions = $5;
+        *(production->conditions) = $4;
+        production->actions = $6;
     }
     ;
 
@@ -235,6 +237,17 @@ name: NAME
 opt_comment: COMMENT
            |
            ;
+
+/*
+ * Keywords
+ */
+
+opt_ptype: opt_ptype ptype
+         |
+         ;
+
+ptype: DEFAULT | CHUNK | JUSTIFICATION | O_SUPPORT | I_SUPPORT
+     ;
 
 /*
  * Left-hand side

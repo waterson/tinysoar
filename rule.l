@@ -85,6 +85,12 @@ state         { yylval->context = yytext; return CONTEXT; }
                  }
               }
 
+:default      return DEFAULT;
+:chunk        return CHUNK;
+:justification return JUSTIFICATION;
+:o-support    return O_SUPPORT;
+:i-support    return I_SUPPORT;
+
 [+-]?[0-9]+   yylval->int_constant = atoi(yytext); return INT_CONSTANT;
 
 "<<"          return LEFT_ANGLE;
