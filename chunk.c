@@ -1011,7 +1011,7 @@ collect(struct agent          *agent,
 
     /* If the production we're backtracing is a justification, then we
        can't use it to build a chunk. */
-    if (inst->production->justification)
+    if (inst->production && inst->production->justification)
         chunk->justification = 1;
 
     /* Iterate through each token in the instantiation. For a positive
