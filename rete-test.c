@@ -120,35 +120,35 @@ struct agent agent;
 int
 main(int argc, char* argv[])
 {
+    struct preference* s1_superstate_nil;
+    struct preference* s1_input_link_i1;
+
     agent_init(&agent);
 
     init_symbols(&agent);
     init_productions(&agent);
     rete_add_production(&agent, &productions[0]);
 
-    wmem_add_preference(&agent,
-                        symbols[IDENTIFIER_S1],
-                        symbols[CONSTANT_SUPERSTATE],
-                        symbols[CONSTANT_NIL],
-                        preference_type_acceptable,
-                        support_type_architecture);
+    s1_superstate_nil =
+        wmem_add_preference(&agent,
+                            symbols[IDENTIFIER_S1],
+                            symbols[CONSTANT_SUPERSTATE],
+                            symbols[CONSTANT_NIL],
+                            preference_type_acceptable,
+                            support_type_architecture);
 
-    wmem_add_preference(&agent,
-                        symbols[IDENTIFIER_S1],
-                        symbols[CONSTANT_INPUT_LINK],
-                        symbols[IDENTIFIER_I1],
-                        preference_type_acceptable,
-                        support_type_architecture);
+    s1_input_link_i1 =
+        wmem_add_preference(&agent,
+                            symbols[IDENTIFIER_S1],
+                            symbols[CONSTANT_INPUT_LINK],
+                            symbols[IDENTIFIER_I1],
+                            preference_type_acceptable,
+                            support_type_architecture);
 
     wmem_elaborate(&agent);
     wmem_elaborate(&agent);
 
-    wmem_remove_preference(&agent,
-                           symbols[IDENTIFIER_S1],
-                           symbols[CONSTANT_INPUT_LINK],
-                           symbols[IDENTIFIER_I1],
-                           preference_type_acceptable);
-
+    wmem_remove_preference(&agent, s1_input_link_i1);
     wmem_elaborate(&agent);
 
     return 0;

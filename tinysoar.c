@@ -47,15 +47,19 @@ init_soar_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
 static int
 preferences_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
 {
+static char result[16];
+
     symbol_t id, attr, value;
     int i;
     int op = 0; /* query */
     preference_type_t type;
+    struct preference* pref;
 
     i = 1;
 
     if (argc < 2) {
-        interp->result = "preferences [-a | -r] <id> ^<attr> [<value> [<pref> [<ref>]]]";
+        interp->result = "preferences [-a] <id> ^<attr> [<value> [<pref> [<ref>]]]\n\
+preferences -r <pref>";
         return TCL_ERROR;
     }
 
@@ -69,8 +73,20 @@ preferences_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
     }
 
     if (i >= argc) {
-        interp->result = "expected identifier";
+        interp->result = (op == 2) ? "expected preference" : "expected identifier";
         return TCL_ERROR;
+    }
+
+    if (op == 2) {
+        /* handle remove */
+
+        /* XXX yeah, baby */
+        pref = (struct preference*) atoi(argv[i]);
+
+        /* XXX it'd be nice to make sure there is a really a pref with
+           said address before whacking it */
+        wmem_remove_preference(&agent, pref);
+        return TCL_OK;
     }
 
     MAKE_SYMBOL(id, symbol_type_identifier, atoi(argv[i++]));
@@ -86,8 +102,10 @@ preferences_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
 
     if (op == 0) {
         /* handle query */
-        struct preference* pref = wmem_get_preferences(&agent, id, attr);
+        pref = wmem_get_preferences(&agent, id, attr);
         while (pref) {
+            printf("%u: ", (unsigned) pref);
+
             switch (pref->value.type) {
             case symbol_type_symbolic_constant:
                 printf("%s ", symtab_find_name(&symtab, pref->value));
@@ -143,7 +161,7 @@ preferences_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
         return TCL_OK;
     }
 
-    /* If we get here, we're either adding or removing a preference */
+    /* If we get here, we're adding a preference */
     if (i >= argc) {
         interp->result = "expected preference value";
         return TCL_ERROR;
@@ -189,9 +207,9 @@ preferences_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
     }
 
     /* do the nasty */
-    if (op == 1)
-        wmem_add_preference(&agent, id, attr, value, type, support_type_architecture);
-    else wmem_remove_preference(&agent, id, attr, value, type);
+    pref = wmem_add_preference(&agent, id, attr, value, type, support_type_architecture);
+    sprintf(result, "%u", (unsigned) pref);
+    interp->result = result;
 
     return TCL_OK;
 }
