@@ -27,3 +27,11 @@
 
 (9) Implement semantic verification in rule.y.
 
+(10) Problem with p8.soar's |elaborate*top-state| production. It
+     appears to be creating a duplicate preference, rather than three
+     distinct preferences.
+
+(11) Why isn't p8.soar's |propose*count*one| production matching?
+
+(12) Why _is_ p8.soar's |propose*wait| production matching?
+
