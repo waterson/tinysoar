@@ -1137,12 +1137,13 @@ do_left_removal(struct agent* agent,
 
     case beta_node_type_positive_join:
         {
-            /* XXX I have no idea if this is really right. */
             struct right_memory* rm;
             for (rm = node->alpha_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
-                struct beta_node* child;
-                for (child = node->children; child != 0; child = child->siblings)
-                    do_left_removal(agent, child, token, rm->wme);
+                if (check_beta_tests(agent, node->data.tests, token, rm->wme)) {
+                    struct beta_node* child;
+                    for (child = node->children; child != 0; child = child->siblings)
+                        do_left_removal(agent, child, token, rm->wme);
+                }
             }
         }
         break;
@@ -1272,53 +1273,58 @@ do_left_removal(struct agent* agent,
 static void
 do_right_addition(struct agent* agent, struct beta_node* node, struct wme* wme)
 {
+    struct token** link;
+    struct token* token = node->tokens;
+
     switch (node->type) {
     case beta_node_type_positive_join:
-        {
-            struct token* token;
+        /* Iterate through our parent node's tokens, because we won't
+           have any of our own. Fall through, after resetting the
+           token list */
+        ASSERT(node->parent->type == beta_node_type_memory,
+               ("unexpected parent node in right addition"));
 
-            ASSERT(node->parent->type == beta_node_type_memory,
-                   ("unexpected parent node in right addition"));
+        token = node->parent->tokens;
 
-            for (token = node->parent->tokens; token != 0; token = token->next) {
-                if (check_beta_tests(agent, node->data.tests, token, wme)) {
-                    struct beta_node* child;
-                    for (child = node->children; child != 0; child = child->siblings)
-                        do_left_addition(agent, child, token, wme);
-                }
+        /* fall through... */
+
+    case beta_node_type_memory_positive_join:
+        /* Test each token against the WME that's being added. Any
+           matches will result in recursive left-additions to our
+           children. */
+        while (token) {
+            if (check_beta_tests(agent, node->data.tests, token, wme)) {
+                struct beta_node* child;
+                for (child = node->children; child != 0; child = child->siblings)
+                    do_left_addition(agent, child, token, wme);
             }
+
+            token = token->next;
         }
         break;
 
     case beta_node_type_negative:
-        {
-            struct token** link;
-            struct token* token;
+        /* Iterate through the ``active'' tokens to see if any will be
+           blocked by this addition */
+        for (link = &node->tokens, token = *link;
+             token != 0;
+             link = &token->next, token = *link) {
+            if (!node->data.tests || check_beta_tests(agent, node->data.tests, token, wme)) {
+                /* If there are no beta tests, or the beta tests
+                   all pass, then the negative condition has
+                   matched. We need to remove any tokens that had
+                   previously been propagated. */
+                struct beta_node* child;
+                for (child = node->children; child != 0; child = child->siblings)
+                    do_left_removal(agent, child, token, 0);
 
-            for (link = &node->tokens, token = *link;
-                 token != 0;
-                 link = &token->next, token = *link) {
-                if (!node->data.tests || check_beta_tests(agent, node->data.tests, token, wme)) {
-                    /* If there are no beta tests, or the beta tests
-                       all pass, then the negative condition has
-                       matched. We need to remove any tokens that had
-                       previously been propagated. */
-                    struct beta_node* child;
-                    for (child = node->children; child != 0; child = child->siblings)
-                        do_left_removal(agent, child, token, 0);
+                /* This token is now ``blocked'' */
+                *link = token->next;
 
-                    /* This token is now ``blocked'' */
-                    *link = token->next;
-
-                    token->next = node->blocked;
-                    node->blocked = token;
-                }
+                token->next = node->blocked;
+                node->blocked = token;
             }
         }
-        break;
-
-    case beta_node_type_memory_positive_join:
-        UNIMPLEMENTED(); /* XXX write me! */
         break;
 
     case beta_node_type_conjunctive_negative:
@@ -1334,47 +1340,57 @@ do_right_addition(struct agent* agent, struct beta_node* node, struct wme* wme)
 static void
 do_right_removal(struct agent* agent, struct beta_node* node, struct wme* wme)
 {
+    struct token* token = node->tokens;
+    struct token** link;
+
     switch (node->type) {
     case beta_node_type_positive_join:
-        {
-            struct beta_node* child;
+        /* Iterate through our parent node's tokens, because we won't
+           have any of our own. Fall through, after resetting the
+           token list */
+        ASSERT(node->parent->type == beta_node_type_memory,
+               ("unexpected parent node"));
 
-            ASSERT(node->parent->type == beta_node_type_memory,
-                   ("unexpected parent node"));
+        token = node->parent->tokens;
 
-            for (child = node->children; child != 0; child = child->siblings)
-                do_left_removal(agent, child, 0, wme);
+        /* fall through... */
+
+    case beta_node_type_memory_positive_join:
+        /* Test each token against the WME that's being removed. Any
+           matches will result in recursive left-removals from our
+           children. */
+        while (token) {
+            if (check_beta_tests(agent, node->data.tests, token, wme)) {
+                struct beta_node* child;
+                for (child = node->children; child != 0; child = child->siblings)
+                    do_left_removal(agent, child, token, wme);
+            }
+
+            token = token->next;
         }
         break;
 
     case beta_node_type_negative:
-        {
-            struct token** link;
-            struct token* token;
+        /* Iterate through the blocked tokens to see if any will be
+           unblocked by the right-memory removal. */
+        for (link = &node->blocked, token = *link;
+             token != 0;
+             link = &token->next, token = *link) {
+            if (!node->data.tests || check_beta_tests(agent, node->data.tests, token, wme)) {
+                /* If there are no beta tests, or the beta tests
+                   all pass, then this blocked token just became
+                   unblocked. Propagate it downward. */
+                struct beta_node* child;
+                for (child = node->children; child != 0; child = child->siblings)
+                    do_left_addition(agent, child, token, 0);
 
-            for (link = &node->blocked, token = *link;
-                 token != 0;
-                 link = &token->next, token = *link) {
-                if (!node->data.tests || check_beta_tests(agent, node->data.tests, token, wme)) {
-                    /* If there are no beta tests, or the beta tests
-                       all pass, then this blocked token just became
-                       unblocked. Propagate it downward. */
-                    struct beta_node* child;
-                    for (child = node->children; child != 0; child = child->siblings)
-                        do_left_addition(agent, child, token, 0);
+                /* Move the token to the ``unblocked'' list */
+                *link = token->next;
 
-                    /* Move the token to the ``unblocked'' list */
-                    *link = token->next;
-
-                    token->next = node->tokens;
-                    node->tokens = token;
-                }
+                token->next = node->tokens;
+                node->tokens = token;
             }
         }
-        break;
-
-    case beta_node_type_memory_positive_join:
-        UNIMPLEMENTED(); /* XXX write me! */
         break;
 
     case beta_node_type_conjunctive_negative:
@@ -1382,8 +1398,8 @@ do_right_removal(struct agent* agent, struct beta_node* node, struct wme* wme)
     case beta_node_type_root:
     case beta_node_type_production:
     case beta_node_type_memory:
-        /* can't get right addition on these nodes, because these
-           nodes can't be directly connected ot a right memory. */
+        /* We won't ever get right addition on these nodes, because
+           they can't be directly connected ot a right memory. */
         ERROR(("unexpected right addition"));
         break;
     }
