@@ -229,4 +229,11 @@ extern volatile unsigned AD_B;
 #define CH1   (1 << 1)
 #define CH0   (1 << 0)
 
+/*
+ * Sensor I/O port.
+ */
+extern volatile unsigned char PORT6;
+extern volatile unsigned char PORT6_DDR;
+extern volatile unsigned char rom_port6_ddr;
+
 #endif /* rcx_h__ */
