@@ -50,21 +50,22 @@ typedef struct symbol {
 /* Predefined symbols used by the architecture */
 #define ATTRIBUTE_CONSTANT      1
 #define CHOICES_CONSTANT        2
-#define INPUT_LINK_CONSTANT     3
-#define IO_CONSTANT             4
-#define NIL_CONSTANT            5
-#define NONE_CONSTANT           6
-#define NO_CHANGE_CONSTANT      7
-#define OPERATOR_CONSTANT       8
-#define OUTPUT_LINK_CONSTANT    9
-#define QUIESCENCE_CONSTANT    10
-#define STATE_CONSTANT         11
-#define SUPERSTATE_CONSTANT    12
-#define TIE_CONSTANT           13
-#define TYPE_CONSTANT          14
-#define T_CONSTANT             15
+#define IMPASSE_CONSTANT        3
+#define INPUT_LINK_CONSTANT     4
+#define IO_CONSTANT             5
+#define NIL_CONSTANT            6
+#define NONE_CONSTANT           7
+#define NO_CHANGE_CONSTANT      8
+#define OPERATOR_CONSTANT       9
+#define OUTPUT_LINK_CONSTANT   10
+#define QUIESCENCE_CONSTANT    11
+#define STATE_CONSTANT         12
+#define SUPERSTATE_CONSTANT    13
+#define TIE_CONSTANT           14
+#define TYPE_CONSTANT          15
+#define T_CONSTANT             16
 
-#define NCONSTANTS             16
+#define NCONSTANTS             17
 #define USER_CONSTANT_BASE     NCONSTANTS
 
 extern symbol_t constants[NCONSTANTS];
@@ -511,6 +512,12 @@ agent_finish(struct agent* agent);
 
 extern void
 agent_elaborate(struct agent* agent);
+
+extern void
+agent_state_no_change(struct agent* agnet, symbol_t goal);
+
+extern void
+agent_operator_no_change(struct agent* agent, symbol_t goal);
 
 extern void
 rete_push_goal_id(struct agent* agent, symbol_t goal_id);

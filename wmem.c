@@ -716,21 +716,6 @@ process_matches(struct agent* agent)
     }
 }
 
-
-static void
-operator_no_change(struct agent* agent, symbol_t goal)
-{
-    UNIMPLEMENTED();
-}
-
-
-static void
-state_no_change(struct agent* agent, symbol_t goal)
-{
-    UNIMPLEMENTED();
-}
-
-
 static bool_t
 resolve_operator_tie(struct agent* agent, symbol_t goal)
 {
@@ -738,16 +723,16 @@ resolve_operator_tie(struct agent* agent, symbol_t goal)
     return 0;
 }
 
-
-static bool_t
+static void
 select_operator(struct agent* agent)
 {
     unsigned depth = 0;
     struct symbol_list* goal;
+    struct symbol_list* bottom;
 
     ASSERT(agent->goals != 0, ("empty goal stack"));
 
-    for (goal = agent->goals; goal != 0; goal = goal->next, ++depth) {
+    for (goal = agent->goals; goal != 0; bottom = goal, goal = goal->next, ++depth) {
         /* Has the previously selected operated been reconsidered? */
         struct slot* slot =
             find_slot(agent, goal->symbol, SYM(OPERATOR_CONSTANT), 0);
@@ -773,13 +758,14 @@ select_operator(struct agent* agent)
         /* Ensure there's only ever one operator selected! */
         if (wme) {
             struct wme* check;
-            for (check = wme->next; check != 0; check = check->next)
+            for (check = wme->next; check != 0; check = check->next) {
                 ASSERT(check->type == wme_type_acceptable,
                        ("more than one operator selected"));
+            }
         }
 #endif
 
-        /* If there's selected operator, then we need to find a
+        /* If there's a selected operator, then we need to find a
            reconsider preference for it to avoid an operator
            no-change. */
         if (wme) {
@@ -806,20 +792,24 @@ select_operator(struct agent* agent)
                 /* we didn't find a reconsider preference at the
                    bottom-most goal, so we're now at an operator
                    no-change impasse */
-                operator_no_change(agent, goal->symbol);
-                return 0;
+                agent_operator_no_change(agent, goal->symbol);
+                return;
             }
         }
 
-        /* Is a unique operator selected? */
+        /* If we get here, then either no operator was selected, or we
+           were able to reconsider the previously selected
+           operator. Now we go about figuring out then next
+           operator. Let's see if there are any acceptable
+           operators for the slot. */
         for (wme = slot->wmes; wme != 0; wme = wme->next) {
             if (wme->type == wme_type_acceptable)
                 break;
         }
 
         if (wme) {
-            /* At least one acceptable operator exists. Are there
-               more? */
+            /* Okay, at least one acceptable operator exists. Are
+               there more? */
             struct wme* wme2;
 
             for (wme2 = wme->next; wme2 != 0; wme2 = wme2->next) {
@@ -828,30 +818,33 @@ select_operator(struct agent* agent)
             }
 
             if (wme2) {
-                return resolve_operator_tie(agent, goal->symbol);
+                /* There is at least one other acceptable operator. */
+                resolve_operator_tie(agent, goal->symbol);
+                return;
             }
-            else {
-                /* There is a unique acceptable operator */
-                struct wme* op;
 
-                if (goal->next) {
-                    /* We may have resolved an operator tie
-                       impasse */
-                }
+            /* If we get here, then there is a unique acceptable
+               operator. */
+            if (goal->next) {
+                /* We may have resolved an operator tie
+                   impasse */
+            }
 
 #ifdef DEBUG
-                {
-                    /* XXX this should be done in a callback that the
-                       embedding context handles. */
-                    unsigned i;
-                    for (i = 0; i < depth; ++i)
-                        printf("  ");
+            {
+                /* XXX this should be done in a callback that the
+                   embedding context handles. */
+                unsigned i;
+                for (i = 0; i < depth; ++i)
+                    printf("  ");
 
-                    printf("[%d]: %d", goal->symbol.val, wme->value.val);
-                    printf("\n");
-                }
+                printf("[%d]: %d", goal->symbol.val, wme->value.val);
+                printf("\n");
+            }
 #endif
 
+            {
+                struct wme* op;
                 op = (struct wme*) malloc(sizeof(struct wme));
                 op->slot  = slot;
                 op->value = wme->value;
@@ -860,20 +853,18 @@ select_operator(struct agent* agent)
                 slot->wmes = op;
 
                 rete_operate_wme(agent, op, wme_operation_add);
-                return 1;
             }
+
+            return;
         }
-        else if (! goal->next) {
-            /* No acceptable operators found in the bottom-most
-               state; we're in a state no-change impasse */
-            state_no_change(agent, goal->symbol);
-            return 0;
-        }
+
+        /* If we get here, no acceptable operators were found in this
+           state. Continue on to the next goal. */
     }
 
-    /* XXX is this right? */
-    state_no_change(agent, agent->goals->symbol);
-    return 0;
+    /* If we get here, no acceptable operators were found in _any_
+       state, push a new state-no-change goal */
+    agent_state_no_change(agent, bottom->symbol);
 }
 
 
@@ -886,8 +877,12 @@ wmem_elaborate(struct agent* agent)
 {
     decide_slots(agent);
 
-    if (agent->assertions || agent->retractions || select_operator(agent))
-        process_matches(agent);
+    if (!agent->assertions && !agent->retractions) {
+        /* We've reached quiescence. Select a new operator */
+        select_operator(agent);
+    }
+
+    process_matches(agent);
 }
 
 
