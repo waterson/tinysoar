@@ -816,6 +816,20 @@ dump_token(struct symtab *symtab, struct token *token)
 }
 
 static void
+dump_variable_binding(variable_binding_t binding)
+{
+    printf("<%d,", binding.depth);
+    switch (binding.field) {
+    case field_id:    printf("id");     break;
+    case field_attr:  printf("attr");   break;
+    case field_value: printf("value");  break;
+    default:
+        ERROR(("unexpected field"));
+    }
+    printf(">");
+}
+
+static void
 dump_test(struct symtab *symtab, struct beta_test *test)
 {
     switch (test->field) {
@@ -894,15 +908,51 @@ dump_test(struct symtab *symtab, struct beta_test *test)
         printf("%s", symbol_to_string(symtab, test->data.constant_referent));
     }
     else {
-        printf("<%d,", test->data.variable_referent.depth);
-        switch (test->data.variable_referent.field) {
-        case field_id:      printf("id");     break;
-        case field_attr:    printf("attr");   break;
-        case field_value:   printf("value");  break;
-        default:
-            ERROR(("unexpected field"));
-        }
-        printf(">");
+        dump_variable_binding(test->data.variable_referent);
+    }
+}
+
+static const char *
+preference_type_to_string(preference_type_t type)
+{
+    switch (type) {
+    case preference_type_acceptable:         return "+";
+    case preference_type_reject:             return "-";
+    case preference_type_reconsider:         return "@";
+    case preference_type_unary_indifferent:  return "=";
+    case preference_type_best:               return ">";
+    case preference_type_worst:              return "<";
+    case preference_type_prohibit:           return "~";
+    case preference_type_require:            return "!";
+    case preference_type_binary_indifferent: return "=";
+    case preference_type_better:             return ">";
+    case preference_type_worse:              return "<";
+    default:
+        break;
+    }
+
+    UNREACHABLE();
+    return 0;
+}
+
+static void
+dump_rhs_value(struct symtab *symtab, struct rhs_value *value)
+{
+    switch (value->type) {
+    case rhs_value_type_symbol:
+        printf("%s", symbol_to_string(symtab, value->val.symbol));
+        break;
+
+    case rhs_value_type_variable_binding:
+        dump_variable_binding(value->val.variable_binding);
+        break;
+
+    case rhs_value_type_unbound_variable:
+        printf("?%d", value->val.unbound_variable);
+        break;
+
+    default:
+        UNREACHABLE();
     }
 }
 
@@ -973,6 +1023,26 @@ dump_beta_node(struct symtab *symtab, struct beta_node *node, int nest, int recu
     }
 
     printf(">\n");
+
+    if (node->type == beta_node_type_production) {
+        /* Dump the RHS actions. */
+        struct action *action = node->data.production->actions;
+        for ( ; action != 0; action = action->next) {
+            indent_by(nest + 2);
+            printf("=> (");
+            dump_rhs_value(symtab, &action->id);
+            printf(" ^");
+            dump_rhs_value(symtab, &action->attr);
+            printf(" ");
+            dump_rhs_value(symtab, &action->value);
+            printf(" %s", preference_type_to_string(action->preference_type));
+            if (action->preference_type & preference_type_binary) {
+                printf(" ");
+                dump_rhs_value(symtab, &action->referent);
+            }
+            printf(")\n");
+        }
+    }
 
     if (recur) {
         switch (node->type) {
