@@ -127,7 +127,7 @@ struct symbol_list {
 #define ASSERT_VALID_FIELD(f) \
     ASSERT(((f) & ~FIELD_MASK) == 0, ("bad field %d", (f)))
 
-#define GET_FIELD(b) ((b) & FIELD_MASK)
+#define GET_FIELD(b) ((field_t)((b) & FIELD_MASK))
 #define SET_FIELD(b, f) \
     (ASSERT_VALID_FIELD(f), (b) &= ~FIELD_MASK, (b) |= (f))
 
