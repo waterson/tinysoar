@@ -255,7 +255,8 @@ make_rhs(struct agent                 *agent,
          struct beta_node             *parent,
          int                           depth,
          struct variable_binding_list *bindings,
-         struct preference_list       *results)
+         struct preference_list       *results,
+         support_type_t                support)
 {
     struct production *production;
     struct beta_node *node;
@@ -263,8 +264,9 @@ make_rhs(struct agent                 *agent,
 
     /* Create a production structure. */
     production = (struct production *) malloc(sizeof(struct production));
+    production->support        = support_type_isupport;
     production->instantiations = 0;
-    production->actions = 0;
+    production->actions        = 0;
 
     /* Turn the chunk's results into the production's actions. */
     unbound_vars = 0;
@@ -295,9 +297,6 @@ make_rhs(struct agent                 *agent,
         ++production->num_unbound_vars;
     }
 
-    /* XXX determine if we need o-support! */
-    production->support = support_type_isupport;
-
 #ifdef DEBUG
     {
         /* Give the chunk a name. */
@@ -313,6 +312,7 @@ make_rhs(struct agent                 *agent,
     node->type = beta_node_type_production;
     node->data.production = production;
     node->alpha_node = 0;
+    node->next_with_same_alpha_node = 0;
     node->tokens = 0;
     node->parent = parent;
     node->siblings = parent->children;
@@ -336,6 +336,7 @@ make_production(struct agent            *agent,
     struct token_list *tokens;
     int depth = 0;
     bool_t tested_goal = 0;
+    support_type_t support = support_type_isupport;
 
     /* Create beta nodes for each token.
 
@@ -467,6 +468,14 @@ make_production(struct agent            *agent,
             if (GET_SYMBOL_TYPE(tokens->token->wme->value) == symbol_type_identifier)
                 ensure_variable_binding(&bindings, tokens->token->wme->value, field_value, depth);
 
+            /* Compute o-support. */
+            if ((support == support_type_isupport)
+                && SYMBOLS_ARE_EQUAL(tokens->token->wme->slot->attr, OPERATOR_CONSTANT)
+                && (tokens->token->wme->type == wme_type_normal)
+                && agent_is_goal(agent, tokens->token->wme->slot->id)) {
+                support = support_type_osupport;
+            }
+
             node->data.tests = 0;
             copy_tests(&node->data.tests, orig->parent->data.tests, &bindings,
                        depth, tokens->token->wme);
@@ -505,7 +514,7 @@ make_production(struct agent            *agent,
     }
 
     /* Make the chunk's right-hand side. */
-    make_rhs(agent, parent, --depth, bindings, results);
+    make_rhs(agent, parent, --depth, bindings, results, support);
 
     /* Clean up the variable binding list. */
     while (bindings) {
@@ -658,14 +667,6 @@ chunk(struct agent           *agent,
             for (j = i->next; j != 0; j = j->next) {
                 struct token *token;
                 for (token = i->token; token != 0; token = token->parent) {
-#if 0
-                    if (token == j->token) {
-                        token = j->token;
-                        j->token = i->token;
-                        i->token = token;
-                        break;
-                    }
-#endif
                     if (token->wme->value == j->token->wme->slot->id) {
                         token = j->token;
                         j->token = i->token;
