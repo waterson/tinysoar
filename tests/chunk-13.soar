@@ -1,0 +1,44 @@
+# This test backs off from chunk-7.soar: specifically, we verify that
+# we'll include the tests in onc*build-chunk in the final chunk that's
+# built.
+
+package require TinySoar
+set cycles {4 4}
+
+sp {propose*one*two
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^operator <o1> + ^operator <o2> +)
+    (<o1> ^name one ^value 1)
+    (<o2> ^name two ^value 2)}
+
+sp {implement*one
+    (state <s> ^io.output-link <out> ^operator.name one)
+    -->
+    (<out> ^success t)}
+
+sp {onc*prefer*one
+    (state <s> ^superstate <ss>)
+    (<ss> ^operator <o1> + ^operator <o2> +)
+    (<o1> ^name one)
+    (<o2> ^name two)
+    -->
+    (<s> ^prefer <o1> ^over <o2>)}
+
+sp {onc*build-chunk
+    (state <s> ^superstate <ss> ^prefer <o1> ^over { <o2> <> <o1> })
+    (<o1> ^value <v1>)
+    (<o2> ^value { <v2> > <v1> })
+    -->
+    (<ss> ^operator <o1> > <o2>)}
+
+set post {string compare [print chunk-1] \
+"chunk-1
+(state <v1> ^operator <v2> +)
+(<v1> ^operator { <v3> <> <v2> } +)
+(<v2> ^name one)
+(<v3> ^name two)
+(<v2> ^value 1)
+(<v3> ^value 2)
+-->
+(<v1> ^operator <v2> > <v3>)"}
