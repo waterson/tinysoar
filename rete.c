@@ -704,6 +704,7 @@ create_memory_node(struct agent* agent, struct beta_node* parent)
     result->siblings   = parent->children;
     parent->children   = result;
     result->children   = 0;
+    result->tokens     = 0;
 
     initialize_matches(agent, result, parent);
 
@@ -755,6 +756,7 @@ create_production_node(struct agent* agent,
     result->siblings   = parent->children;
     parent->children   = result;
     result->children   = 0;
+    result->tokens     = 0;
     result->data.production = production;
 
     return result;
