@@ -216,13 +216,18 @@ commands:
 
   pref[erence] <id> ^<attr>
 
-    Display the preferences in the specified slot. <id> must by an
+    Display the preferences in the specified slot. <id> must be an
     identifier, <attr> must by a symbolic constant.
 
 
   export <file>
 
     Export the RETE network as a C header to the specified file.
+
+
+  init-soar
+
+    Re-initialize the agent, tossing working memory and preferences.
 
 
   dump-rete
