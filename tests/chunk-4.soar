@@ -1,0 +1,30 @@
+# This test checks to see if we can return complex results.
+
+package require TinySoar
+
+sp {elaborate*top-state
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^ball <b>)}
+
+sp {propose*make-junk
+    (state <s> ^impasse no-change ^attribute state ^superstate <ss>)
+    (<ss> ^ball <b>)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name make-junk ^ball <b>)}
+
+sp {implement*make-junk
+    (state <s> ^operator <o>)
+    (<o> ^name make-junk ^ball <b>)
+    -->
+    (<b> ^color <c>)
+    (<c> ^hue big ^saturation left ^value randy)}
+
+sp {terminate*make-junk
+    (state <s> ^operator <o>)
+    (<o> ^name make-junk ^ball <b>)
+    (<b> ^color <c>)
+    -->
+    (<s> ^operator <o> @)}
+
