@@ -54,13 +54,22 @@
 static char *heap_start;
 static char *heap_end;
 
-struct block_header {
-    unsigned block_size : BITS_PER_WORD - 1;
-    unsigned prev_free : 1;
-};
+typedef unsigned block_header_t;
+
+#define PREV_FREE_MASK   (1 << 0)
+#define BLOCK_SIZE_MASK  (~PREV_FREE_MASK)
+
+#define GET_PREV_FREE(h)  ((h) & PREV_FREE_MASK)
+#define GET_BLOCK_SIZE(h) ((h) & BLOCK_SIZE_MASK)
+
+/* N.B., sizes assumed to be 0 mod 2, prev free assumed to be 1 or 0. */
+#define INIT_BLOCK_HEADER(h, sz, pf) ((h) = (sz) | (pf))
+#define MARK_PREV_FREE(h)            ((h) |= PREV_FREE_MASK)
+#define CLEAR_PREV_FREE(h)           ((h) &= ~PREV_FREE_MASK)
+#define SET_BLOCK_SIZE(h, sz)        ((h) &= ~BLOCK_SIZE_MASK, (h) |= (sz))
 
 struct block_footer {
-    struct block_header *header;
+    block_header_t *header;
 };
 
 /*
@@ -85,7 +94,7 @@ heap_init(char *addrs[], int naddrs)
     heap_start = *addrs;
 
     while (naddrs > 0) {
-        struct block_header *header;
+        block_header_t *header;
         struct block_footer *footer;
         char *begin, *end;
         unsigned size;
@@ -97,25 +106,26 @@ heap_init(char *addrs[], int naddrs)
         /* This block's size is the size of the raw space less its
            header. We also subtractthe header for the next `block',
            which is reserved. */
-        size = (end - begin) - (2 * sizeof(struct block_header));
+        size = (end - begin) - (2 * sizeof(block_header_t));
+        ASSERT(size % 2 == 0, ("odd block size"));
 
         /* Fill in the header and footer information for the current
            block, which is free. */
-        header = (struct block_header *) begin;
-        header->block_size = size;
-        header->prev_free = 0;
+        header = (block_header_t *) begin;
+        INIT_BLOCK_HEADER(*header, size, 0);
 
         footer = (struct block_footer *)
-            (begin + sizeof(struct block_header) + size
+            (begin + sizeof(block_header_t) + size
              - sizeof(struct block_footer));
 
         footer->header = header;
 
         /* Fill in the header information for the next block, which is
            reserved. */
-        header = (struct block_header *) (end - sizeof(struct block_header));
-        header->block_size = (naddrs == 0) ? 0 : *addrs - end;
-        header->prev_free = 1;
+        header = (block_header_t *) (end - sizeof(block_header_t));
+        size = (naddrs == 0) ? 0 : *addrs - end;
+        ASSERT(size % 2 == 0, ("odd block size"));
+        INIT_BLOCK_HEADER(*header, size, 1);
     }
 
     heap_end = *(--addrs);
@@ -128,28 +138,28 @@ heap_init(char *addrs[], int naddrs)
 void *
 malloc(unsigned sz)
 {
-    struct block_header *header, *next;
+    block_header_t *header, *next;
 
     /* Align the request. */
     sz += MIN_REQUEST - 1;
     sz &= ~(MIN_REQUEST - 1);
 
     /* First fit. */
-    for (header = (struct block_header *) heap_start;
+    for (header = (block_header_t *) heap_start;
          (char *) header < heap_end;
          header = next) {
-        next = (struct block_header *)
+        next = (block_header_t *)
             ((char *) header
-             + sizeof(struct block_header)
-             + header->block_size);
+             + sizeof(block_header_t)
+             + GET_BLOCK_SIZE(*header));
 
-        if (next->prev_free && sz <= header->block_size) {
+        if (GET_PREV_FREE(*next) && sz <= GET_BLOCK_SIZE(*header)) {
             /* We can fit the request in this block. */
-            void *result = (void *)((char *) header + sizeof(struct block_header));
+            void *result = (void *)((char *) header + sizeof(block_header_t));
 
-            if (header->block_size < sz + sizeof(struct block_header) + MIN_REQUEST) {
+            if (GET_BLOCK_SIZE(*header) < sz + sizeof(block_header_t) + MIN_REQUEST) {
                 /* We can't fit any other requests here, though. */
-                next->prev_free = 0;
+                CLEAR_PREV_FREE(*next);
             }
             else {
                 /* Split the block. */
@@ -157,17 +167,17 @@ malloc(unsigned sz)
                     (struct block_footer *)
                     ((char *) next - sizeof(struct block_footer));
 
-                unsigned remaining = header->block_size - sz - sizeof(struct block_header);
+                unsigned remaining = GET_BLOCK_SIZE(*header) - sz - sizeof(block_header_t);
 
-                header->block_size = sz;
+                SET_BLOCK_SIZE(*header, sz);
 
-                header = (struct block_header *)
+                header = (block_header_t *)
                     ((char *) header
-                     + sizeof(struct block_header)
+                     + sizeof(block_header_t)
                      + sz);
 
-                header->block_size = remaining;
-                header->prev_free = 0;
+                ASSERT(remaining % 2 == 0, ("odd block size"));
+                INIT_BLOCK_HEADER(*header, remaining, 0);
 
                 footer->header = header;
             }
@@ -188,23 +198,24 @@ malloc(unsigned sz)
 void
 free(void *ptr)
 {
-    struct block_header *header = (struct block_header *)
-        ((char *) ptr - sizeof(struct block_header));
+    block_header_t *header = (block_header_t *)
+        ((char *) ptr - sizeof(block_header_t));
 
-    struct block_header *next = (struct block_header *)
-        ((char *) ptr + header->block_size);
+    block_header_t *next = (block_header_t *)
+        ((char *) ptr + GET_BLOCK_SIZE(*header));
 
-    struct block_header *next_next = (struct block_header *)
-        ((char *) next + sizeof(struct block_header) + next->block_size);
+    block_header_t *next_next = (block_header_t *)
+        ((char *) next + sizeof(block_header_t) + GET_BLOCK_SIZE(*next));
 
     struct block_footer *footer;
+    unsigned size;
 
-    if ((char *) next_next < heap_end && next_next->prev_free) {
+    if ((char *) next_next < heap_end && GET_PREV_FREE(*next_next)) {
         /* The block following us is free. */
         next = next_next;
     }
 
-    if (header->prev_free) {
+    if (GET_PREV_FREE(*header)) {
         /* The block prior to us is free. */
         footer = (struct block_footer *)
             ((char *) header - sizeof(struct block_footer));
@@ -217,10 +228,13 @@ free(void *ptr)
 
     footer->header = header;
 
-    header->block_size =
-        (char *) next - (char *) header - sizeof(struct block_header);
+    /* Expand the block to encompass the reclaimed space. */
+    size = (char *) next - (char *) header - sizeof(block_header_t);
+    ASSERT(size % 2 == 0, ("odd block size"));
+    SET_BLOCK_SIZE(*header, size);
 
-    next->prev_free = 1;
+    /* Note in the header of the _next_ block that this block is free. */
+    MARK_PREV_FREE(*next);
 }
 
 #if defined(DEBUG) && defined(HAVE_PRINTF)
@@ -232,26 +246,26 @@ free(void *ptr)
 void
 heap_walk()
 {
-    struct block_header *header, *next;
+    block_header_t *header, *next;
 
     printf("heap_begin=0x%p, heap_end=0x%p\n",
            heap_start, heap_end);
 
-    for (header = (struct block_header *) heap_start;
+    for (header = (block_header_t *) heap_start;
          (char *) header < heap_end;
          header = next) {
-        next = (struct block_header *)
+        next = (block_header_t *)
             ((char *) header
-             + sizeof(struct block_header)
-             + header->block_size);
+             + sizeof(block_header_t)
+             + GET_BLOCK_SIZE(*header));
 
         printf("%p heap_start+%04x size=%04x %s",
                header,
                (char *) header - heap_start,
-               header->block_size,
-               next->prev_free ? "free" : "in use");
+               GET_BLOCK_SIZE(*header),
+               GET_PREV_FREE(*next) ? "free" : "in use");
 
-        if (next->prev_free) {
+        if (GET_PREV_FREE(*next)) {
             struct block_footer *footer =
                 (struct block_footer *)
                 ((char *) next - sizeof(struct block_footer));

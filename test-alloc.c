@@ -33,6 +33,7 @@
  *
  */
 
+#include <stdio.h>
 #include "config.h"
 #undef HAVE_MALLOC_H
 
@@ -51,6 +52,12 @@ char *addrs[] = {
     heap + 0xff00  /* 0xff00-       stack */
 };
 
+void
+panic()
+{
+    printf("out of memory!\n");
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -68,6 +75,14 @@ main(int argc, char *argv[])
         q = malloc(16);
         free(p);
         free(q);
+    }
+
+    {
+        char *p, *q;
+        p = malloc(1);
+        q = malloc(3);
+        free(q);
+        free(p);
     }
 
     {
