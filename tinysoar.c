@@ -207,8 +207,11 @@ preferences -r <pref>";
                     printf("%s ", symtab_find_name(&symtab, pref->referent));
                     break;
             
-                case symbol_type_integer_constant:
                 case symbol_type_identifier:
+                    printf("[%d] ", GET_SYMBOL_VALUE(pref->referent));
+                    break;
+
+                case symbol_type_integer_constant:
                     printf("%d ", GET_SYMBOL_VALUE(pref->referent));
                     break;
 

@@ -45,26 +45,31 @@
 /* ---------------------------------------------------------------------- */
 
 /*
- * Symbols
+ * Symbols. The symbol's type is stored in the low two bits; the
+ * symbol's value in the high bits.
+ *
+ * XXX might want to change symbol_type_integer_constant to zero if we
+ * ever decide to implement RHS expressions: that way addition and
+ * subtraction can be done without extracting the value.
  */
 #define SYMBOL_TYPE_BITS   2
-#define SYMBOL_TYPE_SHIFT  (BITS_PER_WORD - SYMBOL_TYPE_BITS)
-#define SYMBOL_VALUE_BITS  SYMBOL_TYPE_SHIFT
-#define SYMBOL_TYPE_MASK   ((unsigned)(-1) << SYMBOL_TYPE_SHIFT)
-#define SYMBOL_VALUE_MASK  ~SYMBOL_TYPE_MASK
+#define SYMBOL_VALUE_BITS  (BITS_PER_WORD - SYMBOL_TYPE_BITS)
+#define SYMBOL_VALUE_SHIFT SYMBOL_TYPE_BITS
+#define SYMBOL_VALUE_MASK  ((-1) << SYMBOL_VALUE_SHIFT)
+#define SYMBOL_TYPE_MASK   ~SYMBOL_VALUE_MASK
 
 typedef enum symbol_type {
-    symbol_type_identifier        =  0 << SYMBOL_TYPE_SHIFT,
-    symbol_type_variable          =  1 << SYMBOL_TYPE_SHIFT,
-    symbol_type_symbolic_constant = -2 << SYMBOL_TYPE_SHIFT,
-    symbol_type_integer_constant  = -1 << SYMBOL_TYPE_SHIFT
+    symbol_type_identifier        =  0,
+    symbol_type_variable          =  1,
+    symbol_type_symbolic_constant =  2,
+    symbol_type_integer_constant  =  3
 } symbol_type_t;
 
-typedef unsigned symbol_t;
+typedef int symbol_t;
 
-#define SYMBOL_TO_WORD(t, v)    ((t) | (v))
-#define GET_SYMBOL_VALUE(s)     ((s) & SYMBOL_VALUE_MASK)
-#define SET_SYMBOL_VALUE(s, v)  ((s) &= ~SYMBOL_VALUE_MASK, (s) |= (v) & SYMBOL_VALUE_MASK)
+#define SYMBOL_TO_WORD(t, v)    ((t) | ((v) << SYMBOL_VALUE_SHIFT))
+#define GET_SYMBOL_VALUE(s)     ((s) >> SYMBOL_VALUE_SHIFT)
+#define SET_SYMBOL_VALUE(s, v)  ((s) &= ~SYMBOL_VALUE_MASK, (s) |= ((v) << SYMBOL_VALUE_SHIFT))
 #define GET_SYMBOL_TYPE(s)      ((s) & SYMBOL_TYPE_MASK)
 #define SET_SYMBOL_TYPE(s, t)   ((s) &= ~SYMBOL_TYPE_MASK, (s) |= (t) & SYMBOL_TYPE_MASK)
 #define DECLARE_SYMBOL(t, v)    SYMBOL_TO_WORD((t), (v))

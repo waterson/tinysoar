@@ -51,7 +51,7 @@ compare_symbols(const struct symtab_entry *e1, const struct symtab_entry *e2)
 static inline unsigned
 hash_symbol(const char *name, symbol_type_t type)
 {
-    unsigned h = ((unsigned) type) >> SYMBOL_TYPE_SHIFT;
+    unsigned h = (unsigned) type;
     for ( ; *name != 0; ++name)
         h = (h >> (BITS_PER_WORD - 4)) ^ (h << 4) ^ *name;
 

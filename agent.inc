@@ -22,10 +22,12 @@
 #define SYM_TIE 17
 #define SYM_TYPE 18
 #define SYM_T 19
-#define SYM_NAME 20
-#define SYM_DRIVE 21
-#define SYM_MOTOR_A 22
-#define SYM_MOTOR_C 23
+#define SYM_SENSOR_1 20
+#define SYM_NAME 21
+#define SYM_DRIVE 22
+#define SYM_MOTOR_A 23
+#define SYM_MOTOR_C 24
+#define SYM_WAIT 25
 
 
 #ifdef DECL_RETE_NETWORK
@@ -33,178 +35,425 @@
 static struct beta_node betas[];
 
 static struct alpha_node alphas[] = {
-  { /* 0 (0x8071b20) */
+  { /* 0 (0x806b550) */
+    DECLARE_NIL_SYMBOL,
+    DECLARE_SYMBOL(symbol_type_symbolic_constant, 24),
+    DECLARE_NIL_SYMBOL,
+    &alphas[1], &betas[30], 0 },
+  { /* 1 (0x806b530) */
+    DECLARE_NIL_SYMBOL,
+    DECLARE_SYMBOL(symbol_type_symbolic_constant, 23),
+    DECLARE_NIL_SYMBOL,
+    &alphas[2], &betas[28], 0 },
+  { /* 2 (0x806abe8) */
     DECLARE_NIL_SYMBOL,
     DECLARE_SYMBOL(symbol_type_symbolic_constant, 13),
     DECLARE_NIL_SYMBOL,
-    &alphas[1], &betas[11], 0 },
-  { /* 1 (0x8071d98) */
-    DECLARE_NIL_SYMBOL,
-    DECLARE_SYMBOL(symbol_type_symbolic_constant, 6),
-    DECLARE_NIL_SYMBOL,
-    &alphas[2], &betas[7], 0 },
-  { /* 2 (0x8071d30) */
+    &alphas[3], &betas[26], 0 },
+  { /* 3 (0x806adf0) */
     DECLARE_NIL_SYMBOL,
     DECLARE_SYMBOL(symbol_type_symbolic_constant, 12),
     DECLARE_NIL_SYMBOL,
-    0, &betas[2], 0 },
-  { /* 3 (0x8071aa0) */
+    &alphas[4], &betas[3], 0 },
+  { /* 4 (0x8070dd8) */
     DECLARE_NIL_SYMBOL,
     DECLARE_SYMBOL(symbol_type_symbolic_constant, 20),
+    DECLARE_NIL_SYMBOL,
+    &alphas[5], &betas[11], 0 },
+  { /* 5 (0x806c358) */
+    DECLARE_NIL_SYMBOL,
+    DECLARE_SYMBOL(symbol_type_symbolic_constant, 5),
+    DECLARE_NIL_SYMBOL,
+    &alphas[6], &betas[9], 0 },
+  { /* 6 (0x806c2c8) */
+    DECLARE_NIL_SYMBOL,
+    DECLARE_SYMBOL(symbol_type_symbolic_constant, 6),
+    DECLARE_NIL_SYMBOL,
+    0, &betas[24], 0 },
+  { /* 7 (0x806b3d0) */
+    DECLARE_NIL_SYMBOL,
     DECLARE_SYMBOL(symbol_type_symbolic_constant, 21),
-    &alphas[4], &betas[6], 0 },
-  { /* 4 (0x806c1e8) */
+    DECLARE_SYMBOL(symbol_type_symbolic_constant, 25),
+    &alphas[8], &betas[37], 0 },
+  { /* 8 (0x806ae70) */
+    DECLARE_NIL_SYMBOL,
+    DECLARE_SYMBOL(symbol_type_symbolic_constant, 21),
+    DECLARE_SYMBOL(symbol_type_symbolic_constant, 22),
+    &alphas[9], &betas[35], 0 },
+  { /* 9 (0x806c238) */
     DECLARE_NIL_SYMBOL,
     DECLARE_SYMBOL(symbol_type_symbolic_constant, 16),
     DECLARE_SYMBOL(symbol_type_symbolic_constant, 9),
-    0, &betas[3], 0 },
+    0, &betas[4], 0 },
+  { /* 10 (0x806cc78) */
+    DECLARE_NIL_SYMBOL,
+    DECLARE_SYMBOL(symbol_type_symbolic_constant, 12),
+    DECLARE_NIL_SYMBOL,
+    0, &betas[33], 0 },
 };
 
 static struct beta_test tests[] = {
-  { /* 0 (0x806c258) */
+  { /* 0 (0x806b2e8) */
     test_type_goal_id, relational_type_constant, field_id,
     { SYMBOL_TO_WORD(symbol_type_identifier, 0) }, 0 },
-  { /* 1 (0x806c1c0) */
+  { /* 1 (0x806ade0) */
     test_type_goal_id, relational_type_constant, field_id,
     { SYMBOL_TO_WORD(symbol_type_identifier, 0) }, 0 },
-  { /* 2 (0x806bcc8) */
-    test_type_equality, relational_type_variable, field_id,
-    { VARIABLE_BINDING_TO_WORD(field_value, 1) }, 0 },
-  { /* 3 (0x8071d60) */
+  { /* 2 (0x8055650) */
+    test_type_goal_id, relational_type_constant, field_id,
+    { SYMBOL_TO_WORD(symbol_type_identifier, 0) }, 0 },
+  { /* 3 (0x806c290) */
     test_type_equality, relational_type_variable, field_id,
     { VARIABLE_BINDING_TO_WORD(field_id, 1) }, 0 },
-  { /* 4 (0x8071de0) */
+  { /* 4 (0x806c320) */
+    test_type_equality, relational_type_variable, field_id,
+    { VARIABLE_BINDING_TO_WORD(field_value, 1) }, 0 },
+  { /* 5 (0x806c3b0) */
+    test_type_greater, relational_type_constant, field_value,
+    { SYMBOL_TO_WORD(symbol_type_integer_constant, 512) }, 0 },
+  { /* 6 (0x806c3a0) */
+    test_type_equality, relational_type_variable, field_id,
+    { VARIABLE_BINDING_TO_WORD(field_value, 1) }, 0 },
+  { /* 7 (0x806c7c0) */
+    test_type_equality, relational_type_variable, field_id,
+    { VARIABLE_BINDING_TO_WORD(field_value, 1) }, 0 },
+  { /* 8 (0x806ae38) */
+    test_type_equality, relational_type_variable, field_id,
+    { VARIABLE_BINDING_TO_WORD(field_value, 1) }, 0 },
+  { /* 9 (0x806aec8) */
+    test_type_equality, relational_type_variable, field_id,
+    { VARIABLE_BINDING_TO_WORD(field_id, 2) }, 0 },
+  { /* 10 (0x806abb0) */
+    test_type_equality, relational_type_variable, field_id,
+    { VARIABLE_BINDING_TO_WORD(field_value, 1) }, 0 },
+  { /* 11 (0x806b418) */
+    test_type_equality, relational_type_variable, field_id,
+    { VARIABLE_BINDING_TO_WORD(field_id, 2) }, 0 },
+  { /* 12 (0x806b488) */
+    test_type_equality, relational_type_variable, field_id,
+    { VARIABLE_BINDING_TO_WORD(field_value, 1) }, 0 },
+  { /* 13 (0x806b4f8) */
+    test_type_equality, relational_type_variable, field_id,
+    { VARIABLE_BINDING_TO_WORD(field_value, 1) }, 0 },
+  { /* 14 (0x806bfa8) */
     test_type_equality, relational_type_variable, field_id,
     { VARIABLE_BINDING_TO_WORD(field_value, 2) }, 0 },
-  { /* 5 (0x8071ae8) */
+  { /* 15 (0x806ccd0) */
+    test_type_equality, relational_type_variable, field_id,
+    { VARIABLE_BINDING_TO_WORD(field_id, 1) }, 0 },
+  { /* 16 (0x806cd30) */
+    test_type_equality, relational_type_variable, field_id,
+    { VARIABLE_BINDING_TO_WORD(field_value, 2) }, 0 },
+  { /* 17 (0x806cd90) */
     test_type_equality, relational_type_variable, field_id,
     { VARIABLE_BINDING_TO_WORD(field_value, 2) }, 0 },
 };
 
 static struct action actions[] = {
-  { /* 0 (0x806c0e8) */
+  { /* 0 (0x806c7d0) */
     &actions[1], preference_type_acceptable,
     { rhs_value_type_variable_binding, { VARIABLE_BINDING_TO_WORD(field_id, 0) } },
     { rhs_value_type_symbol, { SYMBOL_TO_WORD(symbol_type_symbolic_constant, 12) } },
     { rhs_value_type_unbound_variable, { 0 } },
     { 0, { 0 } } },
-  { /* 1 (0x806c168) */
+  { /* 1 (0x8070d78) */
     0, preference_type_acceptable,
     { rhs_value_type_unbound_variable, { 0 } },
-    { rhs_value_type_symbol, { SYMBOL_TO_WORD(symbol_type_symbolic_constant, 20) } },
     { rhs_value_type_symbol, { SYMBOL_TO_WORD(symbol_type_symbolic_constant, 21) } },
+    { rhs_value_type_symbol, { SYMBOL_TO_WORD(symbol_type_symbolic_constant, 25) } },
     { 0, { 0 } } },
-  { /* 2 (0x8071c80) */
+  { /* 2 (0x8071e58) */
     &actions[3], preference_type_acceptable,
-    { rhs_value_type_variable_binding, { VARIABLE_BINDING_TO_WORD(field_value, 0) } },
-    { rhs_value_type_symbol, { SYMBOL_TO_WORD(symbol_type_symbolic_constant, 22) } },
-    { rhs_value_type_symbol, { SYMBOL_TO_WORD(symbol_type_integer_constant, 100) } },
+    { rhs_value_type_variable_binding, { VARIABLE_BINDING_TO_WORD(field_id, 3) } },
+    { rhs_value_type_symbol, { SYMBOL_TO_WORD(symbol_type_symbolic_constant, 12) } },
+    { rhs_value_type_unbound_variable, { 0 } },
     { 0, { 0 } } },
-  { /* 3 (0x8071cd8) */
+  { /* 3 (0x806c1c8) */
     0, preference_type_acceptable,
-    { rhs_value_type_variable_binding, { VARIABLE_BINDING_TO_WORD(field_value, 0) } },
-    { rhs_value_type_symbol, { SYMBOL_TO_WORD(symbol_type_symbolic_constant, 23) } },
-    { rhs_value_type_symbol, { SYMBOL_TO_WORD(symbol_type_integer_constant, 100) } },
+    { rhs_value_type_unbound_variable, { 0 } },
+    { rhs_value_type_symbol, { SYMBOL_TO_WORD(symbol_type_symbolic_constant, 21) } },
+    { rhs_value_type_symbol, { SYMBOL_TO_WORD(symbol_type_symbolic_constant, 22) } },
     { 0, { 0 } } },
-  { /* 4 (0x806bc70) */
+  { /* 4 (0x806c5f0) */
     0, preference_type_reconsider,
     { rhs_value_type_variable_binding, { VARIABLE_BINDING_TO_WORD(field_id, 1) } },
     { rhs_value_type_symbol, { SYMBOL_TO_WORD(symbol_type_symbolic_constant, 12) } },
     { rhs_value_type_variable_binding, { VARIABLE_BINDING_TO_WORD(field_value, 1) } },
     { 0, { 0 } } },
+  { /* 5 (0x806ad30) */
+    &actions[6], preference_type_acceptable,
+    { rhs_value_type_variable_binding, { VARIABLE_BINDING_TO_WORD(field_value, 0) } },
+    { rhs_value_type_symbol, { SYMBOL_TO_WORD(symbol_type_symbolic_constant, 23) } },
+    { rhs_value_type_symbol, { SYMBOL_TO_WORD(symbol_type_integer_constant, 100) } },
+    { 0, { 0 } } },
+  { /* 6 (0x806ad88) */
+    0, preference_type_acceptable,
+    { rhs_value_type_variable_binding, { VARIABLE_BINDING_TO_WORD(field_value, 0) } },
+    { rhs_value_type_symbol, { SYMBOL_TO_WORD(symbol_type_symbolic_constant, 24) } },
+    { rhs_value_type_symbol, { SYMBOL_TO_WORD(symbol_type_integer_constant, 100) } },
+    { 0, { 0 } } },
+  { /* 7 (0x806b158) */
+    0, preference_type_reconsider,
+    { rhs_value_type_variable_binding, { VARIABLE_BINDING_TO_WORD(field_id, 1) } },
+    { rhs_value_type_symbol, { SYMBOL_TO_WORD(symbol_type_symbolic_constant, 12) } },
+    { rhs_value_type_variable_binding, { VARIABLE_BINDING_TO_WORD(field_value, 1) } },
+    { 0, { 0 } } },
+  { /* 8 (0x806b348) */
+    &actions[9], preference_type_reject,
+    { rhs_value_type_variable_binding, { VARIABLE_BINDING_TO_WORD(field_value, 2) } },
+    { rhs_value_type_symbol, { SYMBOL_TO_WORD(symbol_type_symbolic_constant, 23) } },
+    { rhs_value_type_variable_binding, { VARIABLE_BINDING_TO_WORD(field_value, 1) } },
+    { 0, { 0 } } },
+  { /* 9 (0x806b378) */
+    0, preference_type_reject,
+    { rhs_value_type_variable_binding, { VARIABLE_BINDING_TO_WORD(field_value, 2) } },
+    { rhs_value_type_symbol, { SYMBOL_TO_WORD(symbol_type_symbolic_constant, 24) } },
+    { rhs_value_type_variable_binding, { VARIABLE_BINDING_TO_WORD(field_value, 0) } },
+    { 0, { 0 } } },
+  { /* 10 (0x806cc20) */
+    0, preference_type_better,
+    { rhs_value_type_variable_binding, { VARIABLE_BINDING_TO_WORD(field_id, 3) } },
+    { rhs_value_type_symbol, { SYMBOL_TO_WORD(symbol_type_symbolic_constant, 12) } },
+    { rhs_value_type_variable_binding, { VARIABLE_BINDING_TO_WORD(field_value, 3) } },
+    { rhs_value_type_variable_binding, { VARIABLE_BINDING_TO_WORD(field_value, 2) } } },
 };
 
 static struct production productions[] = {
-  { /* 0 (0x8052ed0) */
+  { /* 0 (0x806c6d8) */
+#ifdef DEBUG
+    "propose*wait",
+#endif
+    0, &actions[0], 0, 1, support_type_isupport },
+  { /* 1 (0x8066cf0) */
 #ifdef DEBUG
     "propose*drive",
 #endif
-    0, &actions[0], 0, 1, support_type_isupport },
-  { /* 1 (0x806c040) */
-#ifdef DEBUG
-    "implement*drive",
-#endif
-    0, &actions[2], 0, 0, support_type_osupport },
-  { /* 2 (0x806bb88) */
+    0, &actions[2], 0, 1, support_type_isupport },
+  { /* 2 (0x806c408) */
 #ifdef DEBUG
     "drive*reconsider",
 #endif
     0, &actions[4], 0, 0, support_type_osupport },
+  { /* 3 (0x8070e48) */
+#ifdef DEBUG
+    "implement*drive",
+#endif
+    0, &actions[5], 0, 0, support_type_osupport },
+  { /* 4 (0x806b038) */
+#ifdef DEBUG
+    "reconsider*wait",
+#endif
+    0, &actions[7], 0, 0, support_type_osupport },
+  { /* 5 (0x806b0e0) */
+#ifdef DEBUG
+    "implement*wait",
+#endif
+    0, &actions[8], 0, 0, support_type_osupport },
+  { /* 6 (0x806b1b0) */
+#ifdef DEBUG
+    "prefer*drive-to-wait",
+#endif
+    0, &actions[10], 0, 0, support_type_isupport },
 };
 
 static struct agent agent;
 
 static struct beta_node betas[] = {
-  { /* 0 (0x80709b8) */
+  { /* 0 (0x806c078) */
     beta_node_type_root,
     0, 0, &betas[1], 
     0, 0,
     &agent.root_token, 0, { 0 } },
-  { /* 1 (0x8070a00) */
+  { /* 1 (0x8070cd8) */
     beta_node_type_memory,
     &betas[0], 0, &betas[2], 
     0, 0,
     0, 0, { 0 } },
-  { /* 2 (0x806c060) */
+  { /* 2 (0x806cc98) */
     beta_node_type_positive_join,
-    &betas[1], &betas[3], &betas[5], 
-    &alphas[2], 0,
+    &betas[1], &betas[3], &betas[32], 
+    &alphas[10], 0,
     0, 0, { &tests[0] } },
-  { /* 3 (0x806c208) */
+  { /* 3 (0x806ae10) */
     beta_node_type_positive_join,
-    &betas[1], 0, &betas[4], 
-    &alphas[4], 0,
+    &betas[1], &betas[4], &betas[13], 
+    &alphas[3], 0,
     0, 0, { &tests[1] } },
-  { /* 4 (0x806c230) */
+  { /* 4 (0x806c258) */
+    beta_node_type_positive_join,
+    &betas[1], 0, &betas[5], 
+    &alphas[9], 0,
+    0, 0, { &tests[2] } },
+  { /* 5 (0x806bf48) */
     beta_node_type_production,
-    &betas[3], 0, 0, 
+    &betas[4], &betas[6], 0, 
     0, 0,
     0, 0, { (struct beta_test *) &productions[0] } },
-  { /* 5 (0x8071d70) */
+  { /* 6 (0x806c2a0) */
     beta_node_type_memory,
-    &betas[2], 0, &betas[6], 
+    &betas[4], 0, &betas[7], 
     0, 0,
     0, 0, { 0 } },
-  { /* 6 (0x806bcd8) */
+  { /* 7 (0x806c2e8) */
     beta_node_type_positive_join,
-    &betas[5], &betas[7], &betas[13], 
-    &alphas[3], &betas[9],
-    0, 0, { &tests[2] } },
-  { /* 7 (0x8071db8) */
-    beta_node_type_positive_join,
-    &betas[5], 0, &betas[8], 
-    &alphas[1], 0,
+    &betas[6], 0, &betas[8], 
+    &alphas[6], 0,
     0, 0, { &tests[3] } },
-  { /* 8 (0x8071df0) */
+  { /* 8 (0x806c330) */
     beta_node_type_memory,
     &betas[7], 0, &betas[9], 
     0, 0,
     0, 0, { 0 } },
-  { /* 9 (0x8071ac0) */
+  { /* 9 (0x806c378) */
     beta_node_type_positive_join,
     &betas[8], 0, &betas[10], 
-    &alphas[3], 0,
+    &alphas[5], 0,
     0, 0, { &tests[4] } },
-  { /* 10 (0x8071af8) */
+  { /* 10 (0x806c3c0) */
     beta_node_type_memory,
     &betas[9], 0, &betas[11], 
     0, 0,
     0, 0, { 0 } },
-  { /* 11 (0x806bac8) */
+  { /* 11 (0x8070df8) */
     beta_node_type_positive_join,
     &betas[10], 0, &betas[12], 
-    &alphas[0], 0,
+    &alphas[4], 0,
     0, 0, { &tests[5] } },
-  { /* 12 (0x806baf0) */
+  { /* 12 (0x8070e20) */
     beta_node_type_production,
     &betas[11], 0, 0, 
     0, 0,
     0, 0, { (struct beta_test *) &productions[1] } },
-  { /* 13 (0x806bd00) */
+  { /* 13 (0x806ae48) */
+    beta_node_type_memory,
+    &betas[3], 0, &betas[14], 
+    0, 0,
+    0, 0, { 0 } },
+  { /* 14 (0x806b3f0) */
+    beta_node_type_positive_join,
+    &betas[13], &betas[15], &betas[22], 
+    &alphas[7], 0,
+    0, 0, { &tests[7] } },
+  { /* 15 (0x806ae90) */
+    beta_node_type_positive_join,
+    &betas[13], 0, &betas[16], 
+    &alphas[8], 0,
+    0, 0, { &tests[8] } },
+  { /* 16 (0x806c648) */
     beta_node_type_production,
-    &betas[6], 0, 0, 
+    &betas[15], &betas[17], 0, 
     0, 0,
     0, 0, { (struct beta_test *) &productions[2] } },
+  { /* 17 (0x806aed8) */
+    beta_node_type_memory,
+    &betas[15], 0, &betas[18], 
+    0, 0,
+    0, 0, { 0 } },
+  { /* 18 (0x806af00) */
+    beta_node_type_positive_join,
+    &betas[17], 0, &betas[19], 
+    &alphas[6], &betas[7],
+    0, 0, { &tests[9] } },
+  { /* 19 (0x806abc0) */
+    beta_node_type_memory,
+    &betas[18], 0, &betas[20], 
+    0, 0,
+    0, 0, { 0 } },
+  { /* 20 (0x806ac08) */
+    beta_node_type_positive_join,
+    &betas[19], 0, &betas[21], 
+    &alphas[2], 0,
+    0, 0, { &tests[10] } },
+  { /* 21 (0x806c478) */
+    beta_node_type_production,
+    &betas[20], 0, 0, 
+    0, 0,
+    0, 0, { (struct beta_test *) &productions[3] } },
+  { /* 22 (0x806b100) */
+    beta_node_type_production,
+    &betas[14], &betas[23], 0, 
+    0, 0,
+    0, 0, { (struct beta_test *) &productions[4] } },
+  { /* 23 (0x806b428) */
+    beta_node_type_memory,
+    &betas[14], 0, &betas[24], 
+    0, 0,
+    0, 0, { 0 } },
+  { /* 24 (0x806b450) */
+    beta_node_type_positive_join,
+    &betas[23], 0, &betas[25], 
+    &alphas[6], &betas[18],
+    0, 0, { &tests[11] } },
+  { /* 25 (0x806b498) */
+    beta_node_type_memory,
+    &betas[24], 0, &betas[26], 
+    0, 0,
+    0, 0, { 0 } },
+  { /* 26 (0x806b4c0) */
+    beta_node_type_positive_join,
+    &betas[25], 0, &betas[27], 
+    &alphas[2], &betas[20],
+    0, 0, { &tests[12] } },
+  { /* 27 (0x806b508) */
+    beta_node_type_memory,
+    &betas[26], 0, &betas[28], 
+    0, 0,
+    0, 0, { 0 } },
+  { /* 28 (0x806bf70) */
+    beta_node_type_positive_join,
+    &betas[27], 0, &betas[29], 
+    &alphas[1], 0,
+    0, 0, { &tests[13] } },
+  { /* 29 (0x806c670) */
+    beta_node_type_memory,
+    &betas[28], 0, &betas[30], 
+    0, 0,
+    0, 0, { 0 } },
+  { /* 30 (0x806c698) */
+    beta_node_type_positive_join,
+    &betas[29], 0, &betas[31], 
+    &alphas[0], 0,
+    0, 0, { &tests[14] } },
+  { /* 31 (0x806c6f8) */
+    beta_node_type_production,
+    &betas[30], 0, 0, 
+    0, 0,
+    0, 0, { (struct beta_test *) &productions[5] } },
+  { /* 32 (0x806cce0) */
+    beta_node_type_memory,
+    &betas[2], 0, &betas[33], 
+    0, 0,
+    0, 0, { 0 } },
+  { /* 33 (0x806cd08) */
+    beta_node_type_positive_join,
+    &betas[32], 0, &betas[34], 
+    &alphas[10], &betas[2],
+    0, 0, { &tests[15] } },
+  { /* 34 (0x806cd40) */
+    beta_node_type_memory,
+    &betas[33], 0, &betas[35], 
+    0, 0,
+    0, 0, { 0 } },
+  { /* 35 (0x806cd68) */
+    beta_node_type_positive_join,
+    &betas[34], 0, &betas[36], 
+    &alphas[8], &betas[15],
+    0, 0, { &tests[16] } },
+  { /* 36 (0x806cda0) */
+    beta_node_type_memory,
+    &betas[35], 0, &betas[37], 
+    0, 0,
+    0, 0, { 0 } },
+  { /* 37 (0x806cdc8) */
+    beta_node_type_positive_join,
+    &betas[36], 0, &betas[38], 
+    &alphas[7], &betas[14],
+    0, 0, { &tests[17] } },
+  { /* 38 (0x806cdf0) */
+    beta_node_type_production,
+    &betas[37], 0, 0, 
+    0, 0,
+    0, 0, { (struct beta_test *) &productions[6] } },
 };
 
 static struct agent agent = {
@@ -212,14 +461,14 @@ static struct agent agent = {
   { 0,
     0,
     &alphas[0],
-    &alphas[3],
+    &alphas[7],
     0,
     0,
     0,
     0,
     0,
     0,
-    0,
+    &alphas[10],
     0,
     0,
     0,
