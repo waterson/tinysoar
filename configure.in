@@ -1,8 +1,6 @@
 AC_PREREQ(2.12)
 AC_INIT(soar.h)
 
-AC_PROG_CC
-
 dnl Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS(malloc.h)
