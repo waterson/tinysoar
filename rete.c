@@ -659,8 +659,9 @@ do_right_removal(struct agent *agent, struct beta_node *node, struct wme *wme)
                blocked. */
             struct right_memory *rm;
             for (rm = node->alpha_node->right_memories;
-                 rm != 0;rm = rm->next_in_alpha_node) {
-                if (rm->wme != wme)
+                 rm != 0;
+                 rm = rm->next_in_alpha_node) {
+                if (rm->wme == wme)
                     continue;
 
                 /* If there are no beta tests, or the beta tests all
