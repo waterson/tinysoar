@@ -1036,7 +1036,7 @@ rete_add_wme(struct agent* agent, struct wme* wme)
 }
 
 void
-rete_remove_wme()
+rete_remove_wme(struct agent* agent, struct wme* wme)
 {
 }
 

@@ -465,6 +465,9 @@ extern void
 rete_add_wme(struct agent* agent, struct wme* wme);
 
 extern void
+rete_remove_wme(struct agent* agent, struct wme* wme);
+
+extern void
 agent_init(struct agent* agent);
 
 extern void
