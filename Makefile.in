@@ -1,12 +1,18 @@
+CC = @CC@
+CFLAGS = @CFLAGS@ -Wall @DEFS@ -I@srcdir@ -I.
+
 ifdef BUILD_OPT
 # Optimized
-CFLAGS=-Wall -O -UDEBUG -DNDEBUG
+CFLAGS += -O -UDEBUG -DNDEBUG
 else
 # Debug
-CFLAGS=-Wall -g -DDEBUG -UNDEBUG
+CFLAGS += -g -DDEBUG -UNDEBUG
 endif
 
 MDDEPDIR=.deps
+
+srcdir=@srcdir@
+VPATH=@srcdir@
 
 .c.o:
 	$(CC) -c $(CFLAGS) -Wp,-MD,$(MDDEPDIR)/$*.pp -o $@ $<
@@ -22,17 +28,19 @@ ifdef MDDEPFILES
 include $(MDDEPFILES)
 endif
 
-OBJS = \
-	alloc.o \
-	agent.o \
-	ht.o \
-	pref.o \
-	rete-test.o \
-	rete.o \
-	runtime.o \
-	symtab.o \
+CSRCS = \
+	alloc.c \
+	agent.c \
+	ht.c \
+	pref.c \
+	rete-test.c \
+	rete.c \
+	runtime.c \
+	symtab.c \
 	wmem.o \
 	$(NULL)
+
+OBJS = $(CSRCS:.c=.o)
 
 rete-test: $(OBJS)
 
@@ -40,5 +48,5 @@ clean:
 	rm -rf .deps rete-test *.o *~
 
 distclean: clean
-	rm -f Makefile config.cache config.log config.status config-defs.h
+	rm -f Makefile config.cache config.log config.status defs.h
 

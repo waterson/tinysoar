@@ -1,7 +1,7 @@
 #ifndef config_h__
 #define config_h__
 
-#include "config-defs.h"
+#include "defs.h"
 
 /* How many bits per word are there? */
 #if SIZEOF_INT == 8
