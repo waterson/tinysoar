@@ -95,7 +95,7 @@ agent_init(struct agent *agent)
         constants_initialized = 1;
 
         for (i = NCONSTANTS - 1; i >= 1; --i)
-            MAKE_SYMBOL(constants[i], symbol_type_symbolic_constant, i);
+            INIT_SYMBOL(constants[i], symbol_type_symbolic_constant, i);
     }
 
 #ifdef CONF_SOAR_RETE_CREATE
@@ -149,7 +149,7 @@ agent_get_identifier(struct agent *agent)
     ASSERT(agent->next_available_identifier < (1 << SYMBOL_VALUE_BITS),
            ("ran out of identifiers"));
 
-    MAKE_SYMBOL(result, symbol_type_identifier, agent->next_available_identifier++);
+    INIT_SYMBOL(result, symbol_type_identifier, agent->next_available_identifier++);
     return result;
 }
 

@@ -121,9 +121,9 @@ sync_sensor_1(struct preference **sensor_pref)
     if (pref && GET_SYMBOL_VALUE(pref->value) == sensor_1_val)
         return;
 
-    MAKE_SYMBOL(sym_input_link, symbol_type_identifier, 3 /*XXX*/);
-    MAKE_SYMBOL(sym_sensor_1, symbol_type_symbolic_constant, SYM_SENSOR_1);
-    MAKE_SYMBOL(sym_value, symbol_type_integer_constant, sensor_1_val);
+    INIT_SYMBOL(sym_input_link, symbol_type_identifier, 3 /*XXX*/);
+    INIT_SYMBOL(sym_sensor_1, symbol_type_symbolic_constant, SYM_SENSOR_1);
+    INIT_SYMBOL(sym_value, symbol_type_integer_constant, sensor_1_val);
 
     if (pref)
         wmem_remove_preference(&agent, pref);
@@ -148,8 +148,8 @@ sync_motor(unsigned motor, const unsigned char pattern[])
     symbol_t sym_motor_n;
     motor_direction_t direction = motor_direction_off;
 
-    MAKE_SYMBOL(sym_output_link, symbol_type_identifier, 4 /*XXX*/);
-    MAKE_SYMBOL(sym_motor_n, symbol_type_symbolic_constant, motor);
+    INIT_SYMBOL(sym_output_link, symbol_type_identifier, 4 /*XXX*/);
+    INIT_SYMBOL(sym_motor_n, symbol_type_symbolic_constant, motor);
 
     wme = wmem_get_wmes(&agent, sym_output_link, sym_motor_n);
 

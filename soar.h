@@ -24,17 +24,17 @@ typedef enum symbol_type {
 
 typedef unsigned symbol_t;
 
+#define SYMBOL_TO_WORD(t, v)    ((t) | (v))
 #define GET_SYMBOL_VALUE(s)     ((s) & SYMBOL_VALUE_MASK)
 #define SET_SYMBOL_VALUE(s, v)  ((s) &= ~SYMBOL_VALUE_MASK, (s) |= (v) & SYMBOL_VALUE_MASK)
 #define GET_SYMBOL_TYPE(s)      ((s) & SYMBOL_TYPE_MASK)
 #define SET_SYMBOL_TYPE(s, t)   ((s) &= ~SYMBOL_TYPE_MASK, (s) |= (t) & SYMBOL_TYPE_MASK)
-#define DECLARE_SYMBOL(t, v)    ((t) | (v))
+#define DECLARE_SYMBOL(t, v)    SYMBOL_TO_WORD((t), (v))
 #define DECLARE_NIL_SYMBOL      0
-#define MAKE_SYMBOL(s, t, v)    ((s) = DECLARE_SYMBOL((t), (v)))
+#define INIT_SYMBOL(s, t, v)    ((s) = SYMBOL_TO_WORD((t), (v)))
 #define CLEAR_SYMBOL(s)         ((s) = 0)
 #define SYMBOLS_ARE_EQUAL(l, r) ((l) == (r))
 #define SYMBOL_IS_NIL(s)        SYMBOLS_ARE_EQUAL((s), 0)
-#define SYMBOL_TO_WORD(t, v)    DECLARE_SYMBOL((t), (v))
 
 /* Predefined symbols used by the architecture */
 #define ATTRIBUTE_CONSTANT      1
@@ -77,21 +77,24 @@ struct symbol_list {
 #define BINDING_FIELD_BITS   2
 #define BINDING_FIELD_SHIFT  (BITS_PER_WORD - BINDING_FIELD_BITS) 
 #define BINDING_DEPTH_BITS   BINDING_FIELD_SHIFT
+#define BINDING_FIELD_MASK   ((unsigned)(-1) << BINDING_FIELD_SHIFT)
+#define BINDING_DEPTH_MASK   ~BINDING_FIELD_MASK
 
 typedef enum field {
-    field_id    =  0,
-    field_attr  =  1,
-    field_value = -2
+    field_id    = 0,
+    field_attr  = 1,
+    field_value = 2
 } field_t;
 
-typedef struct variable_binding {
-    field_t  field : BINDING_FIELD_BITS;
-    unsigned depth : BINDING_DEPTH_BITS;
-} variable_binding_t;
+typedef unsigned variable_binding_t;
 
-#define VARIABLE_BINDINGS_ARE_EQUAL(l, r)  (*((unsigned *)&(l)) == *((unsigned *)&(r)))
-
-#define VARIABLE_BINDING_TO_WORD(f, d) (unsigned)((((unsigned)(f)) << BINDING_FIELD_SHIFT) | ((unsigned)(d)))
+#define VARIABLE_BINDING_TO_WORD(f, d)     (((f) << BINDING_FIELD_SHIFT) | (d))
+#define INIT_VARIABLE_BINDING(b, f, d)     ((b) = VARIABLE_BINDING_TO_WORD((f), (d)))
+#define GET_VARIABLE_BINDING_FIELD(b)      (((b) & BINDING_FIELD_MASK) >> BINDING_FIELD_SHIFT)
+#define SET_VARIABLE_BINDING_FIELD(b, f)   ((b) &= ~BINDING_FIELD_MASK, (b) |= (f) << BINDING_FIELD_SHIFT)
+#define GET_VARIABLE_BINDING_DEPTH(b)      ((b) & BINDING_DEPTH_MASK)
+#define SET_VARIABLE_BINDING_DEPTH(b, d)   ((b) &= ~BINDING_DEPTH_MASK, (b) |= (d) & BINDING_DEPTH_MASK)
+#define VARIABLE_BINDINGS_ARE_EQUAL(l, r)  ((l) == (r))
 
 /* ---------------------------------------------------------------------- */
 

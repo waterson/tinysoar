@@ -90,7 +90,7 @@ symtab_lookup(struct symtab *symtab, symbol_type_t type, const char *name, bool_
             ERROR(("attempt to look up integer constant in symbol table"));
         }
 
-        MAKE_SYMBOL(result, type, val);
+        INIT_SYMBOL(result, type, val);
 
         add_symbol(symtab, entryp, name, result);
     }
@@ -176,7 +176,7 @@ symtab_init(struct symtab *symtab)
     
     for (def = symbols; def->name != 0; ++def) {
         symbol_t sym;
-        MAKE_SYMBOL(sym, def->type, def->val);
+        INIT_SYMBOL(sym, def->type, def->val);
         add_symbol(symtab, 0, def->name, sym);
 
         switch (def->type) {

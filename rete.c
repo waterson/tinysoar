@@ -119,7 +119,7 @@ check_beta_test(struct agent     *agent,
             }
             else {
                 struct wme *left_wme = wme;
-                int depth = (int) test->data.variable_referent.depth;
+                int depth = (int) GET_VARIABLE_BINDING_DEPTH(test->data.variable_referent);
                 if (depth) {
                     /* Start with |depth == 1| referring to the WME
                        from the token. */
@@ -132,7 +132,7 @@ check_beta_test(struct agent     *agent,
                     left_wme = t->wme;
                 }
 
-                left = get_field_from_wme(left_wme, test->data.variable_referent.field);
+                left = get_field_from_wme(left_wme, GET_VARIABLE_BINDING_FIELD(test->data.variable_referent));
             }
 
             switch (test->type) {
@@ -738,11 +738,11 @@ rete_operate_wme(struct agent *agent, struct wme *wme, wme_operation_t op)
 symbol_t
 rete_get_variable_binding(variable_binding_t binding, struct token *token)
 {
-    int depth = (int) binding.depth;
+    int depth = (int) GET_VARIABLE_BINDING_DEPTH(binding);
     while (--depth >= 0)
         token = token->parent;
 
-    return get_field_from_wme(token->wme, binding.field);
+    return get_field_from_wme(token->wme, GET_VARIABLE_BINDING_FIELD(binding));
 }
 
 
@@ -818,8 +818,8 @@ dump_token(struct symtab *symtab, struct token *token)
 static void
 dump_variable_binding(variable_binding_t binding)
 {
-    printf("<%d,", binding.depth);
-    switch (binding.field) {
+    printf("<%d,", GET_VARIABLE_BINDING_DEPTH(binding));
+    switch (GET_VARIABLE_BINDING_FIELD(binding)) {
     case field_id:    printf("id");     break;
     case field_attr:  printf("attr");   break;
     case field_value: printf("value");  break;

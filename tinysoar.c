@@ -126,7 +126,7 @@ preferences -r <pref>";
         return TCL_OK;
     }
 
-    MAKE_SYMBOL(id, symbol_type_identifier, atoi(argv[i++]));
+    INIT_SYMBOL(id, symbol_type_identifier, atoi(argv[i++]));
 
     if (i >= argc || argv[i][0] != '^') {
         interp->result = "expected attribute";
@@ -206,10 +206,10 @@ preferences -r <pref>";
 
     /* parse the value */
     if (argv[i][0] >= '0' && argv[i][0] <= '9') {
-        MAKE_SYMBOL(value, symbol_type_identifier, atoi(argv[i++]));
+        INIT_SYMBOL(value, symbol_type_identifier, atoi(argv[i++]));
     }
     else if (argv[i][0] == '+' || argv[i][0] == '-') {
-        MAKE_SYMBOL(value, symbol_type_integer_constant, atoi(argv[i++]));
+        INIT_SYMBOL(value, symbol_type_integer_constant, atoi(argv[i++]));
     }
     else {
         value = symtab_lookup(&symtab, symbol_type_symbolic_constant, argv[i++], (bool_t)(op == 1));
@@ -317,7 +317,7 @@ print_command(ClientData data, Tcl_Interp *interp, int argc, char *argv[])
 
     while (i < argc) {
         symbol_t id;
-        MAKE_SYMBOL(id, symbol_type_identifier, atoi(argv[i++]));
+        INIT_SYMBOL(id, symbol_type_identifier, atoi(argv[i++]));
 
         printf("([%d]", GET_SYMBOL_VALUE(id));
         wmem_enumerate_wmes(&agent, print_enumerator, &id);

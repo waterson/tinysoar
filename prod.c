@@ -385,9 +385,9 @@ process_test(const struct test                  *test,
             binding = find_bound_variable(bindings, test->data.referent);
             ASSERT(binding != 0, ("null ptr"));
 
-            relative_depth = depth - binding->depth;
+            relative_depth = depth - GET_VARIABLE_BINDING_DEPTH(*binding);
 
-            if (relative_depth || binding->field != field) {
+            if (relative_depth || GET_VARIABLE_BINDING_FIELD(*binding) != field) {
                 /* Don't bother to make vacuous tests. */
                 beta_test = (struct beta_test *) malloc(sizeof(struct beta_test));
                 beta_test->relational_type = relational_type_variable;
@@ -396,7 +396,7 @@ process_test(const struct test                  *test,
                 /* Fix up the variable referent's depth (which was stored
                    as an `absolute depth' in the binding list) to be
                    relative to the current depth of the test. */
-                beta_test->data.variable_referent.depth = relative_depth;
+                SET_VARIABLE_BINDING_DEPTH(beta_test->data.variable_referent, relative_depth);
             }
         }
         else {
@@ -474,8 +474,7 @@ bind_variables(const struct test             *test,
                 malloc(sizeof(struct variable_binding_list));
 
             entry->variable = test->data.referent;
-            entry->binding.depth = depth;
-            entry->binding.field = field;
+            INIT_VARIABLE_BINDING(entry->binding, field, depth);
             entry->next = *bindings;
             *bindings = entry;
         }
@@ -665,8 +664,8 @@ process_rhs_value(struct rhs_value             *value,
         /* Fix the depth (which was stored as an `absolute depth' in
            the binding list) to be relative to the current depth of
            the node in the rete network. */
-        value->val.variable_binding.depth =
-            depth - value->val.variable_binding.depth;
+        depth -= GET_VARIABLE_BINDING_DEPTH(value->val.variable_binding);
+        SET_VARIABLE_BINDING_DEPTH(value->val.variable_binding, depth);
     }
 }
 

@@ -227,8 +227,8 @@ static void
 variable_binding_to_word(FILE *file, variable_binding_t binding)
 {
     fprintf(file, "VARIABLE_BINDING_TO_WORD(%s, %d)",
-            field_to_string(binding.field),
-            binding.depth);
+            field_to_string(GET_VARIABLE_BINDING_FIELD(binding)),
+            GET_VARIABLE_BINDING_DEPTH(binding));
 }
 
 /*
@@ -699,7 +699,7 @@ export_symtab(FILE *file, struct symtab *symtab)
         symbol_t symbol;
         const char *name;
 
-        MAKE_SYMBOL(symbol, symbol_type_symbolic_constant, i);
+        INIT_SYMBOL(symbol, symbol_type_symbolic_constant, i);
         name = symtab_find_name(symtab, symbol);
 
         fprintf(file, "#define SYM_");

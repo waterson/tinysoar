@@ -797,7 +797,7 @@ constants: /* empty */
 
 constant: SYM_CONSTANT
         | INT_CONSTANT
-        { MAKE_SYMBOL($$, symbol_type_integer_constant, $1); }
+        { INIT_SYMBOL($$, symbol_type_integer_constant, $1); }
         | CONTEXT /* hack to pull `state' and `impasse' through as constants */
         {
             struct parser *parser = (struct parser *) yyparse_param;

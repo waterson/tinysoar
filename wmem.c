@@ -491,6 +491,9 @@ instantiate_rhs_value(struct rhs_value   *value,
             result = unbound_vars->symbol;
         }
         break;
+
+    default:
+        UNREACHABLE();
     }
 
     /* Sanity check the result */
