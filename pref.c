@@ -84,7 +84,9 @@ create_instantiation(struct agent* agent,
         struct preference* pref =
             (struct preference*) malloc(sizeof(struct preference));
 
-        pref->next = inst->preferences;
+        pref->next_in_slot = 0;
+
+        pref->next_in_instantiation = inst->preferences;
         inst->preferences = pref;
 
         pref->support = 0; /*XXX*/
@@ -111,14 +113,6 @@ create_instantiation(struct agent* agent,
 }
 
 /*
- * Initialize preference data structures
- */
-void
-pref_init(struct agent* agent)
-{
-}
-
-/*
  * Process new matches, adding instantiations for `assertions', and
  * retracting them for `retractions'.
  */
@@ -139,6 +133,9 @@ pref_process_matches(struct agent* agent)
         free(doomed);
     }
 
+    /* The assertions have now been processed */
+    agent->assertions = 0;
+
     /* process each instantiation, adding new preferences to temporary
        memory */
     while (inst) {
@@ -149,7 +146,7 @@ pref_process_matches(struct agent* agent)
         inst->next = inst->production->instantiations;
         inst->production->instantiations = inst;
 
-        for (pref = inst->preferences; pref != 0; pref = pref->next)
+        for (pref = inst->preferences; pref != 0; pref = pref->next_in_instantiation)
             wmem_add_preference(agent, pref);
 
         /* on to the next one */
@@ -164,4 +161,26 @@ pref_process_matches(struct agent* agent)
         match = match->next;
         free(doomed);
     }
+
+    /* The retractions have now been processed */
+    agent->retractions = 0;
+}
+
+
+struct preference*
+pref_create_preference(symbol_t id, symbol_t attr, symbol_t value,
+                       preference_type_t type,
+                       support_type_t support)
+{
+    struct preference* pref =
+        (struct preference*) malloc(sizeof(struct preference));
+
+    pref->next_in_slot = pref->next_in_instantiation = 0;
+    pref->type    = type;
+    pref->support = support;
+    pref->id      = id;
+    pref->attr    = attr;
+    pref->value   = value;
+
+    return pref;
 }

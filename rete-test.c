@@ -46,6 +46,12 @@ init_symbols(struct agent* agent)
 static void
 init_productions(struct agent* agent)
 {
+    /*
+     *  sp {(<s> ^superstate nil ^input-link <i1>)
+     *      -->
+     *      (<s> ^operator <o> +)
+     *      (<o> ^name wait)}
+     */
     productions[0].conditions = &conditions[0];
     productions[0].actions    = &actions[0];
     productions[0].num_unbound_vars = 1;
@@ -114,7 +120,7 @@ struct agent agent;
 int
 main(int argc, char* argv[])
 {
-    struct wme* wme;
+    struct preference* pref;
 
     agent_init(&agent);
 
@@ -124,11 +130,23 @@ main(int argc, char* argv[])
 
     rete_push_goal_id(&agent, symbols[IDENTIFIER_S1]);
 
-    wme = wmem_add(&agent, symbols[IDENTIFIER_S1], symbols[CONSTANT_SUPERSTATE], symbols[CONSTANT_NIL], wme_type_normal);
-    rete_add_wme(&agent, wme);
+    pref = pref_create_preference(symbols[IDENTIFIER_S1],
+                                  symbols[CONSTANT_SUPERSTATE],
+                                  symbols[CONSTANT_NIL],
+                                  preference_type_acceptable,
+                                  support_type_osupport);
 
-    wme = wmem_add(&agent, symbols[IDENTIFIER_S1], symbols[CONSTANT_INPUT_LINK], symbols[IDENTIFIER_I1], wme_type_normal);
-    rete_add_wme(&agent, wme);
+    wmem_add_preference(&agent, pref);
+
+    pref = pref_create_preference(symbols[IDENTIFIER_S1],
+                                  symbols[CONSTANT_INPUT_LINK],
+                                  symbols[IDENTIFIER_I1],
+                                  preference_type_acceptable,
+                                  support_type_osupport);
+
+    wmem_add_preference(&agent, pref);
+
+    wmem_decide(&agent);
 
     pref_process_matches(&agent);
     wmem_decide(&agent);

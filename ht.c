@@ -24,19 +24,22 @@
 /* Compute how many buckets the current table has */
 #define NBUCKETS(ht) (1 << (BITS_PER_WORD - (ht)->shift))
 
+/* Compute the maximum acceptable load for a table of size `n' */
 #define MAX_LOAD(n)  ((n) - ((n) >> 3))
+
+/* Compute the minimum acceptable load for a table of size `n' */
 #define MIN_LOAD(n)  (((n) > MINBUCKETS) ? ((n) >> 2) : 0)
 
 static void
-rehash(struct ht* ht, struct ht_entry** oldbuckets, unsigned noldbuckets)
+rehash(struct ht* ht, struct ht_entry_header** oldbuckets, unsigned noldbuckets)
 {
     int i;
 
     for (i = 0; i < noldbuckets; ++i) {
-        struct ht_entry* oldentry = oldbuckets[i];
+        struct ht_entry_header* oldentry = oldbuckets[i];
         while (oldentry != 0) {
-            struct ht_entry* next = oldentry->next;
-            struct ht_entry** newbucket =
+            struct ht_entry_header* next = oldentry->next;
+            struct ht_entry_header** newbucket =
                 ht_lookup(ht, oldentry->hash, HT_ENTRY_DATA(oldentry));
             ASSERT(*newbucket == 0, ("corrupted hashtable"));
             oldentry->next = 0;
@@ -47,11 +50,11 @@ rehash(struct ht* ht, struct ht_entry** oldbuckets, unsigned noldbuckets)
 }
 
 void
-ht_init(struct ht* ht, ht_key_comparitor_t compare_keys)
+ht_init(struct ht* ht, ht_key_compare_t compare_keys)
 {
     int i;
 
-    ht->buckets = malloc(MINBUCKETS * sizeof(struct ht_entry*));
+    ht->buckets = malloc(MINBUCKETS * sizeof(struct ht_entry_header*));
     ASSERT(ht->buckets != 0, ("out of memory"));
 
     ht->shift = BITS_PER_WORD - MINBUCKETS_LOG2;
@@ -68,11 +71,11 @@ ht_finish(struct ht* ht)
     free(ht->buckets);
 }
 
-struct ht_entry**
+struct ht_entry_header**
 ht_lookup(struct ht* ht, unsigned hash, const void* key)
 {
-    struct ht_entry** bucket;
-    struct ht_entry* entry;
+    struct ht_entry_header** bucket;
+    struct ht_entry_header* entry;
     unsigned h;
 
     h = hash * GOLDEN_RATIO;
@@ -90,18 +93,18 @@ ht_lookup(struct ht* ht, unsigned hash, const void* key)
 }
 
 void
-ht_add(struct ht* ht, struct ht_entry** bucket, unsigned hash, struct ht_entry* entry)
+ht_add(struct ht* ht, struct ht_entry_header** bucket, unsigned hash, struct ht_entry_header* entry)
 {
     unsigned nbuckets = NBUCKETS(ht);
 
     if (ht->nentries > MAX_LOAD(nbuckets)) {
         /* overloaded */
-        struct ht_entry** oldbuckets = ht->buckets;
+        struct ht_entry_header** oldbuckets = ht->buckets;
         int newnbuckets = 2 * nbuckets;
         int i;
 
         ht->shift--;
-        ht->buckets = malloc(newnbuckets * sizeof(struct ht_entry*));
+        ht->buckets = malloc(newnbuckets * sizeof(struct ht_entry_header*));
         ASSERT(ht->buckets != 0, ("out of memory"));
 
         /* zero the new table */
@@ -125,21 +128,21 @@ ht_add(struct ht* ht, struct ht_entry** bucket, unsigned hash, struct ht_entry* 
 }
 
 void
-ht_remove(struct ht* ht, struct ht_entry** entryp)
+ht_remove(struct ht* ht, struct ht_entry_header** entryp)
 {
-    struct ht_entry* doomed = *entryp;
+    struct ht_entry_header* doomed = *entryp;
     unsigned nbuckets = NBUCKETS(ht);
 
     *entryp = doomed->next;
 
     if (--ht->nentries < MIN_LOAD(nbuckets)) {
         /* underloaded */
-        struct ht_entry** oldbuckets = ht->buckets;
+        struct ht_entry_header** oldbuckets = ht->buckets;
         int newnbuckets = nbuckets / 2;
         int i;
 
         ht->shift++;
-        ht->buckets = malloc(newnbuckets * sizeof(struct ht_entry*));
+        ht->buckets = malloc(newnbuckets * sizeof(struct ht_entry_header*));
         ASSERT(ht->buckets != 0, ("out of memory"));
 
         /* zero the new table */
@@ -159,8 +162,8 @@ ht_enumerate(struct ht* ht, ht_enumerator_t enumerator, void* closure)
     int i;
 
     for (i = nbuckets - 1; i >= 0; --i) {
-        struct ht_entry** entryp = &ht->buckets[i];
-        struct ht_entry* entry = *entryp;
+        struct ht_entry_header** entryp = &ht->buckets[i];
+        struct ht_entry_header* entry = *entryp;
 
         while (entry != 0) {
             ht_enumerator_result_t result =
@@ -171,7 +174,7 @@ ht_enumerate(struct ht* ht, ht_enumerator_t enumerator, void* closure)
                 entry = entry->next;
             }
             else if (result == ht_enumerator_result_delete) {
-                struct ht_entry* doomed = entry;
+                struct ht_entry_header* doomed = entry;
                 entry = entry->next;
                 *entryp = entry;
                 free(doomed);

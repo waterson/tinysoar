@@ -22,7 +22,7 @@ static struct slot*
 ensure_slot(struct agent* agent, symbol_t id, symbol_t attr)
 {
     unsigned hash = hash_slot(id, attr);
-    struct ht_entry** entryp;
+    struct ht_entry_header** entryp;
     struct slot key;
     struct slot* slot;
 
@@ -35,8 +35,8 @@ ensure_slot(struct agent* agent, symbol_t id, symbol_t attr)
         slot = (struct slot*) HT_ENTRY_DATA(*entryp);
     }
     else {
-        struct ht_entry* entry =
-            (struct ht_entry*) malloc(sizeof(struct ht_entry) + sizeof(struct slot));
+        struct ht_entry_header* entry =
+            (struct ht_entry_header*) malloc(sizeof(struct ht_entry_header) + sizeof(struct slot));
 
         slot = (struct slot*) HT_ENTRY_DATA(entry);
         slot->id          = id;
@@ -72,17 +72,17 @@ mark_slot_modified(struct agent* agent, struct slot* slot)
 static void
 decide_slot(struct agent* agent,
             struct slot* slot,
-            struct preference_list* preferences,
+            struct preference* preferences,
             struct symbol_list** candidates)
 {
-    struct preference_list* entry;
+    struct preference* pref;
 
     /* Iterate through all the preferences for the slot, adding each
        `acceptable' to the candidate list */
-    for (entry = preferences; entry != 0; entry = entry->next) {
-        if (entry->preference->type == preference_type_acceptable) {
+    for (pref = preferences; pref != 0; pref = pref->next_in_slot) {
+        if (pref->type == preference_type_acceptable) {
             struct symbol_list* candidate;
-            symbol_t value = entry->preference->value;
+            symbol_t value = pref->value;
 
             for (candidate = *candidates; candidate != 0; candidate = candidate->next) {
                 if (SYMBOLS_ARE_EQUAL(candidate->symbol, value))
@@ -92,7 +92,7 @@ decide_slot(struct agent* agent,
             if (! candidate) {
                 candidate = (struct symbol_list*) malloc(sizeof(struct symbol_list));
 
-                candidate->symbol = entry->preference->value;
+                candidate->symbol = pref->value;
                 candidate->next = *candidates;
 
                 *candidates = candidate;
@@ -103,14 +103,14 @@ decide_slot(struct agent* agent,
     /* Iterate through all the preferences again, removing any
        candidates that are masked by `prohibit' or `reject'
        preferences */
-    for (entry = preferences; entry != 0; entry = entry->next) {
-        if (entry->preference->type == preference_type_prohibit ||
-            entry->preference->type == preference_type_reject) {
+    for (pref = preferences; pref != 0; pref = pref->next_in_slot) {
+        if (pref->type == preference_type_prohibit ||
+            pref->type == preference_type_reject) {
             struct symbol_list* candidate = *candidates;
             struct symbol_list** link = candidates;
 
             while (candidate != 0) {
-                if (SYMBOLS_ARE_EQUAL(candidate->symbol, entry->preference->value)) {
+                if (SYMBOLS_ARE_EQUAL(candidate->symbol, pref->value)) {
                     *link = candidate->next;
                     free(candidate);
                     break;
@@ -129,7 +129,7 @@ decide_slot(struct agent* agent,
 void
 wmem_init(struct agent* agent)
 {
-    ht_init(&agent->slots, (ht_key_comparitor_t) compare_slots);
+    ht_init(&agent->slots, (ht_key_compare_t) compare_slots);
 }
 
 
@@ -153,11 +153,11 @@ wmem_add(struct agent* agent,
 }
 
 
-static struct preference_list*
+static struct preference*
 get_preferences_for_slot(struct agent* agent, struct slot* slot)
 {
     unsigned hash = hash_slot(slot->id, slot->attr);
-    struct ht_entry** entryp
+    struct ht_entry_header** entryp
         = ht_lookup(&agent->slots, hash, slot);
 
     if (*entryp) {
@@ -174,12 +174,12 @@ wmem_decide(struct agent* agent)
 {
     struct slot_list* slots;
     for (slots = agent->modified_slots; slots != 0; slots = slots->next) {
-        struct preference_list* preferences =
+        struct preference* pref =
             get_preferences_for_slot(agent, slots->slot);
 
-        if (preferences) {
+        if (pref) {
             struct symbol_list* candidates = 0;
-            decide_slot(agent, slots->slot, preferences, &candidates);
+            decide_slot(agent, slots->slot, pref, &candidates);
 
             /* Add wmes that aren't in the slot */
             {
@@ -248,12 +248,9 @@ void
 wmem_add_preference(struct agent* agent, struct preference* pref)
 {
     struct slot* slot = ensure_slot(agent, pref->id, pref->attr);
-    struct preference_list* list =
-        (struct preference_list*) malloc(sizeof(struct preference_list));
 
-    list->preference  = pref;
-    list->next        = slot->preferences;
-    slot->preferences = list;
+    pref->next_in_slot = slot->preferences;
+    slot->preferences  = pref;
 
     /* Add to the list of slots that have changed */
     mark_slot_modified(agent, slot);
@@ -267,7 +264,7 @@ struct wme_enumerator_data {
 };
 
 static ht_enumerator_result_t
-wme_enumerator_helper(struct ht_entry* entry, void* closure)
+wme_enumerator_helper(struct ht_entry_header* entry, void* closure)
 {
     struct wme_enumerator_data* data =
         (struct wme_enumerator_data*) closure;

@@ -115,18 +115,14 @@ typedef enum support_type {
 } support_type_t;
 
 struct preference {
-    struct preference* next;
+    struct preference* next_in_instantiation;
+    struct preference* next_in_slot;
     preference_type_t  type    : PREFERENCE_TYPE_BITS;
     support_type_t     support : SUPPORT_TYPE_BITS;
     symbol_t           id;
     symbol_t           attr;
     symbol_t           value;
     symbol_t           referent;
-};
-
-struct preference_list {
-    struct preference_list* next;
-    struct preference* preference;
 };
 
 struct instantiation {
@@ -145,10 +141,10 @@ struct instantiation {
 struct wme;
 
 struct slot {
-    symbol_t                id;
-    symbol_t                attr;
-    struct preference_list* preferences;
-    struct wme*             wmes;
+    symbol_t           id;
+    symbol_t           attr;
+    struct preference* preferences;
+    struct wme*        wmes;
 };
 
 typedef enum wme_type {
@@ -442,10 +438,12 @@ struct agent {
 /* ---------------------------------------------------------------------- */
 
 void
-pref_init(struct agent* agent);
-
-void
 pref_process_matches(struct agent* agent);
+
+struct preference*
+pref_create_preference(symbol_t id, symbol_t attr, symbol_t value,
+                       preference_type_t type,
+                       support_type_t support);
 
 /*
  * Initialize the network
@@ -480,9 +478,6 @@ rete_get_variable_binding(variable_binding_t binding, struct token* token);
 
 extern void
 wmem_init(struct agent* agent);
-
-extern struct wme*
-wmem_add(struct agent* agent, symbol_t id, symbol_t attr, symbol_t value, wme_type_t type);
 
 extern void
 wmem_add_preference(struct agent* agent, struct preference* pref);
