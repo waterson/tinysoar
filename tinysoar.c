@@ -808,8 +808,10 @@ __declspec(dllexport)
 int
 Tinysoar_Init(Tcl_Interp *interp)
 {
+#ifdef USE_TCL_STUBS
     if (! Tcl_InitStubs(interp, TCL_VERSION, 1))
         return TCL_ERROR;
+#endif
 
     Tcl_PkgProvide(interp, "TinySoar", "1.0");
 
