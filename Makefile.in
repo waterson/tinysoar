@@ -47,7 +47,11 @@ PARSER_OBJS = \
 	symtab.o \
 	$(NULL)
 
-all: rete-test parser-test
+TINYSOAR_OBJS = \
+	tinysoar.o \
+	$(NULL)
+
+all: rete-test parser-test tinysoar.so
 
 rete-test: rete-test.c $(RUNTIME_OBJS) $(SHARED_OBJS)
 
@@ -59,8 +63,11 @@ y.tab.c: rule.y
 lex.yy.c: rule.l
 	$(LEX) rule.l
 
+tinysoar.so: $(TINYSOAR_OBJS) $(PARSER_OBJS) $(RUNTIME_OBJS) $(SHARED_OBJS)
+	$(CC) -shared -o $@ $^ -ltcl
+
 clean:
-	rm -rf .deps rete-test y.tab.* lex.yy.c *.o *~
+	rm -rf .deps rete-test parser-test tinysoar.so y.tab.* lex.yy.c *.o *~
 
 distclean: clean
 	rm -f Makefile config.cache config.log config.status defs.h
