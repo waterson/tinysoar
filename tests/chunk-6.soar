@@ -1,0 +1,53 @@
+package require TinySoar;
+
+sp {elaborate*top-state
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^ball <b1> ^ball <b2> ^ball <b3>)}
+
+sp {elaborate*snc
+    (state <s> ^impasse no-change ^attribute state)
+    -->
+    (<s> ^problem-space <p*s> ^count 0)
+    (<p*s> ^name count)}
+
+for {set count 0}  {$count < 3} {incr count 1} {
+  sp "propose*count
+      (state <s> ^problem-space.name count ^superstate <ss>)
+      (<ss> ^ball <b>)
+      (<s> -^counted <b> ^count $count)
+      -->
+      (<s> ^operator <o> + =)
+      (<o> ^name count ^object <b> ^count [expr $count + 1])"
+}
+
+sp {implement*count
+    (state <s> ^problem-space.name count ^count <old*c> ^operator <o>)
+    (<o> ^name count ^object <b> ^count { <new*c> <> <old*c> })
+    -->
+    (<s> ^counted <b> ^count <old*c> - ^count <new*c> +)}
+
+sp {terminate*count
+    (state <s> ^problem-space.name count ^count <c> ^operator <o>)
+    (<o> ^name count ^count <c>)
+    -->
+    (<s> ^operator <o> @)}
+
+sp {propose*return-result
+    (state <s> ^problem-space.name count)
+    -->
+    (<s> ^operator <o> + <)
+    (<o> ^name return-result)}
+
+sp {implement*return-result
+    (state <s> ^problem-space.name count ^operator.name return-result
+               ^count <c> ^superstate <ss>)
+    -->
+    (<ss> ^count <c>)}
+
+sp {terminate*return-result
+    (state <s> ^problem-space.name count ^operator <o>)
+    (<o> ^name return-result)
+    -->
+    (<s> ^operator <o> @)}
+

@@ -33,7 +33,7 @@ sp {propose*two*better
 
 sp {detect*success
     (state <s> ^superstate <ss> ^choices multiple ^impasse conflict
-               ^item <o1> ^item <o2> ^quiescence t ^type state)
+               ^item <o1> ^item { <o2> <> <o1> } ^quiescence t ^type state)
 
     (<ss> ^superstate nil ^io.output-link <out>)
     (<o1> ^name one)
