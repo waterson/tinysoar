@@ -163,12 +163,19 @@ debug_dump_variable_binding(variable_binding_t binding)
 void
 debug_dump_test(struct symtab *symtab, struct beta_test *test)
 {
-    switch (test->field) {
-    case field_id:      printf("id");     break;
-    case field_attr:    printf("attr");   break;
-    case field_value:   printf("value");  break;
+    switch (test->type) {
+    case test_type_conjunctive:
+    case test_type_disjunctive:
+        break;
+
     default:
-        ERROR(("unexpected field"));
+        switch (test->field) {
+        case field_id:      printf("id");     break;
+        case field_attr:    printf("attr");   break;
+        case field_value:   printf("value");  break;
+        default:
+            ERROR(("unexpected field"));
+        }
     }
 
     switch (test->type) {
