@@ -11,5 +11,7 @@ defs.h
 lex.yy.c
 parser-test
 rete-test
+tinysoar.dll
+tinysoar.exp
 y.tab.c
 y.tab.h
