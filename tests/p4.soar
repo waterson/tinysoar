@@ -1,0 +1,22 @@
+# Test to see if acceptable preference test works
+package require TinySoar;
+
+sp {test-propose-a
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name a)}
+
+sp {test-propose-b
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name b)}
+
+sp {test-prefer-a
+    (state <s> ^operator <a> + ^operator <b> +)
+    (<a> ^name a)
+    (<b> ^name b)
+    -->
+    (<s> ^operator <a> > <b>)}
+
