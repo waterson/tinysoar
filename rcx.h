@@ -33,6 +33,19 @@
  *
  */
 
+/*
+ * Registers, flags, and subroutines for the Lego Mindstorms RCX. Much
+ * of this code was culled and adapted from LegOS,
+ *
+ *   <http://legos.sourceforge.net/>
+ *
+ * and:
+ *
+ *   <http://www.daimi.au.dk/dArkOS/Vaerktoejer.dir/RCX.vejledning.dir/Vejledning.html>
+ *     ``RCX Manual'', Ole Caprani <ocaprani@daimi.au.dk>
+ *
+ */
+
 #ifndef rcx_h__
 #define rcx_h__
 
@@ -44,14 +57,14 @@ extern volatile unsigned char T_CSR;
 /*
  * TCSR bitmasks
  */
-#define TCSR_ICA		0x80	   /* input capture events */
-#define TCSR_ICB		0x40
-#define TCSR_ICC		0x20
-#define TCSR_ICD		0x10
-#define TCSR_OCA		0x08	   /* output compare events */
-#define TCSR_OCB		0x04
-#define TCSR_OF			0x02	   /* overflow event */
-#define TCSR_RESET_ON_A		0x01	   /* reset counter on match A */
+#define TCSR_ICA        0x80       /* input capture events */
+#define TCSR_ICB        0x40
+#define TCSR_ICC        0x20
+#define TCSR_ICD        0x10
+#define TCSR_OCA        0x08       /* output compare events */
+#define TCSR_OCB        0x04
+#define TCSR_OF         0x02       /* overflow event */
+#define TCSR_RESET_ON_A 0x01       /* reset counter on match A */
 
 /*
  * Timer control register
@@ -61,16 +74,16 @@ extern unsigned char T_CR;
 /*
  * TCR bitmasks
  */
-#define TCR_A_RISING		0x80	   /* input capture on rising */
-#define TCR_B_RISING		0x40	   /* edge. if not set -> lower */
-#define TCR_C_RISING		0x20
-#define TCR_D_RISING		0x10
-#define TCR_BUFFER_A		0x08	   /* buffer A in C */
-#define TCR_BUFFER_B		0x04	   /* buffer B in D */
-#define TCR_CLOCK_2		0x00	   /* clock = pclock / 2 */
-#define TCR_CLOCK_8		0x01	   /* clock = pclock / 8 */
-#define TCR_CLOCK_32		0x02	   /* clock = pclock / 32 */
-#define TCR_CLOCK_EXT		0x03	   /* external clock, rising edge */
+#define TCR_A_RISING        0x80       /* input capture on rising */
+#define TCR_B_RISING        0x40       /* edge. if not set -> lower */
+#define TCR_C_RISING        0x20
+#define TCR_D_RISING        0x10
+#define TCR_BUFFER_A        0x08       /* buffer A in C */
+#define TCR_BUFFER_B        0x04       /* buffer B in D */
+#define TCR_CLOCK_2         0x00       /* clock = pclock / 2 */
+#define TCR_CLOCK_8         0x01       /* clock = pclock / 8 */
+#define TCR_CLOCK_32        0x02       /* clock = pclock / 32 */
+#define TCR_CLOCK_EXT       0x03       /* external clock, rising edge */
 
 /*
  * Timer output control register
@@ -100,14 +113,14 @@ extern unsigned char T_IER;
 /*
  * TIER bitmasks
  */
-#define TIER_ENABLE_ICA		0x80	   /* input capture IRQ enables */
-#define TIER_ENABLE_ICB		0x40
-#define TIER_ENABLE_ICC		0x20
-#define TIER_ENABLE_ICD		0x10
-#define TIER_ENABLE_OCA		0x08	   /* output compare IRQ enables */
-#define TIER_ENABLE_OCB		0x04
-#define TIER_ENABLE_OF		0x02	   /* overflow IRQ enable */
-#define TIER_RESERVED		0x01	   /* always set. */
+#define TIER_ENABLE_ICA        0x80       /* input capture IRQ enables */
+#define TIER_ENABLE_ICB        0x40
+#define TIER_ENABLE_ICC        0x20
+#define TIER_ENABLE_ICD        0x10
+#define TIER_ENABLE_OCA        0x08       /* output compare IRQ enables */
+#define TIER_ENABLE_OCB        0x04
+#define TIER_ENABLE_OF         0x02       /* overflow IRQ enable */
+#define TIER_RESERVED          0x01       /* always set. */
 
 /*
  * OCIA interrupt vector.
@@ -142,6 +155,9 @@ extern void *ocia_vector;
 #define LCD_RANGE_LONG       0x301d     /* long range indicator    */
 #define LCD_ALL              0x3020     /* all segments            */
 
+/*
+ * Show an icon on the RCX's LCD.
+ */
 static inline void
 rcx_lcd_show_icon(unsigned icon)
 {
@@ -153,6 +169,9 @@ rcx_lcd_show_icon(unsigned icon)
         : "r6");
 }
 
+/*
+ * Hide an icon on the RCX's LCD.
+ */
 static inline void
 rcx_lcd_hide_icon(unsigned icon)
 {
@@ -164,15 +183,24 @@ rcx_lcd_hide_icon(unsigned icon)
         : "r6");
 }
 
+/*
+ * Show a number on the RCX's LCD.
+ */
 extern void
 rcx_lcd_show_number(unsigned format, int value, unsigned scalecode);
 
+/*
+ * Show a 16-bit signed integer value on the RCX's LCD.
+ */
 static inline void
 rcx_lcd_show_int16(int r)
 { 
     rcx_lcd_show_number(0x3001, r, 0x3002);
 }
 
+/*
+ * Clear the RCX's LCD.
+ */
 static inline void
 rcx_lcd_clear()
 {

@@ -35,6 +35,12 @@
 
 #include "rcx.h"
 
+/*
+ * Display a number on the RCX's LCD. Adapted from:
+ *
+ *   <http://www.daimi.au.dk/dArkOS/Vaerktoejer.dir/RCX.vejledning.dir/Vejledning.html>
+ *     ``RCX Manual'', Ole Caprani <ocaprani@daimi.au.dk>
+ */
 void
 rcx_lcd_show_number(unsigned format, int value, unsigned scalecode)
 {
