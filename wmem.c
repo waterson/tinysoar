@@ -80,9 +80,8 @@ find_slot(struct agent *agent, symbol_t id, symbol_t attr, bool_t create)
 
     entryp = ht_lookup(&agent->slots, hash, &key);
 
-    if (*entryp) {
+    if (*entryp)
         slot = (struct slot *) HT_ENTRY_DATA(*entryp);
-    }
     else if (create) {
         struct ht_entry_header *entry =
             (struct ht_entry_header *) malloc(sizeof(struct ht_entry_header) + sizeof(struct slot));
@@ -95,7 +94,8 @@ find_slot(struct agent *agent, symbol_t id, symbol_t attr, bool_t create)
 
         ht_add(&agent->slots, entryp, hash, entry);
     }
-    else slot = 0;
+    else
+        slot = 0;
 
     return slot;
 }
@@ -828,23 +828,17 @@ run_operator_semantics_on(struct agent        *agent,
             if ((p->type == preference_type_better ||
                  p->type == preference_type_worse)
                 && SYMBOLS_ARE_EQUAL(p->value, candidate->symbol)) {
-                struct symbol_list *referent;
                 struct preference *q;
 
-                /* Iterate through the candidates again to see which
-                   referent is dominated (or dominates us). */
-                for (referent = *candidates; referent != 0; referent = referent->next) {
-                    struct symbol_list *entry;
-
-                    /* A candidate cannot dominate itself. */
-                    if (SYMBOLS_ARE_EQUAL(candidate->symbol, referent->symbol))
-                        continue;
-
-                    entry = (struct symbol_list *) malloc(sizeof(struct symbol_list));
+                /* Note the dominated candidate, with the caveat that
+                   a candidate cannot dominate itself. */
+                if (! SYMBOLS_ARE_EQUAL(candidate->symbol, p->referent)) {
+                    struct symbol_list *entry =
+                        (struct symbol_list *) malloc(sizeof(struct symbol_list));
 
                     if (p->type == preference_type_better) {
                         /* The candidate dominates its referent. */
-                        entry->symbol = referent->symbol;
+                        entry->symbol = p->referent;
                     }
                     else {
                         /* The candidate is dominated by its referent. */
@@ -1179,8 +1173,7 @@ select_operator(struct agent *agent)
                 if (goal->next) {
                     /* We have resolved an operator no-change
                        impasse. */
-                    agent_pop_subgoals(agent, goal->next);
-                    goal->next = 0;
+                    agent_pop_subgoals(agent, goal);
                 }
             }
             else if (! goal->next) {
@@ -1250,8 +1243,7 @@ select_operator(struct agent *agent)
                 if (goal->next) {
                     /* We just resolved an impasse, so now we need to
                        blow away any substates */
-                    agent_pop_subgoals(agent, goal->next);
-                    goal->next = 0;
+                    agent_pop_subgoals(agent, goal);
                 }
 
                 return;
