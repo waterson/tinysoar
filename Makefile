@@ -1,6 +1,6 @@
 ifdef BUILD_OPT
 # Optimized
-CFLAGS=-Wall -O -UDEBUG -DNDEBUG
+CFLAGS=-Wall -O -UDEBUG -DNDEBUG -DINLINE=inline
 else
 # Debug
 CFLAGS=-Wall -g -DDEBUG -UNDEBUG

@@ -18,7 +18,7 @@ struct variable_binding_list {
 };
 
 
-static inline struct beta_node*
+static INLINE struct beta_node*
 create_beta_node(struct rete* net)
 {
     return (struct beta_node*) pool_alloc(&net->beta_node_pool);
@@ -27,7 +27,7 @@ create_beta_node(struct rete* net)
 /*
  * Create a new beta_test object from the beta_test pool
  */
-static inline struct beta_test*
+static INLINE struct beta_test*
 create_beta_test(struct rete* net)
 {
     return (struct beta_test*) pool_alloc(&net->beta_test_pool);
@@ -109,7 +109,7 @@ free_beta_tests(struct rete* net, struct beta_test* tests)
 /*
  * Create a new variable binding list
  */
-static inline struct variable_binding_list*
+static INLINE struct variable_binding_list*
 create_variable_binding_list(struct rete* net)
 {
     return (struct variable_binding_list*) pool_alloc(&net->variable_binding_list_pool);
@@ -118,7 +118,7 @@ create_variable_binding_list(struct rete* net)
 /*
  * Create a new token
  */
-static inline struct token*
+static INLINE struct token*
 create_token(struct rete* net, struct beta_node* node, struct token* parent, struct wme* wme)
 {
     struct token* result = (struct token*) pool_alloc(&net->token_pool);
@@ -137,7 +137,7 @@ create_token(struct rete* net, struct beta_node* node, struct token* parent, str
  * Given an id, attr, value, and alpha-type, determine which alpha
  * memory bucket a test should be in.
  */
-static inline short
+static INLINE short
 get_alpha_test_index(symbol_t id, symbol_t attr, symbol_t value, wme_type_t type)
 {
     return ((type == wme_type_acceptable_preference) ? 8 : 0) +
@@ -149,7 +149,7 @@ get_alpha_test_index(symbol_t id, symbol_t attr, symbol_t value, wme_type_t type
 /*
  * Select a field from the specified wme.
  */
-static inline symbol_t
+static INLINE symbol_t
 get_field_from_wme(struct wme* wme, field_t field)
 {
     assert(wme != 0);
@@ -164,7 +164,7 @@ get_field_from_wme(struct wme* wme, field_t field)
 /*
  * Determine if a working memory element matches an alpha node
  */
-static inline bool_t
+static INLINE bool_t
 wme_matches_alpha_node(const struct wme* wme, const struct alpha_node* node)
 {
     return (SYMBOL_IS_NIL(node->id) || SYMBOLS_ARE_EQUAL(node->id, wme->id)) &&
@@ -264,7 +264,7 @@ ensure_alpha_node(struct rete* net, symbol_t id, symbol_t attr, symbol_t value, 
  * Look through a variable binding list to find the binding for the
  * specified variable.
  */
-static inline const variable_binding_t*
+static INLINE const variable_binding_t*
 find_bound_variable(const struct variable_binding_list* bindings, const symbol_t variable)
 {
     while (bindings) {
@@ -542,7 +542,7 @@ check_beta_test(struct rete* net, struct beta_test* test, struct token* token, s
 /*
  * Check a list of beta tests
  */
-static inline bool_t
+static INLINE bool_t
 check_beta_tests(struct rete* net, struct beta_test* test, struct token* token, struct wme* wme)
 {
     for ( ; test != 0; test = test->next) {

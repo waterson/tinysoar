@@ -1,9 +1,6 @@
 #include "wmem.h"
 #include "rete.h"
 
-struct test_list complex_tests[] = {
-};
-
 struct test_list test_list[2];
 struct condition conditions[2];
 struct production productions[1];

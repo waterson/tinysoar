@@ -1,0 +1,16 @@
+CFLAGS=/Zi /Od
+LFLAGS=/debug
+LINK=link
+OBJS=rete-test.obj pool.obj rete.obj wmem.obj
+
+rete-test.exe: $(OBJS)
+        $(LINK) $(LFLAGS) /out:$@ $(OBJS)
+
+rete-test.obj: rete-test.c
+pool.obj: pool.c
+rete.obj: rete.c
+wmem.obj: wmem.c
+
+clean:
+        del *.obj *.exe *~
+
