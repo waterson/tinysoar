@@ -983,15 +983,17 @@ wmem_remove_instantiation(struct agent         *agent,
             do {
                 struct token *doomed;
 
-                /* If the token is shared, or is reachable from the
-                   rete network, we're done. */
-                if (token->shared || token_is_reachable(token))
-                    break;
+                /* If this is a `real' token, and it's shared or is
+                   reachable from the rete network, we're done. */
+                if (token->node) {
+                    if (token->shared || token_is_reachable(token))
+                        break;
+                }
 
                 doomed = token;
                 token = token->parent;
                 free(doomed);
-            } while (token != &agent->root_token);
+            } while (token && token != &agent->root_token);
         }
 
 #endif
