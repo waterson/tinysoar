@@ -208,7 +208,7 @@ agent_operator_tie(struct agent* agent, symbol_t goal, struct symbol_list* opera
     push_goal_id(agent, state);
 
 #ifdef DEBUG
-    printf("operator-conflict => [%d]\n", state.val);
+    printf("operator-tie => [%d]\n", state.val);
 #endif
 
     MAKE_ARCH_PREF(state, SYM(SUPERSTATE_CONSTANT), goal);
