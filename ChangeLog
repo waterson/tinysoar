@@ -1,5 +1,28 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
+Sunday, December 9, 2001
+
+Implemented a brain-dead, slow as molasses, first-fit allocator to run
+on the RCX, and a simple test harness to bang on it. Implemented a
+lame ``simulator'' for the RCX so I could verify that things were
+working right.
+
+Using the harness, I found two leaks in wmem.c. The first had to do
+with the fact that reconsider preferences were marked as o-supported
+(because they test the operator), and so were never getting
+removed. Fixed this by forcing reconsider preferences to be
+i-suppored. The second leak had to do with the fact that we don't
+duplicate check o-supported preferences, and so were ending up with an
+ever-increasing supply of o-supported preferences in a slot.
+
+The harness was also useful in detecting the fact that I'd passed the
+arguments to MAKE_SYMBOL in the wrong order!
+
+The RCX still doesn't run Soar, but I think I'm getting closer. (It
+currently just sits idle for about three seconds, and then starts to
+spasmodically pulse the motor.)
+
+
 Thursday, December 6, 2001
 
 Banged around with the Lego RCX a bit, checked in a bunch of test
