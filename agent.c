@@ -33,6 +33,9 @@
  *
  */
 
+/*
+ * Routines for maintaining the agent's runtime state.
+ */
 #include "alloc.h"
 #include "soar.h"
 
@@ -56,6 +59,9 @@
 static bool_t constants_initialized = 0;
 symbol_t constants[USER_CONSTANT_BASE];
 
+/*
+ * Push a new goal onto the goal stack.
+ */
 static void
 push_goal_id(struct agent *agent, symbol_t goal_id)
 {
@@ -73,6 +79,9 @@ push_goal_id(struct agent *agent, symbol_t goal_id)
     *link = entry;
 }
 
+/*
+ * Pop the deepest goal from the goal stack.
+ */
 static symbol_t
 pop_goal_id(struct agent *agent)
 {
@@ -120,6 +129,9 @@ init_top_state(struct agent *agent)
     MAKE_ARCH_PREF(io,    SYM(OUTPUT_LINK_CONSTANT), output);
 }
 
+/*
+ * Initialize the agent.
+ */
 void
 agent_init(struct agent *agent)
 {
@@ -148,6 +160,9 @@ agent_init(struct agent *agent)
     agent_reset(agent);
 }
 
+/*
+ * Finalize the agent.
+ */
 void
 agent_finish(struct agent *agent)
 {
@@ -158,6 +173,9 @@ agent_finish(struct agent *agent)
     rete_finish(agent);
 }
 
+/*
+ * Reset the agent to its initial state.
+ */
 void
 agent_reset(struct agent *agent)
 {
@@ -173,6 +191,9 @@ agent_reset(struct agent *agent)
     init_top_state(agent);
 }
 
+/*
+ * Get a new identifier.
+ */
 symbol_t
 agent_get_identifier(struct agent *agent)
 {
@@ -188,6 +209,9 @@ agent_get_identifier(struct agent *agent)
     return result;
 }
 
+/*
+ * Run a single elaboration cycle.
+ */
 void
 agent_elaborate(struct agent *agent)
 {
@@ -195,6 +219,10 @@ agent_elaborate(struct agent *agent)
     wmem_elaborate(agent);
 }
 
+/*
+ * Handle a state that's reached an operator no-change: pushes a new
+ * substate and decorates it appropriately.
+ */
 void
 agent_operator_no_change(struct agent *agent, symbol_t goal)
 {
@@ -214,7 +242,10 @@ agent_operator_no_change(struct agent *agent, symbol_t goal)
     MAKE_ARCH_PREF(state, SYM(TYPE_CONSTANT),       SYM(STATE_CONSTANT));
 }
 
-
+/*
+ * Handle a state that's reached a state no-change: pushes a new
+ * substate and decorates it appropriately.
+ */
 void
 agent_state_no_change(struct agent *agent, symbol_t goal)
 {
@@ -234,6 +265,10 @@ agent_state_no_change(struct agent *agent, symbol_t goal)
     MAKE_ARCH_PREF(state, SYM(TYPE_CONSTANT),       SYM(STATE_CONSTANT));
 }
 
+/*
+ * Handle a state that's reached an operator conflict: pushes a new
+ * substate and decorates it appropriately.
+ */
 void
 agent_operator_conflict(struct agent *agent, symbol_t goal, struct symbol_list *operators)
 {
@@ -255,6 +290,10 @@ agent_operator_conflict(struct agent *agent, symbol_t goal, struct symbol_list *
         MAKE_ARCH_PREF(state, SYM(ITEM_CONSTANT), operators->symbol);
 }
 
+/*
+ * Handle a state that's reached an operator tie: pushes a new
+ * substate and decorates it appropriately.
+ */
 void
 agent_operator_tie(struct agent *agent, symbol_t goal, struct symbol_list *operators)
 {

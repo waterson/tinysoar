@@ -33,6 +33,10 @@
  *
  */
 
+/*
+ * Configuration options and other general-purpose stuff.
+ */
+
 #ifndef config_h__
 #define config_h__
 

@@ -33,6 +33,9 @@
  *
  */
 
+/*
+ * Debugging support.
+ */
 #ifdef DEBUG
 
 #include <stdarg.h>
@@ -41,6 +44,10 @@
 
 #include <stdio.h>
 
+/*
+ * Alternative to assert() that traps in the debugger with a pretty
+ * message.
+ */
 void
 runtime_assert(const char *fmtstr, ...)
 {

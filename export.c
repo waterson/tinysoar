@@ -35,9 +35,7 @@
 
 
 /*
- *
  * Export the RETE Network as a set of C structures.
- *
  */
 
 #include "alloc.h"
@@ -725,6 +723,9 @@ export_productions(FILE *            file,
         export_productions(file, node->children, productions, actions);
 }
 
+/*
+ * Export the symbol table as a set of #defines.
+ */
 void
 export_symtab(FILE *file, struct symtab *symtab)
 {
@@ -785,6 +786,10 @@ export_agent(FILE *file, struct agent *agent, struct ht *alphas)
     fprintf(file, "  0, 0, 0, 0, { 0, 0, 0, 0 }, 0 };\n\n");
 }
 
+/*
+ * Export the agent's rules as a set of structs and #defines that can
+ * be used to re-create the agent.
+ */
 void
 soar_export(FILE *file, struct agent *agent, struct symtab *symtab)
 {
