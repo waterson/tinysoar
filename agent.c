@@ -82,27 +82,18 @@ push_goal_id(struct agent *agent, symbol_t goal_id)
 /*
  * Pop the deepest goal from the goal stack.
  */
-static symbol_t
-pop_goal_id(struct agent *agent)
+static void
+pop_goals(struct agent *agent)
 {
-    struct symbol_list *doomed = agent->goals;
-    struct symbol_list **link = &agent->goals;
-    symbol_t last;
+    struct symbol_list *goal = agent->goals;
 
-    ASSERT(doomed != 0, ("popped too many goals"));
-
-    while (doomed->next) {
-        link = &doomed->next;
-        doomed = doomed->next;
+    while (goal) {
+        struct symbol_list *doomed = goal;
+        goal = goal->next;
+        free(doomed);
     }
 
-    last = doomed->symbol;
-    free(doomed);
-
-    *link = 0;
-
-    return last;
-
+    agent->goals = 0;
 }
 
 /*
@@ -152,10 +143,9 @@ agent_init(struct agent *agent)
 #endif
 
     rete_init(agent);
-
     wmem_init(agent);
 
-    agent->goals = agent->impasses = 0;
+    agent->goals = 0;
 
     agent_reset(agent);
 }
@@ -166,9 +156,7 @@ agent_init(struct agent *agent)
 void
 agent_finish(struct agent *agent)
 {
-    while (agent->goals)
-        pop_goal_id(agent);
-
+    pop_goals(agent);
     wmem_finish(agent);
     rete_finish(agent);
 }
@@ -183,10 +171,7 @@ agent_reset(struct agent *agent)
        our WME removals can propagate correctly through the RETE
        network. */
     wmem_clear(agent);
-
-    while (agent->goals)
-        pop_goal_id(agent);
-
+    pop_goals(agent);
     agent->next_available_identifier = 1;
     init_top_state(agent);
 }
@@ -316,48 +301,165 @@ agent_operator_tie(struct agent *agent, symbol_t goal, struct symbol_list *opera
         MAKE_ARCH_PREF(state, SYM(ITEM_CONSTANT), operators->symbol);
 }
 
-static void
-remove_arch_pref(struct agent *agent, symbol_t id, symbol_t attr)
+struct gc_data {
+    struct agent *agent;
+    struct ht     reachable;
+    bool_t        mark_done;
+};
+
+static bool_t
+compare_symbols(const symbol_t *s1, const symbol_t *s2)
 {
-    struct preference *pref;
-    for (pref = wmem_get_preferences(agent, id, attr);
-         pref != 0;
-         pref = pref->next_in_slot) {
-        if (pref->support == support_type_architecture) {
-            wmem_remove_preference(agent, pref);
-            break;
-        }
-    }
+    return *s1 == *s2;
 }
 
 /*
- * Pop all of the subgoals beneath (and including) the specified goal,
- * removing preferences associated with those goals.
+ * Add the specified symbol to the reachable set.
+ */
+static void
+add_reachable_symbol(struct ht               *reachable,
+                     struct ht_entry_header **entryp,
+                     symbol_t                 symbol)
+{
+    struct ht_entry_header *entry =
+        (struct ht_entry_header *)
+        malloc(sizeof(struct ht_entry_header) + sizeof(symbol_t));
+
+    symbol_t *sym = (symbol_t *) HT_ENTRY_DATA(entry);
+    *sym = symbol;
+
+    ht_add(reachable, entryp, symbol, entry);
+}
+
+/*
+ * Called once for each slot to compute identifiers that are reachable
+ * from the current set.
+ */
+static ht_enumerator_result_t
+mark(struct ht_entry_header *header, void *closure)
+{
+    struct slot *slot = (struct slot *) HT_ENTRY_DATA(header);
+    struct gc_data *gc = (struct gc_data *) closure;
+    struct ht_entry_header **entryp =
+        (struct ht_entry_header **)
+        ht_lookup(&gc->reachable, slot->id, &slot->id);
+
+    struct preference *pref;
+
+    if (*entryp) {
+        /* This slot's identifier is reachable. Add identifiers
+           reachable from this slot to the reachability set. */
+        for (pref = slot->preferences; pref != 0; pref = pref->next_in_slot) {
+            entryp =
+                (struct ht_entry_header **)
+                ht_lookup(&gc->reachable, pref->value, &pref->value);
+
+            if (! *entryp) {
+                /* Found an identifier that we hadn't reached yet. */
+                add_reachable_symbol(&gc->reachable, entryp, pref->value);
+                gc->mark_done = 0;
+            }
+        }
+    }
+
+    return ht_enumerator_result_ok;
+}
+
+/*
+ * Remove preferences for any unreachable identifiers.
+ */
+static ht_enumerator_result_t
+sweep(struct ht_entry_header *header, void *closure)
+{
+    struct slot *slot = (struct slot *) HT_ENTRY_DATA(header);
+    struct gc_data *gc = (struct gc_data *) closure;
+
+    struct ht_entry_header **entryp =
+        (struct ht_entry_header **) ht_lookup(&gc->reachable, slot->id, &slot->id);
+
+    if (! *entryp) {
+        /* This identifier wasn't reachable. Nuke the preferences and
+           WMEs that it contains. */
+        struct preference *pref;
+        struct wme *wme;
+
+        for (pref = slot->preferences; pref != 0; ) {
+            struct preference *doomed = pref;
+            pref = pref->next_in_slot;
+            wmem_remove_preference(gc->agent, doomed);
+        }
+
+        for (wme = slot->wmes; wme != 0; ) {
+            struct wme *doomed = wme;
+            wme = wme->next;
+            rete_operate_wme(gc->agent, doomed, wme_operation_remove);
+            free(doomed);
+        }
+
+        slot->wmes = 0;
+    }
+
+    /* XXX Why can't we remove the slot (i.e., return
+       ht_enumerator_result_delete) here? */
+    return ht_enumerator_result_ok;
+}
+
+static ht_enumerator_result_t
+symbol_set_finalizer(struct ht_entry_header *header, void *closure)
+{
+    return ht_enumerator_result_delete;
+}
+
+/*
+ * Pop all of the subgoals beneath the specified goal, removing
+ * preferences associated with those goals.
  */
 void
-agent_pop_subgoals(struct agent *agent, struct symbol_list *goal)
+agent_pop_subgoals(struct agent *agent, struct symbol_list *bottom)
 {
-    /* XXX This approach isn't sufficient: we'll need to forcefully
-       remove all of the preferences related to each subgoal
-       (recursively!) to get any o-supported prefs cleaned up. As it
-       stands, this implementation ought to `work', but will leak any
-       o-supported preferences created in a subgoal. */
-    ASSERT(goal != 0, ("no subgoals to pop"));
+    struct gc_data gc;
+    struct symbol_list *goal;
+
+    ASSERT(bottom != 0, ("no subgoals to pop"));
+
+    /* Gather all the reachable identifiers: the goal stack is our
+       root set. Note that we don't yet truncate the goal stack: we
+       need the goal stack to be intact so that we can unwind
+       retractions in the RETE network. */
+    gc.agent = agent;
+    ht_init(&gc.reachable, (ht_key_compare_t) compare_symbols);
+
+    for (goal = agent->goals; goal != bottom->next; goal = goal->next) {
+        struct ht_entry_header **entryp =
+            (struct ht_entry_header **)
+            ht_lookup(&gc.reachable, goal->symbol, &goal->symbol);
+
+        ASSERT(*entryp == 0, ("circular goal list"));
+
+        add_reachable_symbol(&gc.reachable, entryp, goal->symbol);
+    }
+
+    /* Compute the transitive closure: iterate until no new
+       identifiers are reached. */
+    do {
+        gc.mark_done = 1;
+        ht_enumerate(&agent->slots, mark, &gc);
+    } while (! gc.mark_done);
+
+    /* Remove preferences for the non-reachable identifiers. */
+    ht_enumerate(&agent->slots, sweep, &gc);
+
+    /* Clean up. */
+    ht_finish(&gc.reachable, symbol_set_finalizer, 0);
+
+    /* Nuke goals beneath the new bottom. */
+    goal = bottom->next;
+    bottom->next = 0;
 
     do {
-        struct preference *pref;
         struct symbol_list *doomed = goal;
-        symbol_t state = doomed->symbol;
         goal = goal->next;
-
-        remove_arch_pref(agent, state, SYM(SUPERSTATE_CONSTANT));
-        remove_arch_pref(agent, state, SYM(ATTRIBUTE_CONSTANT));
-        remove_arch_pref(agent, state, SYM(CHOICES_CONSTANT));
-        remove_arch_pref(agent, state, SYM(IMPASSE_CONSTANT));
-        remove_arch_pref(agent, state, SYM(QUIESCENCE_CONSTANT));
-        remove_arch_pref(agent, state, SYM(TYPE_CONSTANT));
-        remove_arch_pref(agent, state, SYM(ITEM_CONSTANT));
-
         free(doomed);
     } while (goal);
 }
+
