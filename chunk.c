@@ -36,9 +36,6 @@
 /*
  * TODO
  *
- * . Handle justifications; they're currently variablized, which makes
- *   them over-general.
- *
  * . Optimize network creation.
  */
 
