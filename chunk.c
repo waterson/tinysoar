@@ -562,6 +562,10 @@ collect(struct agent          *agent,
     struct token_list *potential;
     struct token *token;
 
+#ifdef DEBUG_CHUNKING
+    printf("collecting tokens from %s:\n", inst->production->name);
+#endif
+
     /* Iterate through each token in the instantiation: if it's a
        higher-level goal, then add it to the grounds. Otherwise, note
        that it is a potential that needs to be backtraced. */
@@ -581,11 +585,23 @@ collect(struct agent          *agent,
                 /* Token goes in the grounds. */
                 entry->next = chunk->grounds;
                 chunk->grounds = entry;
+
+#ifdef DEBUG_CHUNKING
+                printf("  grounds += ");
+                debug_dump_token(&symtab, token);
+                printf("\n");
+#endif
             }
             else {
                 /* Token needs to be backtraced. */
                 entry->next = chunk->potentials;
                 chunk->potentials = entry;
+
+#ifdef DEBUG_CHUNKING
+                printf("  potentials += ");
+                debug_dump_token(&symtab, token);
+                printf("\n");
+#endif
             }
         }
     }
@@ -600,6 +616,12 @@ collect(struct agent          *agent,
                 *link = potential->next;
                 potential->next = chunk->grounds;
                 chunk->grounds = potential;
+
+#ifdef DEBUG_CHUNKING
+                debug_dump_token(&symtab, potential->token);
+                printf(": potentials -> grounds\n");
+#endif
+
                 break;
             }
         }
@@ -627,6 +649,15 @@ backtrace(struct agent *agent, struct chunk *chunk)
                 && SYMBOLS_ARE_EQUAL(pref->value, wme->value)
                 && pref->instantiation
                 && rete_get_instantiation_level(agent, pref->instantiation) == chunk->level) {
+
+#ifdef DEBUG_CHUNKING
+                printf("backtracing ");
+                debug_dump_wme(&symtab, wme);
+                printf(" through ");
+                debug_dump_preference(&symtab, pref);
+                printf("\n");
+#endif
+
                 break;
             }
         }
@@ -684,10 +715,10 @@ chunk(struct agent           *agent,
         }
     }
 
-#ifdef DEBUG
+#ifdef DEBUG_CHUNKING
     {
-        extern struct symtab symtab;
         struct token_list *tokens;
+        printf("final grounds:\n");
         for (tokens = chunk.grounds; tokens != 0; tokens = tokens->next) {
             debug_dump_token(&symtab, tokens->token);
             printf("\n");
