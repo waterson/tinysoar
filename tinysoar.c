@@ -224,7 +224,7 @@ dump_beta_node(struct beta_node* node, int nest, int recur)
         break;
 
     default:
-        ERROR(("unexepected node type"));
+        break;
     }
 
     printf(">\n");
@@ -609,6 +609,7 @@ sp_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
 
     rete_add_production(&agent, prod);
 
+    printf("compiled: %s\n", prod->name);
     return TCL_OK;
 }
 
