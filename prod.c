@@ -577,7 +577,6 @@ ensure_positive_condition_node(struct agent                  *agent,
     CLEAR_SYMBOL(alpha_attr);
     CLEAR_SYMBOL(alpha_value);
 
-    /* XXX gee, that's a lot of parameters. */
     bind_variables(&cond->data.simple.id_test,    depth, field_id,    bindings);
     bind_variables(&cond->data.simple.attr_test,  depth, field_attr,  bindings);
     bind_variables(&cond->data.simple.value_test, depth, field_value, bindings);
@@ -586,20 +585,24 @@ ensure_positive_condition_node(struct agent                  *agent,
     process_test(&cond->data.simple.attr_test,  depth, field_attr,  *bindings, &alpha_attr,  &tests);
     process_test(&cond->data.simple.value_test, depth, field_value, *bindings, &alpha_value, &tests);
 
-    /* See if there's a memory node we can use */
+    /* See if there's a memory node we can use. */
     for (memory_node = parent->children; memory_node != 0; memory_node = memory_node->siblings) {
         if (memory_node->type == beta_node_type_memory)
             break;
     }
 
     if (memory_node) {
+        /* Now look for a positive-join node we can use. It ought to
+           have the same alpha node that we'd get, as well as
+           identical beta tests. */
         for (result = memory_node->children; result != 0; result = result->siblings) {
             if ((result->type == beta_node_type_positive_join)
-                && (SYMBOLS_ARE_EQUAL(result->alpha_node->id, alpha_id))
-                && (SYMBOLS_ARE_EQUAL(result->alpha_node->attr, alpha_attr))
-                && (SYMBOLS_ARE_EQUAL(result->alpha_node->value, alpha_value))
-                && beta_tests_are_identical(result->data.tests, tests))
+                && (find_alpha_node(agent, alpha_id, alpha_attr,
+                                    alpha_value, cond->acceptable)
+                    == result->alpha_node)
+                && beta_tests_are_identical(result->data.tests, tests)) {
                 break;
+            }
         }
 
         if (! result) {
@@ -656,7 +659,6 @@ ensure_negative_condition_node(struct agent                  *agent,
     CLEAR_SYMBOL(alpha_attr);
     CLEAR_SYMBOL(alpha_value);
 
-    /* XXX gee, that's a lot of parameters. */
     bind_variables(&cond->data.simple.id_test,    depth, field_id,    bindings);
     bind_variables(&cond->data.simple.attr_test,  depth, field_attr,  bindings);
     bind_variables(&cond->data.simple.value_test, depth, field_value, bindings);
@@ -665,12 +667,14 @@ ensure_negative_condition_node(struct agent                  *agent,
     process_test(&cond->data.simple.attr_test,  depth, field_attr,  *bindings, &alpha_attr,  &tests);
     process_test(&cond->data.simple.value_test, depth, field_value, *bindings, &alpha_value, &tests);
 
-    /* See if there's already a negative node we can use */
+    /* See if there's already a negative node we can use. It ought to
+       have the same alpha node that we'd get, as well as identical
+       beta tests. */
     for (result = parent->children; result != 0; result = result->siblings) {
         if ((result->type == beta_node_type_negative)
-            && (SYMBOLS_ARE_EQUAL(result->alpha_node->id, alpha_id))
-            && (SYMBOLS_ARE_EQUAL(result->alpha_node->attr, alpha_attr))
-            && (SYMBOLS_ARE_EQUAL(result->alpha_node->value, alpha_value))
+            && (find_alpha_node(agent, alpha_id, alpha_attr,
+                                alpha_value, cond->acceptable)
+                == result->alpha_node)
             && beta_tests_are_identical(result->data.tests, tests))
             break;
     }

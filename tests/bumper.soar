@@ -44,9 +44,8 @@ sp {reconsider*wait
     (<s> ^operator <o> @)}
 
 # Prefer driving to waiting!
-# XXX there's a bug here if we drop the ^superstate nil condition.
 sp {prefer*drive-to-wait
-    (state <s> ^superstate nil ^operator <a> + ^operator <b> +)
+    (state <s> ^operator <a> + ^operator <b> +)
     (<a> ^name drive)
     (<b> ^name wait)
     -->
