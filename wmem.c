@@ -231,7 +231,7 @@ wmem_get_wmes(struct agent *agent, symbol_t id, symbol_t attr)
  * goal stack.
  */
 static bool_t
-is_goal_slot(struct agent *agent, struct slot *slot)
+is_operator_slot(struct agent *agent, struct slot *slot)
 {
     if (SYMBOLS_ARE_EQUAL(SYM(OPERATOR_CONSTANT), slot->attr)) {
         struct symbol_list *goal;
@@ -255,10 +255,8 @@ decide_slots(struct agent *agent)
     struct slot_list *next;
 
     for (slots = agent->modified_slots; slots != 0; slots = next) {
-        struct preference *pref =
-            get_preferences_for_slot(agent, slots->slot);
-
-        bool_t goal_slot = is_goal_slot(agent, slots->slot);
+        struct preference *pref = slots->slot->preferences;
+        bool_t operator_slot = is_operator_slot(agent, slots->slot);
 
         next = slots->next;
 
@@ -280,12 +278,12 @@ decide_slots(struct agent *agent)
 
                     if (! wme) {
                         /* Make a new wme. Note that wme's that go
-                           into a goal slot are `acceptable', not
+                           into a operator slot are `acceptable', not
                            `normal'. */
                         wme = (struct wme *) malloc(sizeof(struct wme));
                         wme->slot  = slots->slot;
                         wme->value = candidate->symbol;
-                        wme->type  = goal_slot ? wme_type_acceptable : wme_type_normal;
+                        wme->type  = operator_slot ? wme_type_acceptable : wme_type_normal;
                         wme->next  = slots->slot->wmes;
                         slots->slot->wmes = wme;
 
@@ -296,25 +294,20 @@ decide_slots(struct agent *agent)
 
             /* Remove wmes that have no preference */
             {
-                struct wme *wme = slots->slot->wmes;
-                struct wme **link = &slots->slot->wmes;
+                struct wme *wme, **link = &slots->slot->wmes;
 
-                while (wme) {
+                while ((wme = *link) != 0) {
                     struct symbol_list *candidate;
                     for (candidate = candidates; candidate != 0; candidate = candidate->next) {
                         if (SYMBOLS_ARE_EQUAL(wme->value, candidate->symbol))
                             break;
                     }
 
-                    if (candidate) {
+                    if (candidate)
                         link = &wme->next;
-                        wme = wme->next;
-                    }
                     else {
                         struct wme *doomed = wme;
                         *link = wme->next;
-                        wme = wme->next;
-
                         rete_operate_wme(agent, doomed, wme_operation_remove);
                         free(doomed);
                     }
