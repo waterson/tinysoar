@@ -12,16 +12,8 @@
 
 (9) Implement semantic verification in rule.y.
 
-(14) Implement the allocator for the runtime.
-
 (17) Fix architecture s.t. operator tie (and operator conflict, and
      operator no-change) doesn't repeatedly fire in the top-state.
-
-(18) Figure out why ops-7.soar is failing: two well ordered
-     productions, but a third unordered, should cause an operator-tie.
-
-(19) Figure out why rest of operator tests (ops-9.soar, ops-13.soar,
-     op-14.soar) are failing.
 
 (20) Deal with resolution of impasses. Depends on (3), above.
 
