@@ -1,0 +1,62 @@
+# This test demonstrates immediate generalization of a chunk in the
+# superstate.  It shows that we can't solve the refraction problem by
+# simply not firing the chunk.
+
+package require TinySoar
+set cycles 8
+
+sp {top-state*elaborate
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^item <i1> ^item <i2> ^item <i3>)
+    (<i1> ^label one)
+    (<i2> ^label two)
+    (<i3> ^label three)}
+
+sp {snc*propose*build-chunk
+    (state <s> ^superstate <ss>)
+    (<ss> ^item <i>)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name build-chunk ^item <i>)}
+
+sp {snc*reject*build-chunk*two
+    (state <s> ^operator <o> +)
+    (<o> ^name build-chunk ^item <i>)
+    (<i> ^label two)
+    -->
+    (<s> ^operator <o> -)}
+
+sp {snc*reject*build-chunk*three
+    (state <s> ^operator <o> +)
+    (<o> ^name build-chunk ^item <i>)
+    (<i> ^label three)
+    -->
+    (<s> ^operator <o> -)}
+
+sp {snc*implement*build-chunk
+    (state <s> ^operator <o> ^superstate <ss>)
+    (<o> ^name build-chunk ^item <i>)
+    -->
+    (<ss> ^operator <ss*o> +)
+    (<ss*o> ^name count ^item <i>)}
+
+sp {top-state*prefer*three-best
+    (state <s> ^operator <o> +)
+    (<o> ^name count ^item.label three)
+    -->
+    (<s> ^operator <o> >)}
+
+sp {top-state*implement*count-three
+    (state <s> ^operator <o> ^io.output-link <out>)
+    (<o> ^name count ^item.label three)
+    -->
+    (<out> ^success t)}
+
+set post {string compare [print chunk-1] \
+"chunk-1
+(state <v1> ^item <v2>)
+-->
+(<v1> ^operator <v3> +)
+(<v3> ^item <v2> +)
+(<v3> ^name count +)"}

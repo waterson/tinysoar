@@ -1,10 +1,11 @@
-# Here's a test based on chunk-14.soar that deals with the refraction
+# Here's a test based on chunk-14.soar. It demonstrates the refraction
 # that occurs for operator proposal when we build a chunk that
 # proposes the same operator that's being proposed by something from a
-# substate.
+# substate. If not handled properly, we'll end up with _two_ operator
+# proposals in the top-state, and get an operator-tie.
 
 package require TinySoar
-set cycles 7
+set cycles 8
 
 sp {top-state*elaborate
     (state <s> ^superstate nil)
