@@ -117,7 +117,7 @@ mark_slot_modified(struct agent* agent, struct slot* slot)
     }
 
     /* Nope. Push it on the list of modified slots for the agent */
-    entry = (struct slot_list*) malloc(sizeof(struct slot_list*));
+    entry = (struct slot_list*) malloc(sizeof(struct slot_list));
 
     entry->slot = slot;
     entry->next = agent->modified_slots;
