@@ -118,14 +118,14 @@ e.g., /usr/src/tinysoar/h8300-hitachi-hms.
 
 Then, build the target environment:
 
-  $ make lego
+  $ make legosoar
 
 This will link in a pre-existing agent (`agent.inc' in the tinysoar
 directory, which was exported from `tests/bumper.soar'), and create a
 file called `lego' that can be downloaded to the RCX using the
 `firmdl3' program included with LegOS:
 
-  $ /usr/src/legOS/util/firmdl3 --slow ./lego
+  $ /usr/src/legOS/util/firmdl3 --slow ./legosoar
 
 
 5. CREATING YOUR OWN AGENTS

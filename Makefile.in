@@ -55,7 +55,7 @@ LDFLAGS	= @LDFLAGS@
 all: tcl-extension
 
 clean:
-	rm -rf .deps tinysoar.so y.tab.* lex.yy.c *.o *.a core *~
+	rm -rf .deps tinysoar.so legosoar test-alloc y.tab.* lex.yy.c *.o *.a *.map core *~
 
 distclean: clean
 	rm -f Makefile config.cache config.log config.status defs.h
@@ -165,13 +165,13 @@ tinysoar.so: tinysoar.c libtinysoar.a $(PARSER_LIBNAME) $(RUNTIME_LIBNAME) $(BAS
 #
 
 LEGO_OBJS = \
-	lego.o \
+	legosoar.o \
 	alloc.o \
 	rcx.o \
 	$(NULL)
 
-lego: $(LEGO_OBJS) $(RUNTIME_LIBNAME) $(BASE_LIBNAME)
-	$(CC) $(LEGO_OBJS) -nostdlib -Wl,-Map -Wl,lego.map -Wl,-T$(srcdir)/h8300.lds -o $@ -L. -l$(RUNTIME) -l$(BASE) -lgcc
+legosoar: $(LEGO_OBJS) $(RUNTIME_LIBNAME) $(BASE_LIBNAME)
+	$(CC) $(LEGO_OBJS) -nostdlib -Wl,-Map -Wl,legosoar.map -Wl,-T$(srcdir)/h8300.lds -o $@ -L. -l$(RUNTIME) -l$(BASE) -lgcc
 
 # ----------------------------------------------------------------------
 #
