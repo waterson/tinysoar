@@ -44,6 +44,44 @@
 #endif
 
 /*
+ * For managing the identifier map, which is a contiguous array that
+ * is used to recycle identifiers and to associate a `goal level' with
+ * each identifier. An identifier's value is used as a (one-based)
+ * index into the array.
+ *
+ * Each entry in the array contains one bit used to determine if the
+ * entry is live (i.e., in use in the agent's slots either as by a
+ * preference or a wme). The remaining bits are used to assign a `goal
+ * level' to the identifer: this is the highest level in the goal
+ * hierarchy with which the identifier is associated; i.e., the
+ * highest goal in the hierarchy from which the identifier can be
+ * reached by following wme links.
+ */
+
+/* The number of entries in the agent's initial map. */
+#define DEFAULT_ID_MAP_ENTRIES   8
+
+/* The number of bits used for each entry. (XXX we may want to reduce
+   to four bits for 16-bit architectures; if so, that'll take a bit
+   more re-work than just twiddling constants here.) */
+#define ID_MAP_ENTRY_BITS        sizeof(char) * 8
+#define ID_MAP_ENTRY_SZ          sizeof(char)
+
+#define ID_ENTRY_USED_MASK       (1 << (ID_MAP_ENTRY_BITS - 1))
+#define ID_ENTRY_LEVEL_MASK      ~ID_ENTRY_USED_MASK
+
+#define ASSERT_VALID_LEVEL(l) \
+  ASSERT(((l) & ~ID_ENTRY_LEVEL_MASK == 0), ("bad identifier level %d", (l)))
+
+#define ID_ENTRY_IS_USED(e)      ((e) & ID_ENTRY_USED_MASK)
+#define MARK_ID_ENTRY_USED(e)    ((e) |= ID_ENTRY_USED_MASK)
+#define MARK_ID_ENTRY_FREE(e)    ((e) &= ~ID_ENTRY_USED_MASK)
+
+#define GET_ID_ENTRY_LEVEL(e)    ((e) & ID_ENTRY_LEVEL_MASK)
+#define SET_ID_ENTRY_LEVEL(e, l) \
+  (ASSERT_VALID_LEVEL(l), (e) &= ~ID_ENTRY_LEVEL_MASK, (e) |= (l))
+
+/*
  * Make an `acceptable, architecture-supported' preference.
  */
 #define MAKE_ARCH_PREF(id, attr, value)              \
@@ -54,7 +92,8 @@
 
 
 /*
- * Constants meant for general use.
+ * Constants meant for general use. These are used across agent
+ * instances.
  */
 static bool_t constants_initialized = 0;
 symbol_t constants[USER_CONSTANT_BASE];
@@ -107,10 +146,13 @@ static void
 init_top_state(struct agent *agent)
 {
     /* The goal stack is completely empty; create initial state */
-    symbol_t state  = agent_get_identifier(agent);
-    symbol_t io     = agent_get_identifier(agent);
-    symbol_t input  = agent_get_identifier(agent);
-    symbol_t output = agent_get_identifier(agent);
+    symbol_t state, io, input, output;
+
+    agent_reserve_identifiers(agent, 4);
+    state  = agent_get_identifier(agent);
+    io     = agent_get_identifier(agent);
+    input  = agent_get_identifier(agent);
+    output = agent_get_identifier(agent);
 
     push_goal_id(agent, state);
 
@@ -146,6 +188,7 @@ agent_init(struct agent *agent)
     wmem_init(agent);
 
     agent->goals = 0;
+    agent->id_entries = 0;
 
     agent_reset(agent);
 }
@@ -159,6 +202,9 @@ agent_finish(struct agent *agent)
     pop_goals(agent);
     wmem_finish(agent);
     rete_finish(agent);
+
+    if (agent->id_entries)
+        free(agent->id_entries);
 }
 
 /*
@@ -172,8 +218,113 @@ agent_reset(struct agent *agent)
        network. */
     wmem_clear(agent);
     pop_goals(agent);
-    agent->next_available_identifier = 1;
+
+    /* Reset the identifier map. */
+    if (agent->id_entries)
+        free(agent->id_entries);
+
+    agent->nid_entries = DEFAULT_ID_MAP_ENTRIES;
+    agent->nfree_entries = DEFAULT_ID_MAP_ENTRIES;
+    agent->id_entries = malloc(DEFAULT_ID_MAP_ENTRIES * ID_MAP_ENTRY_SZ);
+    memset(agent->id_entries, 0, DEFAULT_ID_MAP_ENTRIES * ID_MAP_ENTRY_SZ);
+
+    /* Create a new top state. */
     init_top_state(agent);
+}
+
+/*
+ * Mark the symbol as `used' in the identifier map if it isn't
+ * already. Update the nfree_entries accordingly.
+ */
+static void
+mark_if_unused(struct agent *agent, symbol_t symbol)
+{
+    if (GET_SYMBOL_TYPE(symbol) == symbol_type_identifier) {
+        unsigned char *entry =
+            agent->id_entries + (GET_SYMBOL_VALUE(symbol) - 1);
+
+        if (! ID_ENTRY_IS_USED(*entry)) {
+            MARK_ID_ENTRY_USED(*entry);
+            --agent->nfree_entries;
+        }
+    }
+}
+
+static ht_enumerator_result_t
+mark_slot_identifiers(struct ht_entry_header *header, void *closure)
+{
+    struct slot *slot = (struct slot *) HT_ENTRY_DATA(header);
+    struct agent *agent = (struct agent *) closure;
+    struct preference *pref;
+    struct wme *wme;
+
+    mark_if_unused(agent, slot->id);
+    mark_if_unused(agent, slot->attr);
+
+    for (pref = slot->preferences; pref != 0; pref = pref->next_in_slot) {
+        mark_if_unused(agent, pref->value);
+        if (pref->type & preference_type_binary)
+            mark_if_unused(agent, pref->referent);
+    }
+
+    for (wme = slot->wmes; wme != 0; wme = wme->next)
+        mark_if_unused(agent, wme->value);
+
+    return ht_enumerator_result_ok;
+}
+
+/*
+ * Try to reclaim unused identifiers.
+ */
+static void
+gc_identifiers(struct agent *agent)
+{
+    /* Mark all of the identifiers as `free'. */
+    char *entry, *limit;
+    for (entry = agent->id_entries, limit = agent->id_entries + agent->nid_entries;
+         entry < limit;
+         ++entry) {
+        MARK_ID_ENTRY_FREE(*entry);
+    }
+
+    /* Reset the free count to be the size of the entry table. */
+    agent->nfree_entries = agent->nid_entries;
+
+    /* Enumerate the slots, marking each used identifier as such, and
+       updating nfree_entries appropriately. */
+    ht_enumerate(&agent->slots, mark_slot_identifiers, agent);
+}
+
+/*
+ * Reserve space in the identifier map for at least `count'
+ * identifiers.
+ */
+void
+agent_reserve_identifiers(struct agent *agent, int count)
+{
+    /* If there are enough identifiers to satisfy the request, then
+       we're done. */
+    if (count <= agent->nfree_entries)
+        return;
+
+    /* We don't have enough identifiers to process the request. First,
+       let's try to GC old identifiers. */
+    gc_identifiers(agent);
+
+    if (count > agent->nfree_entries) {
+        /* GC'ing didn't free enough identifiers to satisfy the
+           request. Grow the id map. */
+        int old_sz = agent->nid_entries * ID_MAP_ENTRY_SZ;
+        int new_nid_entries = agent->nid_entries * 2;
+        char *new_id_entries = malloc(new_nid_entries * ID_MAP_ENTRY_SZ);
+
+        memcpy(new_id_entries, agent->id_entries, old_sz);
+        memset(new_id_entries + old_sz, 0, old_sz);
+
+        agent->nfree_entries += agent->nid_entries;
+        agent->nid_entries = new_nid_entries;
+        agent->id_entries = new_id_entries;
+    }
 }
 
 /*
@@ -182,15 +333,25 @@ agent_reset(struct agent *agent)
 symbol_t
 agent_get_identifier(struct agent *agent)
 {
+    unsigned char *entry;
     symbol_t result;
 
-    /* XXX once we run out of identifiers, we need to `gc' working
-       memory to identify ranges of free identifiers from which to
-       allocate ids. */
-    ASSERT(agent->next_available_identifier < (1 << SYMBOL_VALUE_BITS),
-           ("ran out of identifiers"));
+    ASSERT(agent->nfree_entries > 0, ("ran out of identifiers"));
+    --agent->nfree_entries;
 
-    INIT_SYMBOL(result, symbol_type_identifier, agent->next_available_identifier++);
+    /* Scan the map until we find a free entry. */
+    entry = agent->id_entries;
+    while (ID_ENTRY_IS_USED(*entry))
+        ++entry;
+
+    ASSERT(entry < agent->id_entries + agent->nid_entries,
+           ("couldn't find a free identifier"));
+
+    /* Mark the entry as in use, and return it. The identifier's value
+       is its position in the map, one-indexed. */
+    MARK_ID_ENTRY_USED(*entry);
+    INIT_SYMBOL(result, symbol_type_identifier, (entry - agent->id_entries) + 1);
+
     return result;
 }
 
@@ -211,7 +372,10 @@ agent_elaborate(struct agent *agent)
 void
 agent_operator_no_change(struct agent *agent, symbol_t goal)
 {
-    symbol_t state = agent_get_identifier(agent);
+    symbol_t state;
+
+    agent_reserve_identifiers(agent, 1);
+    state = agent_get_identifier(agent);
 
     push_goal_id(agent, state);
 
@@ -234,7 +398,10 @@ agent_operator_no_change(struct agent *agent, symbol_t goal)
 void
 agent_state_no_change(struct agent *agent, symbol_t goal)
 {
-    symbol_t state = agent_get_identifier(agent);
+    symbol_t state;
+
+    agent_reserve_identifiers(agent, 1);
+    state = agent_get_identifier(agent);
 
     push_goal_id(agent, state);
 
@@ -257,7 +424,10 @@ agent_state_no_change(struct agent *agent, symbol_t goal)
 void
 agent_operator_conflict(struct agent *agent, symbol_t goal, struct symbol_list *operators)
 {
-    symbol_t state = agent_get_identifier(agent);
+    symbol_t state;
+
+    agent_reserve_identifiers(agent, 1);
+    state = agent_get_identifier(agent);
 
     push_goal_id(agent, state);
 
@@ -283,7 +453,10 @@ agent_operator_conflict(struct agent *agent, symbol_t goal, struct symbol_list *
 void
 agent_operator_tie(struct agent *agent, symbol_t goal, struct symbol_list *operators)
 {
-    symbol_t state = agent_get_identifier(agent);
+    symbol_t state;
+
+    agent_reserve_identifiers(agent, 1);
+    state = agent_get_identifier(agent);
 
     push_goal_id(agent, state);
 

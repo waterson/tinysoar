@@ -772,7 +772,8 @@ export_agent(FILE *file, struct agent *agent, struct ht *alphas)
     int i;
 
     fprintf(file, "static struct agent agent = {\n");
-    fprintf(file, "  1, &betas[0], { &betas[0], 0, 0, 0 },\n");
+    fprintf(file, "  0, 0, 0,\n");
+    fprintf(file, "  &betas[0], { &betas[0], 0, 0, 0 },\n");
     fprintf(file, "  { ");
 
     for (i = 0; i < 16; ++i) {
@@ -790,7 +791,7 @@ export_agent(FILE *file, struct agent *agent, struct ht *alphas)
 
     fprintf(file, " },\n");
 
-    fprintf(file, "  0, 0, 0, 0, { 0, 0, 0, 0 }, 0 };\n\n");
+    fprintf(file, "  0, 0, 0, { 0, 0, 0, 0 }, 0 };\n\n");
 }
 
 /*

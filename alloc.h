@@ -38,14 +38,11 @@
 
 #include "config.h"
 
+/* Just use the libc allocator if we've got it. Otherwise, we'll
+   assume built-in implementations. */
 #ifdef HAVE_MALLOC_H
-
-/* Just use the libc allocator if we've got it. */
-#include <malloc.h>
-
-#else /* ! HAVE_MALLOC_H */
-
-/* No <malloc.h>, so use our own allocator. */
+#  include <malloc.h>
+#else
 extern void
 heap_init(char *addrs[], int naddrs);
 
@@ -55,11 +52,22 @@ malloc(unsigned size);
 extern void
 free(void *ptr);
 
-#if defined(DEBUG) && defined(HAVE_PRINTF)
+#  if defined(DEBUG) && defined(HAVE_PRINTF)
 extern void
 heap_walk();
-#endif
-
+#  endif
 #endif /* ! HAVE_MALLOC_H */
+
+/* Just use the libc memcpy, etc. if we've got it. Otherwise, we'll
+   assume built-in implementations. */
+#ifdef HAVE_STRING_H
+#  include <string.h>
+#else
+extern void *
+memset(void *s, int c, unsigned n);
+
+extern void *
+memcpy(void *dest, const void *src, unsigned n);
+#endif
 
 #endif /* alloc_h__ */

@@ -332,7 +332,7 @@ struct production {
     struct condition     *conditions;
     struct action        *actions;
     struct instantiation *instantiations;
-    unsigned              num_unbound_vars;
+    int                   num_unbound_vars;
     support_type_t        support;
 };
 
@@ -493,8 +493,10 @@ struct match {
  * of a Soar process.
  */
 struct agent {
-    /* For the symbol table */
-    unsigned next_available_identifier;
+    /* The identifier map. */
+    unsigned char *id_entries;
+    int nid_entries;
+    int nfree_entries;
 
     /* For the RETE network */
     struct beta_node   *root_node;
@@ -612,6 +614,9 @@ typedef void (*wme_enumerator_t)(struct agent *agent, struct wme *wme, void *clo
 
 extern void
 wmem_enumerate_wmes(struct agent *agent, wme_enumerator_t enumerator, void *closure);
+
+extern void
+agent_reserve_identifiers(struct agent *agent, int count);
 
 extern symbol_t
 agent_get_identifier(struct agent *agent);

@@ -80,6 +80,7 @@ AC_PROG_YACC
 dnl Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS(malloc.h)
+AC_CHECK_HEADERS(string.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST

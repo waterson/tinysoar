@@ -50,6 +50,7 @@
  * coalescing them with the current block if possible.
  */
 #include "alloc.h"
+extern void panic();
 
 static char *heap_start;
 static char *heap_end;
@@ -282,3 +283,33 @@ heap_walk()
 }
 
 #endif
+
+/* XXX provide optimized versions of these for h8300. (Single
+   instruction?) */
+void *
+memset(void *s, int c, unsigned n)
+{
+    char *p, *limit;
+    for (p = (char *) s, limit = p + n;
+         p < limit;
+         ++p) {
+        *p = c;
+    }
+
+    return s;
+}
+
+void *
+memcpy(void *dest, const void *src, unsigned n)
+{
+    char *d, *limit;
+    const char *s;
+
+    for (d = (char *) dest, s = (const char *) src, limit = dest + n;
+         d < limit;
+         ++d, ++s) {
+        *d = *s;
+    }
+
+    return dest;
+}

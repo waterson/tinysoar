@@ -549,7 +549,8 @@ create_instantiation(struct agent       *agent,
         &inst->preferences;
 
     /* Generate identifiers for the unbound variables. */
-    for (count = (int) production->num_unbound_vars - 1; count >= 0; --count) {
+    agent_reserve_identifiers(agent, production->num_unbound_vars);
+    for (count = production->num_unbound_vars - 1; count >= 0; --count) {
         struct symbol_list *entry =
             (struct symbol_list *) malloc(sizeof(struct symbol_list));
 

@@ -36,6 +36,7 @@
 #undef const
 #undef inline
 #undef HAVE_MALLOC_H
+#undef HAVE_STRING_H
 #undef HAVE_VPRINTF
 #undef HAVE_PRINTF
 #undef SIZEOF_INT
