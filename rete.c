@@ -467,19 +467,24 @@ process_test(const struct test* test,
         if (symbol_type == symbol_type_variable) {
             /* It's a variable. Make a variable relational test */
             const variable_binding_t* binding;
-            beta_test = (struct beta_test*) malloc(sizeof(struct beta_test));
+            int relative_depth;
 
             binding = find_bound_variable(bindings, test->data.referent);
             ASSERT(binding != 0, ("null ptr"));
 
-            beta_test->relational_type = relational_type_variable;
-            beta_test->data.variable_referent = *binding;
+            relative_depth = depth - binding->depth;
 
-            /* Fix up the variable referent's depth (which was stored
-               as an `absolute depth' in the binding list) to be
-               relative to the current depth of the test. */
-            beta_test->data.variable_referent.depth =
-                depth - beta_test->data.variable_referent.depth;
+            if (relative_depth || binding->field != field) {
+                /* Don't bother to make vacuous tests. */
+                beta_test = (struct beta_test*) malloc(sizeof(struct beta_test));
+                beta_test->relational_type = relational_type_variable;
+                beta_test->data.variable_referent = *binding;
+
+                /* Fix up the variable referent's depth (which was stored
+                   as an `absolute depth' in the binding list) to be
+                   relative to the current depth of the test. */
+                beta_test->data.variable_referent.depth = relative_depth;
+            }
         }
         else {
             beta_test =
