@@ -33,7 +33,7 @@
 static void
 rehash(struct ht* ht, struct ht_entry_header** oldbuckets, unsigned noldbuckets)
 {
-    int i;
+    unsigned i;
 
     for (i = 0; i < noldbuckets; ++i) {
         struct ht_entry_header* oldentry = oldbuckets[i];

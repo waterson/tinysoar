@@ -1,4 +1,4 @@
-CFLAGS=/nologo /DINLINE= /DWINDOWS
+CFLAGS=/nologo /W3 /DWINDOWS
 LFLAGS=/nologo
 LINK=link
 
@@ -24,7 +24,7 @@ RUNTIME_OBJS = \
         $(NULL)
 
 PARSER_OBJS = \
-        rule.tab.obj \
+        y.tab.obj \
         lex.yy.obj \
         symtab.obj \
         $(NULL)
@@ -50,9 +50,6 @@ rete-test.exe: 	rete-test.obj $(RUNTIME_OBJS) $(SHARED_OBJS)
         $(LINK) $(LFLAGS) /nologo /out:$@ $**
 
 rete-test.obj: rete-test.c soar.h alloc.h config.h defs.h
-
-$(RUNTIME_LIB): $(RUNTIME_OBJS)
-        lib /nologo /out:$@ $**
 
 alloc.obj: alloc.c alloc.h config.h defs.h
 agent.obj: agent.c soar.h alloc.h config.h defs.h

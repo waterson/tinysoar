@@ -5,6 +5,7 @@
 #include "soar.h"
 #include "parser.h"
 #include "y.tab.h"
+#include <stdlib.h>
 %}
 
 %%
@@ -28,6 +29,7 @@ state|impasse return CONTEXT;
 struct production*
 soar_parse_rule(struct symtab* symtab, const char* rule)
 {
+    extern int yyparse(void*);
     struct parser parser;
     YY_BUFFER_STATE state;
 

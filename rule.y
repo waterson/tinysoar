@@ -3,12 +3,17 @@
 #include "soar.h"
 #include "parser.h"
 #include "symtab.h"
+#include <stdlib.h>
 
 #define YYPARSE_PARAM yyparse_param
 
 static void
 process_attr_value_test_list(struct condition* cond,
                              struct attr_value_test_list* list);
+
+/* Prototypes to keep the compiler from whining */
+extern void yyerror(char*);
+extern int yylex(void);
 %}
 
 %union {

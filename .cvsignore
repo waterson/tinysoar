@@ -11,5 +11,5 @@ defs.h
 lex.yy.c
 parser-test
 rete-test
-rule.tab.c
-rule.tab.h
+y.tab.c
+y.tab.h
