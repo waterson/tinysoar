@@ -1,6 +1,15 @@
-CFLAGS=/Zi /Od
-LFLAGS=/debug
+CFLAGS=/nologo /DINLINE=
 LINK=link
+
+!ifdef BUILD_OPT
+CFLAGS=$(CFLAGS) /O1
+LFLAGS=
+!else
+CFLAGS=$(CFLAGS) /Zi /Od
+LFLAGS=/debug
+!endif
+
+
 OBJS=rete-test.obj pool.obj rete.obj wmem.obj
 
 rete-test.exe: $(OBJS)
