@@ -91,12 +91,48 @@ symtab_lookup(struct symtab* symtab, symbol_type_t type, const char* name, bool_
         }
 
         MAKE_SYMBOL(result, type, val);
+
+        add_symbol(symtab, entryp, name, result);
     }
     else {
         CLEAR_SYMBOL(result);
     }
 
     return result;
+}
+
+struct find_name_closure {
+    symbol_t    symbol;
+    const char* result;
+};
+
+static ht_enumerator_result_t
+find_name_enumerator(struct ht_entry_header* header,
+                     struct find_name_closure* closure)
+{
+    struct symtab_entry* entry =
+        (struct symtab_entry*) HT_ENTRY_DATA(header);
+
+    if (SYMBOLS_ARE_EQUAL(entry->symbol, closure->symbol)) {
+        closure->result = entry->name;
+        return ht_enumerator_result_stop;
+    }
+
+    return ht_enumerator_result_ok;
+}
+
+const char*
+symtab_find_name(struct symtab* symtab, symbol_t symbol)
+{
+    struct find_name_closure closure;
+    closure.symbol = symbol;
+    closure.result = "(undef)";
+
+    ht_enumerate(&symtab->table,
+                 (ht_enumerator_t) find_name_enumerator,
+                 &closure);
+
+    return closure.result;
 }
 
 struct predefined_symbol {
