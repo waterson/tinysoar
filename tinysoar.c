@@ -79,6 +79,14 @@ dump_token(struct token* token)
 static void
 dump_test(struct beta_test* test)
 {
+    switch (test->field) {
+    case field_id:      printf("id");     break;
+    case field_attr:    printf("attr");   break;
+    case field_value:   printf("value");  break;
+    default:
+        ERROR(("unexpected field"));
+    }
+
     switch (test->type) {
     case test_type_blank:
         printf("0");
@@ -135,11 +143,11 @@ dump_test(struct beta_test* test)
         break;
 
     case test_type_goal_id:
-        printf("G");
+        printf("(G)");
         return;
 
     case test_type_impasse_id:
-        printf("I");
+        printf("(I)");
         return;
     }
 
@@ -153,7 +161,7 @@ dump_test(struct beta_test* test)
         case field_attr:    printf("attr");   break;
         case field_value:   printf("value");  break;
         default:
-            break;
+            ERROR(("unexpected field"));
         }
         printf(">");
     }
