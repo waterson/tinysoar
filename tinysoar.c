@@ -42,39 +42,6 @@ init_soar_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
 }
 
 /*
- * wme enumerator callback for `print': if this is the id we wanna print,
- * then this'll dump the dope.
- */
-static void
-print_enumerator(struct agent* agent, struct wme* wme, void* closure)
-{
-    symbol_t* id = (symbol_t*) closure;
-    if (SYMBOLS_ARE_EQUAL(*id, wme->slot->id)) {
-        printf(" ^%s ", symtab_find_name(&symtab, wme->slot->attr));
-
-        switch (wme->value.type) {
-        case symbol_type_symbolic_constant:
-            printf("%s", symtab_find_name(&symtab, wme->value));
-            break;
-
-        case symbol_type_identifier:
-            printf("[%d]", wme->value.val);
-            break;
-
-        case symbol_type_integer_constant:
-            printf("%d", wme->value.val);
-            break;
-
-        case symbol_type_variable:
-            ERROR(("variable unexpected"));
-        }
-
-        if (wme->type == wme_type_acceptable)
-            printf(" +");
-    }
-}
-
-/*
  * `preferences'. Query or add preferences to working memory.
  */
 static int
@@ -86,6 +53,11 @@ preferences_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
     preference_type_t type;
 
     i = 1;
+
+    if (argc < 2) {
+        interp->result = "preferences [-a | -r] <id> ^<attr> [<value> [<pref> [<ref>]]]";
+        return TCL_ERROR;
+    }
 
     if (strncmp(argv[i], "-a", 2) == 0) {
         op = 1; /* add */
@@ -226,6 +198,40 @@ preferences_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
 
 
 /*
+ * wme enumerator callback for `print': if this is the id we wanna print,
+ * then this'll dump the dope.
+ */
+static void
+print_enumerator(struct agent* agent, struct wme* wme, void* closure)
+{
+    symbol_t* id = (symbol_t*) closure;
+    if (SYMBOLS_ARE_EQUAL(*id, wme->slot->id)) {
+        printf(" ^%s ", symtab_find_name(&symtab, wme->slot->attr));
+
+        switch (wme->value.type) {
+        case symbol_type_symbolic_constant:
+            printf("%s", symtab_find_name(&symtab, wme->value));
+            break;
+
+        case symbol_type_identifier:
+            printf("[%d]", wme->value.val);
+            break;
+
+        case symbol_type_integer_constant:
+            printf("%d", wme->value.val);
+            break;
+
+        case symbol_type_variable:
+            ERROR(("variable unexpected"));
+        }
+
+        if (wme->type == wme_type_acceptable)
+            printf(" +");
+    }
+}
+
+
+/*
  * `print'. Print stuff that's hanging off an identifier
  */
 static int
@@ -234,7 +240,7 @@ print_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
     int i;
 
     if (argc < 2) {
-        interp->result = "too few arguments";
+        interp->result = "print [-stack | <id>]";
         return TCL_ERROR;
     }
 
