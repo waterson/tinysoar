@@ -16,11 +16,11 @@
 
 (14) Implement the allocator for the runtime.
 
-(15) Fix operator preference semantics s.t. multiple ``worst''
-     operators don't end up getting culled.
-
 (17) Fix architecture s.t. operator tie (and operator conflict, and
      operator no-change) doesn't repeatedly fire in the top-state.
 
 (18) Figure out why ops-7.soar is failing: two well ordered
      productions, but a third unordered, should cause an operator-tie.
+
+(19) Figure out why rest of operator tests are failing.
+

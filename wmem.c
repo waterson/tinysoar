@@ -603,7 +603,7 @@ create_instantiation(struct agent*       agent,
  * ``Un-instantiate'' a production.
  */
 static void
-remove_instantiation(struct agent* agent,
+remove_instantiation(struct agent*         agent,
                      struct instantiation* inst)
 {
     /* Yank the instantiation from the production */
@@ -899,13 +899,10 @@ run_operator_semantics_on(struct agent*        agent,
        from amongst those.
 
        Conversely, if we have any ``worst'' candidates, cull them out
-       as well.
-
-       XXX this logic is pretty much the same as what appears in
-       Soar8's decide.c; however, Soar8 ends up with an operator-tie
-       if two worst preferences are proposed. We'll end up culling out
-       all the ``worst'' candidates. */
+       as well. */
     if (bests || worsts) {
+        struct symbol_list* worst_candidates = 0;
+
         struct symbol_list** link;
         for (link = candidates, candidate = *link; candidate != 0; candidate = *link) {
             bool_t best = 0;
@@ -920,12 +917,38 @@ run_operator_semantics_on(struct agent*        agent,
                 }
             }
 
-            if ((bests && !best) || (worsts && worst)) {
+            if (bests && !best) {
+                /* If we have best preferences, and this isn't one of
+                   them, get rid of it! */
                 *link = candidate->next;
                 free(candidate);
             }
+            else if (worsts && worst) {
+                /* If we have worst preferences, and this is one of
+                   them, queue it on to the backup list (in case we've
+                   got no non-worst preferences to choose from). */
+                *link = candidate->next;
+                candidate->next = worst_candidates;
+                worst_candidates = candidate;
+            }
             else
                 link = &candidate->next;
+        }
+
+        if (*candidates) {
+            /* We've got at least on candidate to choose from. If we'd
+               stored any ``worsts'' in the backup list, we can free
+               them now. */
+            while (worst_candidates) {
+                struct symbol_list* doomed = worst_candidates;
+                worst_candidates = worst_candidates->next;
+                free(doomed);
+            }
+        }
+        else {
+            /* No non-worst candidates to choose from! Hopefully we've
+               got some ``worsts'' in our backup list... */
+            *candidates = worst_candidates;
         }
     }
 
