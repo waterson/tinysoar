@@ -129,6 +129,7 @@ soar_parse_rule(struct symtab *symtab, const char *rule)
     parser.lhs_vars         = 0;
     parser.rhs_unbound_vars = 0;
     parser.parsed_name      = 0;
+    parser.gensym           = 0;
 
     state = yy_scan_string(rule);
     if (yyparse(&parser) != 0) {

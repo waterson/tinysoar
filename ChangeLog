@@ -1,5 +1,10 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
+Thursday, December 20, 2001
+
+Take a first crack at implementing `.attr' notation.
+
+
 Wednesday, December 19, 2001
 
 Saved 100 or so bytes on the H8 by getting rid of bit fields in the

@@ -1,3 +1,9 @@
+# THIS AGENT DOESN'T REALLY WORK YET.
+#
+# I need to finish up some work in the rule parsing code, and the
+# sensor stuff is just made up.
+#
+
 #----------------------------------------------------------------------
 # Find line
 sp {find-line*propose

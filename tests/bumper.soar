@@ -2,17 +2,13 @@ package require TinySoar;
 
 # Drive forward until we bump into something.
 sp {propose*drive
-    (state <s> ^superstate nil ^io <io>)
-    (<io> ^input-link <in>)
-    (<in> ^sensor-1 > 512)
+    (state <s> ^superstate nil ^io.input-link.sensor-1 > 512)
     -->
     (<s> ^operator <o> +)
     (<o> ^name drive)}
 
 sp {implement*drive
-    (state <s> ^operator <o> ^io <io>)
-    (<o> ^name drive)
-    (<io> ^output-link <out>)
+    (state <s> ^operator.name drive ^io.output-link <out>)
     -->
     (<out> ^motor-a 100 ^motor-c 100)}
 
@@ -30,9 +26,7 @@ sp {propose*wait
     (<o> ^name wait)}
 
 sp {implement*wait
-    (state <s> ^operator <o> ^io <io>)
-    (<o> ^name wait)
-    (<io> ^output-link <out>)
+    (state <s> ^operator.name wait ^io.output-link <out>)
     (<out> ^motor-a <a> ^motor-c <c>)
     -->
     (<out> ^motor-a <a> - ^motor-c <c> -)}
@@ -45,8 +39,8 @@ sp {reconsider*wait
 
 # Prefer driving to waiting!
 sp {prefer*drive-to-wait
-    (state <s> ^operator <a> + ^operator <b> +)
-    (<a> ^name drive)
-    (<b> ^name wait)
+    (state <s> ^operator <o1> + ^operator <o2> +)
+    (<o1> ^name drive)
+    (<o2> ^name wait)
     -->
-    (<s> ^operator <a> > <b>)}
+    (<s> ^operator <o1> > <o2>)}

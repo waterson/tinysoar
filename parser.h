@@ -47,6 +47,7 @@ struct parser {
     struct symbol_list *lhs_vars;
     struct symbol_list *rhs_unbound_vars;
     bool_t              parsed_name;
+    int                 gensym;
 };
 
 

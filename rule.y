@@ -39,29 +39,23 @@
  * TO DO
  * -----
  *
- * . Need to mark preferences with proper support (either o- or
- *   i-support).
+ * . Error recovery and reporting.
  *
- * . Handle acceptable preference testing (needs work in the rete
- *   network and elsewhere first).
- *
- * . Implement `negated conjunctive conditions'. Properly detect when
- *   we need to return a simple condition vs. an NCC.
+ * . Implement semantic verification (e.g., Are there dangling
+ *   variables in the LHS? Does the RHS try to create disconnected
+ *   structure?).
  *
  * . Clean up condition and condition_list stuff. I think the RHS stuff
  *   worked out much more cleanly. Better yet, construct the RETE
  *   network directly instead of creating a bunch of intermediate data
  *   structures (unless it turns out we need these for chunking?)
  *
- * . Implement `dot attribute' for conditions.
- *
- * . Implement semantic verification (e.g., Are there dangling
- *   variables in the LHS? Does the RHS try to create disconnected
- *   structure?).
- *
- * . Error recovery and reporting.
+ * . Implement `negated conjunctive conditions'. Properly detect when
+ *   we need to return a simple condition vs. an NCC.
  *
  * . Fix O(n^2) list walking that's all over the place.
+ *
+ * . Probably plenty of memory leaks in here.
  *
  */
 
@@ -164,6 +158,8 @@ extern int yylex(); /* Can't give it types, because we don't have
 %type <condition> id_test
 %type <condition> lhs
 %type <condition> positive_cond
+
+%type <test_list> dot_attr_list
 
 %type <condition_list> cond_list
 
@@ -359,6 +355,8 @@ attr_value_test_list: /* empty */
                             $<condition>0.data.simple.value_test.type == test_type_blank) {
                             /* There's room in the id_test to our left
                                for the attribute and value tests. */
+                            struct condition *cond;
+
                             $<condition>0.data.simple.attr_test = $2.data.simple.attr_test;
                             $<condition>0.data.simple.value_test = $2.data.simple.value_test;
 
@@ -373,6 +371,14 @@ attr_value_test_list: /* empty */
                                acceptable flag. */
                             $<condition>0.type = $2.type;
                             $<condition>0.acceptable = $2.acceptable;
+
+                            /* Copy any other conditions that may have
+                               been trailing along, as well. */
+                            cond = &$<condition>0;
+                            while (cond->next)
+                                cond = cond->next;
+
+                            cond->next = $2.next;
                         }
                         else {
                             struct condition *cond;
@@ -403,26 +409,74 @@ attr_value_test_list: /* empty */
 
 attr_value_test: opt_negated '^' attr_test dot_attr_list value_test opt_acceptable
                {
-                   /* XXX is this sufficient to handle negation? */
-                   $$.type = $1 ? condition_type_negative : condition_type_positive;
-                   $$.acceptable = $6;
-                   $$.data.simple.id_test.type = test_type_blank;
-                   $$.data.simple.attr_test = $3;
-                   $$.data.simple.value_test = $5;
-                   $$.next = 0;
+                   struct parser *parser = (struct parser *) yyparse_param;
+                   struct condition *cond = &$$;
 
-                   if (!$6 && is_operator_test(&$3)) {
-                       /* If we're not testing acceptable preferences
-                          and we're testing an ^operator attribute,
-                          then mark the production as generating
-                          o-supported preferences. (This seems a bit
-                          too liberal, but I think it's how Soar8
-                          works.) */
-                       struct parser *parser = (struct parser *) yyparse_param;
+                   /* Our `id' test will be computed after we're
+                      reduced. Our first `attr' test is immediately
+                      available. */
+                   cond->data.simple.id_test.type = test_type_blank;
+                   cond->data.simple.attr_test = $3;
+                   cond->next = 0;
+
+                   /* If we're not testing acceptable preferences and
+                      we're testing an ^operator attribute, then mark
+                      the production as generating o-supported
+                      preferences. (This seems a bit too liberal, but
+                      I think it's how Soar8 works.) */
+                   if (!$6 && is_operator_test(&$3))
                        parser->production->support = support_type_osupport;
+
+                   /* Now walk through the `.attr' list, creating a
+                      chain of equality tests. */
+                   while ($4) {
+                       char symbuf[16];
+                       struct test_list *doomed;
+                       struct condition *prev = cond;
+                       symbol_t link;
+
+                       /* Create a dummy symbol: Soar symbols can't
+                          start with `?', so this ought to be
+                          unique. */
+                       sprintf(symbuf, "?%d", ++parser->gensym);
+                       link = symtab_lookup(parser->symtab,
+                                            symbol_type_variable,
+                                            symbuf, 1);
+
+                       /* The previous test's `value' test will bind
+                          the link variable. */
+                       prev->data.simple.value_test.type = test_type_equality;
+                       prev->data.simple.value_test.data.referent = link;
+
+                       /* The current test's `id' test will bind the
+                          link variable, and we'll pick up the `attr'
+                          from the list we reduced. */
+                       cond = (struct condition *) malloc(sizeof(struct condition));
+                       cond->data.simple.id_test.type = test_type_equality;
+                       cond->data.simple.id_test.data.referent = link;
+                       cond->data.simple.attr_test = $4->test;
+                       cond->next = 0;
+
+                       prev->next = cond;
+
+                       /* Check for o-support along the chain. */
+                       if (!$6 && is_operator_test(&$4->test))
+                           parser->production->support = support_type_osupport;
+
+                       /* Clean up after ourselves. */
+                       doomed = $4;
+                       $4 = $4->next;
+                       free(doomed);
                    }
 
-                   /* XXX need to handle dot_attr_list! */
+                   /* Now add the `value' test at the end of the
+                      chain. This is where we'll apply negation and
+                      the `acceptable' test. */
+                   cond->data.simple.value_test = $5;
+
+                   /* XXX is this sufficient to handle negation? */
+                   cond->type = $1 ? condition_type_negative : condition_type_positive;
+                   cond->acceptable = $6;
                }
                ;
 
@@ -433,10 +487,22 @@ opt_negated: /* empty */
            ;
 
 dot_attr_list: /* empty */
+             { $$ = 0; }
              | dot_attr_list '.' attr_test
              {
-                 /* XXX */
-                 UNIMPLEMENTED();
+                 /* Collect the attribute tests into a list. */
+                 struct test_list *entry =
+                     (struct test_list *) malloc(sizeof(struct test_list));
+
+                 entry->test = $3;
+                 entry->next = 0;
+
+                 if ($1) {
+                     $1->next = entry;
+                     $$ = $1;
+                 }
+                 else
+                     $$ = entry;
              }
              ;
 
@@ -481,7 +547,8 @@ simple_test_list: simple_test_list simple_test
                         $1->next = entry;
                         $$ = $1;
                     }
-                    else $$ = entry;
+                    else
+                        $$ = entry;
                 }
                 | /* empty */
                 { $$ = 0; }
