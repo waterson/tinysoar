@@ -2,5 +2,6 @@
 #undef inline
 #undef HAVE_MALLOC_H
 #undef HAVE_VPRINTF
+#undef HAVE_PRINTF
 #undef SIZEOF_INT
 #undef CONF_SOAR_RETE_CREATE

@@ -774,7 +774,7 @@ rete_finish(struct agent* agent)
     UNIMPLEMENTED();
 }
 
-#ifdef DEBUG
+#if defined(HAVE_PRINTF) && defined(DEBUG)
 #include <stdio.h>
 #include "symtab.h"
 

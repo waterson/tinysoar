@@ -1,3 +1,4 @@
+CC = @CC@
 LEX = @LEX@
 YACC = @YACC@
 CFLAGS = @CFLAGS@ -Wall @DEFS@ -I@srcdir@ -I.
@@ -15,7 +16,7 @@ MDDEPDIR=.deps
 srcdir=@srcdir@
 VPATH=@srcdir@
 
-.c.o:
+%.o: %.c $(MDDEPDIR)
 	$(CC) -c $(CFLAGS) -Wp,-MD,$(MDDEPDIR)/$*.pp -o $@ $<
 
 all: $(MDDEPDIR)

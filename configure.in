@@ -1,7 +1,37 @@
 AC_PREREQ(2.12)
 AC_INIT(soar.h)
 
-dnl Checks for programs
+dnl Deal with cross-compilation.
+if test "$target" == "$host"; then
+  dnl We're doing a normal compile for the host architecture.
+
+  dnl Save the CFLAGS because AC_PROG_CC wants to gnu-ify them.
+  SAVE_CFLAGS=$CFLAGS
+  AC_PROG_CC
+  CFLAGS=$SAVE_CFLAGS
+
+  AC_CHECK_SIZEOF(int, 4)
+else
+  dnl We're doing a cross-compile. I _thought_ AC_PROG_CC was supposed to
+  dnl detect this sort of thing, but apparently it doesn't.
+  CC=${target}-gcc
+  CPP="$CC -E"
+
+  SIZEOF_INT=0
+  AC_ARG_WITH(sizeof-int,
+    [ --with-sizeof-int=<size> Specify the word size for a cross-compile ],
+    [ if test -n "$withval"; then
+        SIZEOF_INT="$withval"
+      fi ])
+
+  if test "$SIZEOF_INT" = "0"; then
+    AC_MSG_ERROR([You did not specify an integer size; reconfigure using --with-sizeof-int=<value>.])
+  fi
+
+  AC_DEFINE_UNQUOTED(SIZEOF_INT,$SIZEOF_INT)
+fi
+
+dnl Checks for other required programs.
 AC_PROG_LEX
 AC_PROG_YACC
 
@@ -12,10 +42,10 @@ AC_CHECK_HEADERS(malloc.h)
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_C_INLINE
-AC_CHECK_SIZEOF(int)
 
 dnl Checks for library functions.
 AC_FUNC_VPRINTF
+AC_CHECK_FUNC(printf, AC_DEFINE(HAVE_PRINTF))
 
 dnl Configuration Options
 
@@ -29,6 +59,8 @@ AC_ARG_WITH(rete-create,
 if test "$RETE_CREATE" = "yes"; then
   AC_DEFINE(CONF_SOAR_RETE_CREATE)
 fi
+
+AC_SUBST(CC)
 
 AC_CONFIG_HEADER(defs.h)
 
