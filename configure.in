@@ -161,6 +161,12 @@ else
   case "$target" in
   h8300*)
         CFLAGS="${CFLAGS} -O1 -fomit-frame-pointer"
+
+        dnl Adding these flags appears to generate the smallest
+        dnl possible code; however, I haven't tested this stuff on the
+        dnl RCX yet.
+        dnl CFLAGS="${CFLAGS} -fcse-follow-jumps -foptimize-register-move -fstrict-aliasing -frerun-cse-after-loop"
+
         SIZEOF_INT=2
         TARGET=legosoar
         ;;
