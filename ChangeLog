@@ -1,5 +1,23 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
+Thursday, June 7, 2001
+
+Okay, I think negative node stuff is working pretty much correctly
+now. _Still_ have a weird problem with WMEs being left over after
+|init-soar|, which is clear now with some of the improved |dump-rete|
+fu that I've added.
+
+Time to start filling in some of the architecture & runtime stuff and
+making bigger tests?
+
+
+Friday, June 1, 2001
+
+I have the negative stuff all wrong. I have no idea what I was
+thinking when I first wrote it. This is the place to start hacking
+next.
+
+
 Saturday, Feburary 10, 2001
 
 Found a couple bone headed mistakes in my hand-rolled linked list
