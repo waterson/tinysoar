@@ -51,13 +51,23 @@ struct token_list {
     struct token_list *next;
 };
 
-struct chunk {
-    struct token_list *grounds;
-    struct token_list *potentials;
-    struct token_list *nots;
-    int                level;
+struct instantiation_list {
+    struct instantiation      *inst;
+    struct instantiation_list *next;
 };
 
+struct chunk {
+    struct token_list         *grounds;
+    struct token_list         *potentials;
+    struct token_list         *nots;
+    struct instantiation_list *visited;
+    int                        level;
+};
+
+/*
+ * Find the variable binding information for the specified
+ * variable. Returns `null' if the variable isn't bound.
+ */
 static variable_binding_t *
 get_variable_binding(struct variable_binding_list *bindings,
                      symbol_t                      variable)
@@ -70,6 +80,10 @@ get_variable_binding(struct variable_binding_list *bindings,
     return 0;
 }
 
+/*
+ * Ensure that the specified variable has a binding, creating one with
+ * the specified field and absolute depth information, if necessary.
+ */
 static variable_binding_t *
 ensure_variable_binding(struct variable_binding_list **bindings,
                         symbol_t                       variable,
@@ -98,6 +112,10 @@ ensure_variable_binding(struct variable_binding_list **bindings,
     return binding;
 }
 
+/*
+ * Copy the source tests to the destination, creating appropriate
+ * variable bindings in the destination test.
+ */
 static void
 copy_tests(struct beta_test             **dest,
            struct beta_test              *src,
@@ -109,6 +127,7 @@ copy_tests(struct beta_test             **dest,
 
     for ( ; src != 0; src = src->next) {
         test = (struct beta_test *) malloc(sizeof(struct beta_test));
+
         /* XXX this could be more efficient; we probably could just
            bulk assign `src' to `test', and then fix up the other
            fields we need to. Will the compiler generate an implicit
@@ -130,6 +149,9 @@ copy_tests(struct beta_test             **dest,
             test->field           = src->field;
 
             if (test->relational_type == relational_type_variable) {
+                /* Convert the variable bindings from the source test
+                   into variable bindings that are equivalent in the
+                   destination test. */
                 variable_binding_t *binding;
                 symbol_t variable;
                 int relative_depth;
@@ -183,11 +205,15 @@ copy_tests(struct beta_test             **dest,
     }
 }
 
+/*
+ * Returns `true' if any of the tests bind the `id' field to an
+ * identifier from a higher level.
+ */
 static bool_t
-token_depends_on(struct agent *agent, struct token *token, struct beta_test *test, int level)
+tests_check_superstate(struct agent *agent, struct beta_test *tests, struct token *token, int level)
 {
-    for ( ; test != 0; test = test->next) {
-        switch (test->type) {
+    for ( ; tests != 0; tests = tests->next) {
+        switch (tests->type) {
         case test_type_equality:
         case test_type_not_equal:
         case test_type_less:
@@ -195,8 +221,8 @@ token_depends_on(struct agent *agent, struct token *token, struct beta_test *tes
         case test_type_less_or_equal:
         case test_type_greater_or_equal:
         case test_type_same_type:
-            if (test->field == field_id && test->relational_type == relational_type_variable) {
-                symbol_t id = rete_get_variable_binding(test->data.variable_referent, token);
+            if (tests->field == field_id && tests->relational_type == relational_type_variable) {
+                symbol_t id = rete_get_variable_binding(tests->data.variable_referent, token);
                 if (agent_get_id_level(agent, id) < level)
                     return 1;
             }
@@ -207,7 +233,7 @@ token_depends_on(struct agent *agent, struct token *token, struct beta_test *tes
 
         case test_type_disjunctive:
             /* Recursively test the disjuncts. */
-            if (token_depends_on(agent, token, test->data.disjuncts, level))
+            if (tests_check_superstate(agent, tests->data.disjuncts, token, level))
                 return 1;
 
             break;
@@ -222,6 +248,9 @@ token_depends_on(struct agent *agent, struct token *token, struct beta_test *tes
     return 0;
 }
 
+/*
+ * Fill in an rhs_value for the specified variable.
+ */
 static void
 make_rhs_value(struct rhs_value              *value,
                symbol_t                       variable,
@@ -358,7 +387,129 @@ make_rhs(struct agent                 *agent,
 }
 
 /*
- *
+ * Create and initialize a memory node with the specified parent.
+ */
+static struct beta_node *
+create_memory_node(struct beta_node *parent)
+{
+    struct beta_node *memory = (struct beta_node *) malloc(sizeof(struct beta_node));
+    memory->type = beta_node_type_memory;
+    memory->alpha_node = 0;
+    memory->tokens = 0;
+    memory->parent = parent;
+    memory->children = 0;
+    memory->siblings = parent->children;
+    parent->children = memory;
+    return memory;
+}
+
+/*
+ * If the specified variable is already bound, then add a test that
+ * ensures we have a consistent binding in the beta network. If this
+ * is the first time we've seen the variable, then just add it to the
+ * set of bindings.
+ */
+static void
+ensure_consistent_test(struct beta_test             **tests,
+                       struct variable_binding_list **bindings,
+                       symbol_t                       variable,
+                       field_t                        field,
+                       int                            depth)
+{
+    struct beta_test *test;
+    int relative_depth;
+
+    if (get_variable_binding(*bindings, variable)) {
+        test = (struct beta_test *) malloc(sizeof(struct beta_test));
+        test->type            = test_type_equality;
+        test->relational_type = relational_type_variable;
+        test->field           = field;
+        test->data.variable_referent =
+            *ensure_variable_binding(bindings, variable, field, depth);
+
+        relative_depth = 
+            depth - GET_VARIABLE_BINDING_DEPTH(test->data.variable_referent);
+
+        SET_VARIABLE_BINDING_DEPTH(test->data.variable_referent, relative_depth);
+
+        test->next = *tests;
+        *tests = test;
+    }
+    else
+        ensure_variable_binding(bindings, variable, field, depth);
+}
+
+/*
+ * Add a goal test to the list of tests.
+ */
+static void
+add_goal_test(struct beta_test **tests)
+{
+    struct beta_test *test =
+        (struct beta_test *) malloc(sizeof(struct beta_test));
+
+    test->type  = test_type_goal_id;
+    test->field = field_id;
+    test->next  = *tests;
+
+    *tests = test;
+}
+
+/*
+ * Create a negative condition node.
+ */
+static struct beta_node *
+create_negative_node(struct agent                  *agent,
+                     struct chunk                  *chunk,
+                     struct variable_binding_list **bindings,
+                     struct token                  *token,
+                     struct beta_node              *parent,
+                     int                            depth)
+{
+    struct beta_node *orig, *node;
+
+    /* Create a negative node and link it into the beta network. */
+    node = (struct beta_node *) malloc(sizeof(struct beta_node));
+    node->type     = beta_node_type_negative;
+    node->blocked  = 0;
+    node->tokens   = 0;
+    node->children = 0;
+    node->parent   = parent;
+    node->siblings = parent->children;
+
+    parent->children = node;
+
+    orig = token->node;
+
+    /* Link it into the alpha network. */
+    node->alpha_node = orig->parent->alpha_node;
+    if (node->alpha_node) {
+        node->next_with_same_alpha_node = node->alpha_node->children;
+        node->alpha_node->children = node;
+    }
+    else
+        node->next_with_same_alpha_node = 0;
+
+    /* Copy the tests. We'd better not be adding any new
+       bindings in a negated test, so we won't bother forcing
+       the referents to be bound.
+       XXX it'd be nice to assert that. */
+    node->data.tests = 0;
+    copy_tests(&node->data.tests, orig->parent->data.tests, bindings,
+               depth, token);
+
+    /* We'd better not be the first test that's testing a
+       goal, either.
+       XXX it'd be nice to assert that. */
+
+    /* Propagate tokens downward. */
+    rete_initialize_matches(agent, node, parent);
+
+    return node;
+}
+
+/*
+ * Build the production from the grounds, the `nots', and the results.
  */
 static void
 make_production(struct agent           *agent,
@@ -376,122 +527,62 @@ make_production(struct agent           *agent,
 
        XXX this entire swath of code is atrocious, and needs to be
        re-written once I figure out what I'm doing. */
-    for (tokens = chunk->grounds; tokens != 0; tokens = tokens->next) {
+    for (tokens = chunk->grounds; tokens != 0; ) {
+        struct token_list *doomed;
         struct beta_node *memory = 0;
         struct beta_node *orig = tokens->token->node;
         struct beta_node *node;
 
+        /* Create a memory node that will be the parent. */
+        memory = create_memory_node(parent);
+
+        /* Create a postive join node and link it into the beta network. */
         node = (struct beta_node *) malloc(sizeof(struct beta_node));
+
+        node->type     = beta_node_type_positive_join;
+        node->tokens   = 0;
+        node->children = 0;
+        node->parent   = memory;
+        node->siblings = memory->children;
+
+        memory->children = node;
 
         if (! orig) {
             /* This is a dummy token created for an ^item. */
+            struct alpha_node *alpha_node;
+            struct wme *wme;
 
-            /* Create a memory node that will be the parent. */
-            memory = (struct beta_node *) malloc(sizeof(struct beta_node));
-            memory->type = beta_node_type_memory;
-            memory->alpha_node = 0;
-            memory->tokens = 0;
-            memory->parent = parent;
-            memory->children = 0;
-            memory->siblings = parent->children;
-            parent->children = memory;
+            /* Find the (* ^operator *) alpha node, and link the
+               positive join node to it. */
+            alpha_node =
+                rete_find_alpha_node(agent, 0, OPERATOR_CONSTANT, 0, wme_type_acceptable);
 
-            node->type = beta_node_type_positive_join;
+            node->alpha_node = alpha_node;
+            node->next_with_same_alpha_node = alpha_node->children;
+            alpha_node->children = node;
 
-            {
-                struct alpha_node *alpha_node =
-                    rete_find_alpha_node(agent, 0, OPERATOR_CONSTANT, 0, wme_type_acceptable);
+            /* Set up the beta tests. */
+            wme = tokens->token->wme;
 
-                node->alpha_node = alpha_node;
-                node->next_with_same_alpha_node = alpha_node->children;
-                alpha_node->children = node;
+            node->data.tests = 0;
+
+            ensure_consistent_test(&node->data.tests, &bindings,
+                                   wme->slot->id, field_id, depth);
+
+            ensure_consistent_test(&node->data.tests, &bindings,
+                                   wme->value, field_value, depth);
+
+            if (! tested_goal) {
+                add_goal_test(&node->data.tests);
+                ensure_variable_binding(&bindings, tokens->token->wme->slot->id, field_id, depth);
+                tested_goal = 1;
             }
 
-            {
-                struct beta_test *test;
-                int relative_depth;
-
-                node->data.tests = 0;
-
-                if (get_variable_binding(bindings, tokens->token->wme->slot->id)) {
-                    /* Bind the id. */
-                    test = (struct beta_test *) malloc(sizeof(struct beta_test));
-                    test->type = test_type_equality;
-                    test->relational_type = relational_type_variable;
-                    test->field = field_id;
-                    test->data.variable_referent =
-                        *ensure_variable_binding(&bindings, tokens->token->wme->slot->id, field_id, depth);
-
-                    relative_depth = 
-                        depth - GET_VARIABLE_BINDING_DEPTH(test->data.variable_referent);
-
-                    SET_VARIABLE_BINDING_DEPTH(test->data.variable_referent, relative_depth);
-
-                    test->next = node->data.tests;
-                    node->data.tests = test;
-                }
-                else
-                    ensure_variable_binding(&bindings, tokens->token->wme->slot->id, field_id, depth);
-
-                if (get_variable_binding(bindings, tokens->token->wme->value)) {
-                    /* Bind the value. */
-                    test = (struct beta_test *) malloc(sizeof(struct beta_test));
-                    test->type = test_type_equality;
-                    test->relational_type = relational_type_variable;
-                    test->field = field_value;
-                    test->data.variable_referent =
-                        *ensure_variable_binding(&bindings, tokens->token->wme->value, field_value, depth);
-
-                    relative_depth = 
-                        depth - GET_VARIABLE_BINDING_DEPTH(test->data.variable_referent);
-
-                    SET_VARIABLE_BINDING_DEPTH(test->data.variable_referent, relative_depth);
-
-                    test->next = node->data.tests;
-                    node->data.tests = test;
-                }
-                else
-                    ensure_variable_binding(&bindings, tokens->token->wme->value, field_value, depth);
-
-                if (! tested_goal) {
-                    /* Make sure the id is-a goal. */
-                    test = (struct beta_test *) malloc(sizeof(struct beta_test));
-                    test->type = test_type_goal_id;
-                    test->field = field_id;
-                    test->next = node->data.tests;
-                    node->data.tests = test;
-
-                    ensure_variable_binding(&bindings, tokens->token->wme->slot->id, field_id, depth);
-
-                    tested_goal = 1;
-                }
-
-                ASSERT(node->data.tests != 0, ("uh, no tests!"));
-            }
-
-            node->tokens = 0;
-            node->children = 0;
-
-            /* Link it into the beta tree. */
-            node->parent = memory;
-            node->siblings = memory->children;
-            memory->children = node;
-
-            /* Propagate tokens downward. */
-            rete_initialize_matches(agent, memory, parent);
+            ASSERT(node->data.tests != 0, ("uh, no tests!"));
         }
-        else if (orig->parent->type == beta_node_type_positive_join) {
-            /* Create a memory node that will be the parent. */
-            memory = (struct beta_node *) malloc(sizeof(struct beta_node));
-            memory->type = beta_node_type_memory;
-            memory->alpha_node = 0;
-            memory->tokens = 0;
-            memory->parent = parent;
-            memory->children = 0;
-            memory->siblings = parent->children;
-            parent->children = memory;
-
-            node->type = beta_node_type_positive_join;
+        else {
+            ASSERT((orig->parent->type == beta_node_type_positive_join),
+                   ("expected a positive join node"));
 
             /* Link it into the alpha network, if appropriate. */
             node->alpha_node = orig->parent->alpha_node;
@@ -502,112 +593,81 @@ make_production(struct agent           *agent,
             else
                 node->next_with_same_alpha_node = 0;
 
-            /* Copy the tests. */
+            /* Copy the tests. XXX do we need field_attr, to? */
             ensure_variable_binding(&bindings, tokens->token->wme->slot->id, field_id, depth);
 
             if (GET_SYMBOL_TYPE(tokens->token->wme->value) == symbol_type_identifier)
                 ensure_variable_binding(&bindings, tokens->token->wme->value, field_value, depth);
 
-            /* Compute o-support. */
+            node->data.tests = 0;
+            copy_tests(&node->data.tests, orig->parent->data.tests, &bindings,
+                       depth, tokens->token);
+
+            /* If the `id' field is a goal, and we haven't yet added a
+               test for the goal, then make one now. */
+            if (! tested_goal && agent_is_goal(agent, tokens->token->wme->slot->id)) {
+                add_goal_test(&node->data.tests);
+                tested_goal = 1;
+            }
+
+            /* Compute o-support: if we test the `^operator' attribute
+               of a wme in the grounds, we'll call it o-supported. */
             if ((support == support_type_isupport)
                 && SYMBOLS_ARE_EQUAL(tokens->token->wme->slot->attr, OPERATOR_CONSTANT)
                 && (tokens->token->wme->type == wme_type_normal)
                 && agent_is_goal(agent, tokens->token->wme->slot->id)) {
                 support = support_type_osupport;
             }
-
-            node->data.tests = 0;
-            copy_tests(&node->data.tests, orig->parent->data.tests, &bindings,
-                       depth, tokens->token);
-
-            if (! tested_goal && agent_is_goal(agent, tokens->token->wme->slot->id)) {
-                /* Make sure the id is-a goal. */
-                struct beta_test *test;
-
-                test = (struct beta_test *) malloc(sizeof(struct beta_test));
-                test->type = test_type_goal_id;
-                test->field = field_id;
-                test->next = node->data.tests;
-                node->data.tests = test;
-
-                tested_goal = 1;
-            }
-
-            node->tokens = 0;
-            node->children = 0;
-
-            /* Link it into the beta tree. */
-            node->parent = memory;
-            node->siblings = memory->children;
-            memory->children = node;
-
-            /* Propagate tokens downward. */
-            rete_initialize_matches(agent, memory, parent);
         }
+
+        /* Propagate tokens downward. */
+        rete_initialize_matches(agent, memory, parent);
 
         parent = node;
         ++depth;
 
-        {
-            struct token_list *nots, **link;
-            for (link = &chunk->nots; (nots = *link) != 0; ) {
-                if (token_depends_on(agent, nots->token, nots->token->parent->node->data.tests, chunk->level)) {
-                    struct token_list *doomed;
+        /* Now see if we can attach any of the `nots' that we've
+           collected. We'll keep trying until we can't attach any more
+           `nots'. This places the negative conditions as high as
+           possible in the network, which is probably a good thing. */
+        while (1) {
+            struct token_list **link, *nots;
 
-                    orig = nots->token->node;
+            for (link = &chunk->nots; (nots = *link) != 0; link = &nots->next) {
+                if (tests_check_superstate(agent, nots->token->parent->node->data.tests,
+                                           nots->token, chunk->level))
+                    break;
+            }
 
+            /* If we've checked the entire list, then none of the
+               `nots' could be attached here. */
+            if (! nots)
+                break;
+
+            /* Otherwise, build a negative condition node, and attach
+               it to the current position in the network. */
 #ifdef DEBUG_CHUNKING
-                    printf("building negative condition from ");
-                    debug_dump_token(&symtab, nots->token);
-                    printf("\n");
+            printf("building negative condition from ");
+            debug_dump_token(&symtab, nots->token);
+            printf("\n");
 #endif
 
-                    node = (struct beta_node *) malloc(sizeof(struct beta_node));
-                    node->type = beta_node_type_negative;
+            parent =
+                create_negative_node(agent, chunk, &bindings,
+                                     nots->token, parent, depth);
 
-                    node->alpha_node = orig->parent->alpha_node;
-                    if (node->alpha_node) {
-                        node->next_with_same_alpha_node = node->alpha_node->children;
-                        node->alpha_node->children = node;
-                    }
-                    else
-                        node->next_with_same_alpha_node = 0;
+            ++depth;
 
-                    /* Copy the tests. We'd better not be adding any
-                       new bindings in a negated test, so we won't
-                       bother forcing the referents to be bound.
-                       XXX it'd be nice to assert that. */
-                    node->data.tests = 0;
-                    copy_tests(&node->data.tests, orig->parent->data.tests, &bindings,
-                               depth, nots->token);
-
-                    /* We'd better not be the first test that's
-                       testing a goal, either.
-                       XXX it'd be nice to assert that. */
-
-                    node->blocked = 0;
-                    node->tokens = 0;
-                    node->children = 0;
-
-                    /* Link it into the beta tree. */
-                    node->parent = parent;
-                    node->siblings = parent->children;
-                    parent->children = node;
-
-                    /* Propagate tokens downward. */
-                    rete_initialize_matches(agent, node, parent);
-
-                    parent = node;
-                    ++depth;
-
-                    doomed = nots;
-                    *link = nots->next;
-                    free(doomed);
-                }
-                else
-                    link = &nots->next;
-            }
+            /* Remove the token from the list so we don't try to
+               attach it again. */
+            *link = nots->next;
+            free(nots);
         }
+
+        /* Free the token list entry. */
+        doomed = tokens;
+        tokens = tokens->next;
+        free(doomed);
     }
 
     /* Make the chunk's right-hand side. */
@@ -625,6 +685,10 @@ make_production(struct agent           *agent,
 #endif
 }
 
+/*
+ * Return `true' if the `id' field of the wme for the specified token
+ * is reachable from a value in the grounds set.
+ */
 static bool_t
 token_is_reachable(struct token_list *grounds,
                    struct token      *token)
@@ -637,6 +701,9 @@ token_is_reachable(struct token_list *grounds,
     return 0;
 }
 
+/*
+ * Return `true' if the token is already in the list.
+ */
 static bool_t
 token_list_contains(struct token_list *list,
                     struct token      *token)
@@ -659,12 +726,20 @@ collect(struct agent          *agent,
         struct chunk          *chunk,
         struct instantiation  *inst)
 {
+    struct instantiation_list *visited;
     struct token_list *potential;
     struct token *token;
 
 #ifdef DEBUG_CHUNKING
     printf("collecting tokens from %s:\n", inst->production->name);
 #endif
+
+    /* Note that we've visitied this instantiation so we don't visit
+       it again. */
+    visited = (struct instantiation_list *) malloc(sizeof(struct instantiation_list));
+    visited->inst = inst;
+    visited->next = chunk->visited;
+    chunk->visited = visited;
 
     /* Iterate through each token in the instantiation: if it's a
        higher-level goal, then add it to the grounds. Otherwise, note
@@ -734,6 +809,18 @@ collect(struct agent          *agent,
     } while (potential);
 }
 
+static bool_t
+instantiation_list_contains(struct instantiation_list *list,
+                            struct instantiation      *inst)
+{
+    for ( ; list != 0; list = list->next) {
+        if (list->inst == inst)
+            return 1;
+    }
+
+    return 0;
+}
+
 /*
  * Backtrace through each token in the potentials set.
  */
@@ -759,6 +846,7 @@ backtrace(struct agent *agent, struct chunk *chunk)
             if (pref->type == preference_type_acceptable
                 && SYMBOLS_ARE_EQUAL(pref->value, wme->value)
                 && pref->instantiation
+                && !instantiation_list_contains(chunk->visited, pref->instantiation)
                 && rete_get_instantiation_level(agent, pref->instantiation) == chunk->level) {
 
 #ifdef DEBUG_CHUNKING
@@ -797,6 +885,7 @@ chunk(struct agent           *agent,
     chunk.grounds    = 0;
     chunk.potentials = 0;
     chunk.nots       = 0;
+    chunk.visited    = 0;
     chunk.level      = level;
 
     /* Collect the initial set of grounds for this instantiation. */
@@ -808,6 +897,14 @@ chunk(struct agent           *agent,
        visited, or else this may not terminate. */
     while (chunk.potentials)
         backtrace(agent, &chunk);
+
+    /* Free the storage we're using to remember visited
+       instantiations. */
+    while (chunk.visited) {
+        struct instantiation_list *doomed = chunk.visited;
+        chunk.visited = chunk.visited->next;
+        free(doomed);
+    }
 
     /* Sort the grounds s.t. parents appear before their children. */
     {
@@ -841,13 +938,7 @@ chunk(struct agent           *agent,
     /* Build the chunk from the grounds. */
     make_production(agent, &chunk, results);
 
-    /* Free memory we've used. */
-    while (chunk.grounds) {
-        struct token_list *doomed = chunk.grounds;
-        chunk.grounds = chunk.grounds->next;
-        free(doomed);
-    }
-    
+    /* Free any of the `nots' that weren't used in the chunk. */
     while (chunk.nots) {
         struct token_list *doomed = chunk.nots;
         chunk.nots = chunk.nots->next;
