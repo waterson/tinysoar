@@ -39,9 +39,13 @@
 #include "config.h"
 
 #ifdef HAVE_MALLOC_H
+
+/* Just use the libc allocator if we've got it. */
 #include <malloc.h>
+
 #else /* ! HAVE_MALLOC_H */
 
+/* No <malloc.h>, so use our own allocator. */
 extern void
 heap_init(char *addrs[], int naddrs);
 

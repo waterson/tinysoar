@@ -33,9 +33,23 @@
  *
  */
 
+/*
+ * A dead-simple first-fit allocator for a system without virtual
+ * memory.
+ *
+ * Blocks have a one-word header that maintains the block size and
+ * whether or not the previous block is free. Free blocks have a
+ * footer that points to the block's header.
+ *
+ * Allocation is really dumb. We start at the first block and scan
+ * forward until we find a free block that's large enough for our
+ * request. (This could trivially be made better by threading the free
+ * blocks into a freelist, but I'm lazy.)
+ *
+ * When a block is freed, we look at the previous and next blocks,
+ * coalescing them with the current block if possible.
+ */
 #include "alloc.h"
-
-#define MIN_REQUEST SIZEOF_INT
 
 static char *heap_start;
 static char *heap_end;
@@ -49,6 +63,20 @@ struct block_footer {
     struct block_header *header;
 };
 
+/*
+ * The minimum request size.
+ */
+#define MIN_REQUEST sizeof(struct block_footer)
+
+/*
+ * Initialize the heap, given addresses that specify alternating
+ * usable/unusable ranges of memory. The first address is the start of
+ * the first usable region, the second address is the end of the first
+ * usable region; the third address is the start of the next usable
+ * region, the fourth address is its end, and so on.
+ *
+ * The addresses must be in ascending order.
+ */
 void
 heap_init(char *addrs[], int naddrs)
 {
@@ -93,6 +121,10 @@ heap_init(char *addrs[], int naddrs)
     heap_end = *(--addrs);
 }
 
+/*
+ * Scan the heap until we find a block large enough to fulfill the
+ * request.
+ */
 void *
 malloc(unsigned sz)
 {
@@ -144,12 +176,15 @@ malloc(unsigned sz)
         }
     }
 
-    panic();
-
     /* Uh oh, couldn't allocate! */
+    panic();
     return 0;
 }
 
+/*
+ * Free the block, coalescing with the previous and next blocks if
+ * possible.
+ */
 void
 free(void *ptr)
 {
@@ -191,6 +226,9 @@ free(void *ptr)
 #if defined(DEBUG) && defined(HAVE_PRINTF)
 #include <stdio.h>
 
+/*
+ * Dump the heap to debug it.
+ */
 void
 heap_walk()
 {
