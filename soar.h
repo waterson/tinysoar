@@ -125,9 +125,9 @@ typedef enum preference_type {
 
 
 typedef enum support_type {
-    support_type_isupport = 0,
-    support_type_osupport = 1,
-    support_type_unknown  = -1
+    support_type_isupport     = 0,
+    support_type_osupport     = 1,
+    support_type_architecture = -1
 } support_type_t;
 
 struct preference {

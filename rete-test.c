@@ -134,7 +134,7 @@ main(int argc, char* argv[])
                                   symbols[CONSTANT_SUPERSTATE],
                                   symbols[CONSTANT_NIL],
                                   preference_type_acceptable,
-                                  support_type_osupport);
+                                  support_type_architecture);
 
     wmem_add_preference(&agent, pref);
 
@@ -142,7 +142,7 @@ main(int argc, char* argv[])
                                   symbols[CONSTANT_INPUT_LINK],
                                   symbols[IDENTIFIER_I1],
                                   preference_type_acceptable,
-                                  support_type_osupport);
+                                  support_type_architecture);
 
     wmem_add_preference(&agent, pref);
 
