@@ -953,3 +953,31 @@ The other problem with chunk-7.soar is that the dummy tokens that
 we've created for the ^item attributes don't have a reference back to
 the <> condition.  At least, that's what I thought the problem was a
 few days ago -- I'll need to check on that again.
+
+---
+
+So the problem is that when we backtrace through the ^item objects to
+the dummy tokens, we lose the tests that we'd collected along the way.
+
+I wonder if this is a problem in general?  I wrote up chunk-9.soar and
+chunk-10.soar as a test to see, and chunk-10.soar shows that it does
+indeed seem to be a problem.  chunk-10.soar moves the not-equal test
+to a production that ends up in the potentials, and must be backtraced
+before anything gets added to the grounds.  IIRC, Soar8 handles this
+as a special case, placing the producting in the `nots' set.
+(Notably, Soar8 does _not_ handle the `same-type' case, e.g.)
+
+So it seems like what we really want to do is collect any conditions
+(i.e., tests) and carry them along with the potentials until we decide
+that we no longer need them?
+
+The problem with "carrying the conditions along with the potentials"
+is that we may not backtrace all of the potentials; e.g., if a
+potential's instantiation is reachable through another path.  So, what
+if we carry these conditions (or "restrictions") globally, and then
+apply them during chunk construction time?  I'm worried that if we do
+this, we'll end up adding a restriction from a potential that never
+grounded out.  So, we'd either need to prove that a restriction for a
+potential that doesn't ground out becomes irrelevant somehow.  Or,
+more strongly, a restriction for a potential is added if and only if
+that restriction is relevant.

@@ -9,11 +9,11 @@
 
 . Chunking:
 
-* - make chunk-7.soar work (pick up <> test) now that chunk-8.soar works.
-  - make chunk-6.soar not crash on OS/X.
+* - figure out why chunk-14.soar doesn't work: we end up in an
+    infinite fire-retract loop.
+  - justifications
   - figure out how to do bottom-up chunking (instead of all-goals)
   - figure out why the eight-puzzle isn't working
-  - justifications
   - look for leaks
 
 . Think about getting rid of preferences (or working memory
