@@ -21,7 +21,7 @@ struct symbol;
 typedef struct symbol symbol_t;
 
 struct symbol {
-    int           val  : SYMBOL_VALUE_BITS;
+    unsigned      val  : SYMBOL_VALUE_BITS;
     symbol_type_t type : SYMBOL_TYPE_BITS;
 };
 
@@ -31,6 +31,8 @@ struct symbol {
 #define SET_SYMBOL_VALUE(s, v) (((s).val) = (v))
 
 #define MAKE_SYMBOL(s, t, v) do { (s).type = (t); (s).val = (v); } while (0)
+
+#define SYMBOLS_ARE_EQUAL(l, r) (*((unsigned*) &(l)) == *((unsigned*) &(r)))
 #else /* !HAS_C_PACKED_FIELDS */
 typedef unsigned symbol_t;
 
