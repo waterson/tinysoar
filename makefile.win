@@ -1,12 +1,13 @@
 CFLAGS=/nologo /DINLINE=
+LFLAGS=/nologo
 LINK=link
 
 !ifdef BUILD_OPT
 CFLAGS=$(CFLAGS) /O1
-LFLAGS=
+LFLAGS=$(LFLAGS)
 !else
 CFLAGS=$(CFLAGS) /Zi /Od
-LFLAGS=/debug
+LFLAGS=$(LFLAGS) /debug
 !endif
 
 
