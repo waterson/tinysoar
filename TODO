@@ -1,21 +1,28 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
-(3) Figure out how to do chunking and/or justification.
+. Figure out how to do chunking and/or justification. (3)
 
-(4) Depending on (3), get rid of intermediate data production data
-    structures, and have rule.y generate the RETE network data
-    structures directly. (Don't want to burn the space on the RCX if
-    we don't need to for chunking or some other reason. Plus, this
-    would get a fair bit of code _out_ of rete.c)
+. Depending on (3), get rid of intermediate data production data
+  structures, and have rule.y generate the RETE network data
+  structures directly. (Don't want to burn the space on the RCX if we
+  don't need to for chunking or some other reason. Plus, this would
+  get a fair bit of code _out_ of rete.c)
 
-(8) Implement conjunctive negative conditions.
+. Implement conjunctive negative conditions.
 
-(9) Implement semantic verification in rule.y.
+. Implement semantic verification in rule.y.
 
-(17) Fix architecture s.t. operator tie (and operator conflict, and
-     operator no-change) doesn't repeatedly fire in the top-state.
+. Fix architecture s.t. operator tie (and operator conflict, and
+  operator no-change) doesn't repeatedly fire in the top-state.
 
-(20) Deal with resolution of impasses. Depends on (3), above.
+. Deal with resolution of impasses. Depends on (3), above.
 
-(23) Deal with ``simple'' negation; e.g., `-(<foo> ^bar baz)'
+. Deal with ``simple'' negation; e.g., `-(<foo> ^bar baz)'
 
+. Implement some sort of timer mechanism. Could do this by exposing
+  the system timer directly as a WME, and implementing RHS
+  expressions. Alternatively, implement some sort of `timeout'
+  mechanism to avoid busy-waiting (...but we're busy-waiting anyway
+  with the |wait| operator).
+
+. Somehow, wobble-2.soar is leaking memory.
