@@ -91,7 +91,6 @@ beta_tests_are_identical(struct beta_test *left, struct beta_test *right)
 
         case test_type_blank:
         case test_type_goal_id:
-        case test_type_impasse_id:
             /* Yep, these are ok. */
             break;
 
@@ -461,7 +460,6 @@ process_test(const struct test                  *test,
         break;
 
     case test_type_goal_id:
-    case test_type_impasse_id:
         beta_test = (struct beta_test *) malloc(sizeof(struct beta_test));
         beta_test->relational_type = relational_type_constant;
         CLEAR_SYMBOL(beta_test->data.constant_referent);
@@ -545,7 +543,6 @@ bind_variables(const struct test             *test,
         break;
 
     case test_type_goal_id:
-    case test_type_impasse_id:
     case test_type_blank:
         /* XXX do nothing? */
         break;
@@ -741,7 +738,6 @@ add_variables_from_test(struct test *test, struct symbol_list **visited)
     case test_type_greater_or_equal:
     case test_type_same_type:
     case test_type_goal_id:
-    case test_type_impasse_id:
         if (GET_SYMBOL_TYPE(test->data.referent) == symbol_type_variable) {
             struct symbol_list *entry;
 
@@ -803,7 +799,6 @@ all_variables_visited_in_test(struct test *test, struct symbol_list *visited)
     case test_type_greater_or_equal:
     case test_type_same_type:
     case test_type_goal_id:
-    case test_type_impasse_id:
         if (GET_SYMBOL_TYPE(test->data.referent) == symbol_type_variable) {
             while (visited) {
                 if (SYMBOLS_ARE_EQUAL(visited->symbol, test->data.referent))

@@ -317,17 +317,13 @@ conds_for_one_id: '(' id_test attr_value_test_list ')'
                        disjunctive? */
                     if (id_test_conjunct->test.type == test_type_conjunctive ||
                         id_test_conjunct->test.type == test_type_disjunctive) {
-                        ERROR(("can't handle conjunctive/disjunctive id test with `%s'",
-                               (($2[0] == 's') ? "state" : "impasse")));
+                        ERROR(("can't handle conjunctive/disjunctive id test with `state'"));
                     }
 
                     context_conjunct =
                         (struct test_list *) malloc(sizeof(struct test_list));
 
-                    context_conjunct->test.type = ($2[0] == 's')
-                        ? test_type_goal_id
-                        : test_type_impasse_id;
-
+                    context_conjunct->test.type = test_type_goal_id;
                     context_conjunct->test.data.referent = $3.data.simple.id_test.data.referent;
 
                     $$.data.simple.id_test.data.conjuncts = context_conjunct;
@@ -902,7 +898,7 @@ constants: /* empty */
 constant: SYM_CONSTANT
         | INT_CONSTANT
         { INIT_SYMBOL($$, symbol_type_integer_constant, $1); }
-        | CONTEXT /* hack to pull `state' and `impasse' through as constants */
+        | CONTEXT /* hack to pull `state' through as a constant */
         {
             struct parser *parser = (struct parser *) yyparse_param;
             $$ = symtab_lookup(parser->symtab,
