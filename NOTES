@@ -1,0 +1,78 @@
+Beta Network
+
+- Memory node (also `mem node' or `m node'). A `beta memory'
+  node. Can be hashed or unhashed. Creates and stores |token| objects?
+
+- Positive node (also `pos node' and `p node'). Can be hashed or unhashed.
+
+- MP node. Can be hashed or unhashed. Combined `memory node' and
+  `positive node' to save space? From the `node_[left|right]_addition'
+  routines, it appears that this is the case...
+
+- Negative node. Can be hashed or unhashed.
+
+- Dummy top node. Parents all of the other beta nodes in the network.
+
+- Dummy matches node.
+
+- CN (conjunctive negative) node, and CN-partner node.
+
+- P (production?) node. 
+
+hashed versus unhashed beta memory nodes? Why are some hashed and
+others aren't? All that appears to be different is the computation of
+the hash value that's used to find appropriate tokens...
+
+A |token| appears to be the partially instantiated rule. There is a
+`dummy top token' that is assigned to the `dummy top node' which is
+the eventual ancestor of every beta node. Each token is hashed into
+the `left hashtable'.
+
+What is the difference between `left' and `right' memory?
+
+- the `left addition' routines all take a |rete_node|, a |token|, and
+  a |wme|; the `right addition' routines take a |rete_node| and a |wme|,
+  but not a |token|. What's going on here?
+
+- After adding a new |wme| to alpha memory, we call the `right node
+  addition routine' for each beta node that hangs off of the alpha
+  memory.
+
+- The beta node addition routines only call the `left node addition
+  routines'.
+
+- Interestingly, there is no `right node addition routine' for a
+  memory node; however, there *is* a `right node addition routine' for
+  an MP node. Here's how they break down...
+
+  DUMMY_TOP_BNODE           no addition routines
+  DUMMY_MATCHES_BNODE       left addition routine only
+  [UNHASHED_]MEMORY_BNODE   left only
+  [UNHASHED_]POSITIVE_BNODE right only
+  [UNHASHED_]MP_BNODE       left & right
+  [UNHASHED_]NEGATIVE_BNODE left & right
+  CN_[PARTNER_]BNODE        left only
+  P_BNODE                   left only
+
+- So, is the alpha network `right memory' and the beta network `left
+  memory'?
+
+What is `unlinking'?
+
+Starting to understand how a production is converted into beta nodes a
+bit better. Specifically, how `variable bindings' work. So we parse
+the list of conditions, and as we do so, we both create beta nodes and
+build up a list of `variable bindings'. A `variable binding' is simply
+a `field' (the id, attr, or value) and a `depth' in the beta network.
+
+When we make a new condition node, we `sparsely' beind variables
+before creating the rete tests (so that, at worst, if a variable is
+not yet bound, it the test will be `scoped' to the current beta
+node). Then, after the condition node has been created, we formally
+push the variables onto the stack (so that subsequent users of these
+variables can find them).
+
+After we're done parsing the list of conditions, we remove all of the
+variable bindings. (Which, BTW, are stored in the `symbol table',
+making this part of the code non-reentrant.)
+

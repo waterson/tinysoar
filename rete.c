@@ -1,47 +1,11 @@
-#include "alloc.h"
+#include "pool.h"
 #include "wmem.h"
 #include "rete.h"
 
-struct wme_list {
-    wme_t*           wme;
-    struct wme_list* next;
-};
-
-struct alpha_node {
-    symbol_t id;
-    symbol_t attr;
-    symbol_t value;
-    struct alpha_node* siblings;
-    struct beta_node*  children;
-    struct wme_list*   wmes;
-};
-
-struct beta_test {
-    struct test test;
-    struct beta_test* next;
-};
-
-typedef enum beta_node_type {
-    beta_node_type_root,
-    beta_node_type_memory,
-    beta_node_type_positive_join,
-    beta_node_type_production
-} beta_node_type_t;
-
-struct beta_node {
-    beta_node_type_t type;
-    struct beta_node* siblings;
-    struct beta_node* children;
-
-    union {
-        struct {
-            struct production* production;
-        } p;
-    } data;
-};
-
-struct rete {
-    struct beta_node root;
+struct binding_list {
+    symbol_t                variable;
+    struct variable_binding binding;
+    struct binding_list*    next;
 };
 
 void
@@ -51,15 +15,26 @@ rete_init(struct rete* rete)
 }
 
 static inline struct beta_node*
-new_beta_node()
+new_beta_node(struct rete* net)
 {
-    return (struct beta_node*) alloc(sizeof(struct beta_node));
+    return (struct beta_node*) pool_alloc(net->beta_node_pool);
 }
 
 static inline struct beta_test*
-new_beta_test()
+new_beta_test(struct rete* net)
 {
-    return (struct beta_test*) alloc(sizeof(struct beta_test));
+    return (struct beta_test*) pool_alloc(net->beta_test_pool);
+}
+
+static const struct variable_binding*
+find_bound_variable(const struct binding_list* bindings, const symbol_t* variable)
+{
+    while (bindings) {
+        if (SYMBOLS_ARE_EQUAL(bindings->variable, *variable))
+            return &bindings->binding;
+    }
+
+    return 0;
 }
 
 /*
@@ -68,7 +43,11 @@ new_beta_test()
  * nodes in the beta network.
  */
 static void
-process_test(const struct test* test, symbol_t* constant)
+process_test(struct rete* net,
+             const struct test* test,
+             unsigned field,
+             const struct binding_list* bindings,
+             symbol_t* constant)
 {
     switch (test->type) {
     case test_type_blank:
@@ -87,7 +66,10 @@ process_test(const struct test* test, symbol_t* constant)
         }
         else {
             /* It's a variable. Make a variable equality test */
-            struct beta_test* beta_test = new_beta_test();
+            struct beta_test* beta_test = new_beta_test(net);
+            beta_test->type  = test->type;
+            beta_test->field = field;
+            beta_test->data.variable_referent = *find_bound_variable(bindings, &test->data.referent);
         }
         return;
 
@@ -104,12 +86,13 @@ process_test(const struct test* test, symbol_t* constant)
 static struct beta_node*
 create_positive_condition_node(struct rete* net,
                                const struct condition* cond,
-                               struct beta_node* parent)
+                               struct beta_node* parent,
+                               struct binding_list** bindings)
 {
     symbol_t alpha_id, alpha_attr, alpha_value;
-    process_test(&cond->data.simple.id_test, &alpha_id);
-    process_test(&cond->data.simple.attr_test, &alpha_attr);
-    process_test(&cond->data.simple.value_test, &alpha_value);
+    process_test(net, &cond->data.simple.id_test,    field_id,    *bindings, &alpha_id);
+    process_test(net, &cond->data.simple.attr_test,  field_attr,  *bindings, &alpha_attr);
+    process_test(net, &cond->data.simple.value_test, field_value, *bindings, &alpha_value);
     return 0;
 }
 
@@ -120,12 +103,14 @@ rete_add_production(struct rete* net, const struct production* p)
     struct beta_node* parent = &net->root;
     struct condition* cond;
 
+    struct binding_list* bindings = 0;
+
     for (cond = p->lhs; cond != 0; cond = cond->next) {
         struct beta_node* child;
 
         switch (cond->type) {
         case condition_type_positive:
-            child = create_positive_condition_node(net, cond, parent);
+            child = create_positive_condition_node(net, cond, parent, &bindings);
             break;
 
         case condition_type_negative:
@@ -135,6 +120,12 @@ rete_add_production(struct rete* net, const struct production* p)
 
         assert(child != 0);
         parent = child;
+    }
+
+    while (bindings) {
+        struct binding_list* doomed = bindings;
+        bindings = bindings->next;
+        pool_free(net->variable_binding_pool, doomed);
     }
 }
 
