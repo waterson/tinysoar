@@ -7,8 +7,8 @@ struct wme;
 typedef struct wme wme_t;
 
 struct wme {
-    symbol_t object;
-    symbol_t attribute;
+    symbol_t id;
+    symbol_t attr;
     symbol_t value;
 };
 
