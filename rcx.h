@@ -1,0 +1,169 @@
+#ifndef rcx_h__
+#define rcx_h__
+
+/*
+ * Timer control/status register
+ */
+extern volatile unsigned char T_CSR;
+
+/*
+ * TCSR bitmasks
+ */
+#define TCSR_ICA		0x80	   /* input capture events */
+#define TCSR_ICB		0x40
+#define TCSR_ICC		0x20
+#define TCSR_ICD		0x10
+#define TCSR_OCA		0x08	   /* output compare events */
+#define TCSR_OCB		0x04
+#define TCSR_OF			0x02	   /* overflow event */
+#define TCSR_RESET_ON_A		0x01	   /* reset counter on match A */
+
+/*
+ * Timer control register
+ */
+extern unsigned char T_CR;
+
+/*
+ * TCR bitmasks
+ */
+#define TCR_A_RISING		0x80	   /* input capture on rising */
+#define TCR_B_RISING		0x40	   /* edge. if not set -> lower */
+#define TCR_C_RISING		0x20
+#define TCR_D_RISING		0x10
+#define TCR_BUFFER_A		0x08	   /* buffer A in C */
+#define TCR_BUFFER_B		0x04	   /* buffer B in D */
+#define TCR_CLOCK_2		0x00	   /* clock = pclock / 2 */
+#define TCR_CLOCK_8		0x01	   /* clock = pclock / 8 */
+#define TCR_CLOCK_32		0x02	   /* clock = pclock / 32 */
+#define TCR_CLOCK_EXT		0x03	   /* external clock, rising edge */
+
+/*
+ * Timer output control register
+ */
+extern unsigned char T_OCR;
+
+/*
+ * TOCR bitmasks
+ */
+#define TOCR_OCRA               0x00       /* select register to write */
+#define TOCR_OCRB               0x10
+#define TOCR_ENABLE_A           0x08       /* enable output signals */
+#define TOCR_ENABLE_B           0x04
+#define TOCR_HIGH_LEVEL_A       0x02       /* set output to high for match */
+#define TOCR_HIGH_LEVEL_B       0x01
+
+/*
+ * Timer output compare register A
+ */
+extern unsigned T_OCRA;
+
+/*
+ * Timer interrupt enable register
+ */
+extern unsigned char T_IER;
+
+/*
+ * TIER bitmasks
+ */
+#define TIER_ENABLE_ICA		0x80	   /* input capture IRQ enables */
+#define TIER_ENABLE_ICB		0x40
+#define TIER_ENABLE_ICC		0x20
+#define TIER_ENABLE_ICD		0x10
+#define TIER_ENABLE_OCA		0x08	   /* output compare IRQ enables */
+#define TIER_ENABLE_OCB		0x04
+#define TIER_ENABLE_OF		0x02	   /* overflow IRQ enable */
+#define TIER_RESERVED		0x01	   /* always set. */
+
+/*
+ * OCIA interrupt vector.
+ */
+extern void *ocia_vector;
+
+/*
+ * Icons for use with rcx_(show|hide)_icon.
+ */
+#define LCD_STANDING         0x3006     /* standing figure         */
+#define LCD_WALKING          0x3007     /* walking figure          */
+#define LCD_SENSOR_0_VIEW    0x3008     /* sensor 0 view selected  */
+#define LCD_SENSOR_0_ACTIVE  0x3009     /* sensor 0 active         */
+#define LCD_SENSOR_1_VIEW    0x300a     /* sensor 1 view selected  */
+#define LCD_SENSOR_1_ACTIVE  0x300b     /* sensor 1 active         */
+#define LCD_SENSOR_2_VIEW    0x300c     /* sensor 2 view selected  */
+#define LCD_SENSOR_2_ACTIVE  0x300d     /* sensor 2 active         */
+#define LCD_MOTOR_0_VIEW     0x300e     /* motor 0 view selected   */
+#define LCD_MOTOR_0_REV      0x300f     /* motor 0 backward arrow  */
+#define LCD_MOTOR_0_FWD      0x3010     /* motor 0 forward arrow   */
+#define LCD_MOTOR_1_VIEW     0x3011     /* motor 1 view selected   */
+#define LCD_MOTOR_1_REV      0x3012     /* motor 1 backward arrow  */
+#define LCD_MOTOR_1_FWD      0x3013     /* motor 1 forward arrow   */
+#define LCD_MOTOR_2_VIEW     0x3014     /* motor 2 view selected   */
+#define LCD_MOTOR_2_REV      0x3015     /* motor 2 backward arrow  */
+#define LCD_MOTOR_2_FWD      0x3016     /* motor 2 forward arrow   */
+#define LCD_DATALOG          0x3018     /* datalog indicator       */
+#define LCD_DOWNLOAD         0x3019     /* download in progress    */
+#define LCD_UPLOAD           0x301a     /* upload in progress      */ 
+#define LCD_BATTERY          0x301b     /* battery low             */
+#define LCD_RANGE_SHORT      0x301c     /* short range indicator   */
+#define LCD_RANGE_LONG       0x301d     /* long range indicator    */
+#define LCD_ALL              0x3020     /* all segments            */
+
+static inline void
+rcx_lcd_show_icon(unsigned icon)
+{
+    asm("\tmov.w %0,r6\n"
+        "\tjsr lcd_show\n"
+        "\tjsr lcd_refresh\n"
+        :
+        : "r"(icon)
+        : "r6");
+}
+
+static inline void
+rcx_lcd_hide_icon(unsigned icon)
+{
+    asm("\tmov.w %0,r6\n"
+        "\tjsr lcd_hide\n"
+        "\tjsr lcd_refresh\n"
+        :
+        : "r"(icon)
+        : "r6");
+}
+
+extern void
+rcx_lcd_show_number(unsigned format, int value, unsigned scalecode);
+
+static inline void
+rcx_lcd_show_int16(int r)
+{ 
+    rcx_lcd_show_number(0x3001, r, 0x3002);
+}
+
+static inline void
+rcx_lcd_clear()
+{
+    asm("\tjsr lcd_clear\n"
+        "\tjsr lcd_refresh\n");
+}
+
+
+/*
+ * A/D converter registers.
+ */
+extern volatile unsigned char AD_CSR;
+extern volatile unsigned AD_A;
+extern volatile unsigned AD_C;
+extern volatile unsigned AD_B;
+
+/*
+ * Flags for the AD_CSR register.
+ */
+#define ADF   (1 << 7)
+#define ADIE  (1 << 6)
+#define ADST  (1 << 5)
+#define SCAN  (1 << 4)
+#define CKS   (1 << 3)
+#define CH2   (1 << 2)
+#define CH1   (1 << 1)
+#define CH0   (1 << 0)
+
+#endif /* rcx_h__ */
