@@ -64,7 +64,11 @@ typedef struct symbol {
 #define TYPE_CONSTANT          14
 #define T_CONSTANT             15
 
-#define USER_CONSTANT_BASE     16
+#define NCONSTANTS             16
+#define USER_CONSTANT_BASE     NCONSTANTS
+
+extern symbol_t constants[NCONSTANTS];
+#define SYM(x) constants[(x)]
 
 struct symbol_list {
     symbol_t symbol;
@@ -127,7 +131,8 @@ typedef enum preference_type {
 typedef enum support_type {
     support_type_isupport     = 0,
     support_type_osupport     = 1,
-    support_type_architecture = -1
+    support_type_architecture = -1,
+    support_type_unknown      = -2
 } support_type_t;
 
 struct preference {
@@ -135,8 +140,8 @@ struct preference {
     struct preference* next_in_slot;
     preference_type_t  type    : PREFERENCE_TYPE_BITS;
     support_type_t     support : SUPPORT_TYPE_BITS;
-    symbol_t           id;
-    symbol_t           attr;
+    symbol_t           id;    /* XXX could be shared with slot? */
+    symbol_t           attr;  /* XXX could be shared with slot? */
     symbol_t           value;
     symbol_t           referent;
 };
@@ -165,7 +170,7 @@ struct slot {
 
 typedef enum wme_type {
     wme_type_normal,
-    wme_type_acceptable_preference
+    wme_type_acceptable
 } wme_type_t;
 
 struct wme {
@@ -224,13 +229,19 @@ struct test_list {
  * Conditions
  */
 typedef enum condtion_type {
-    condition_type_positive,
-    condition_type_negative,
-    condition_type_conjunctive_negation
+    condition_type_positive = 0,
+    condition_type_negative = 1,
+    condition_type_conjunctive_negation = -2
 } condition_type_t;
 
+#define CONDITION_TYPE_BITS   2
+#define CONDITION_TYPE_SHIFT  (BITS_PER_WORD - CONDITION_TYPE_BITS)
+#define ACCEPTABLE_BITS       1
+#define ACCEPTABLE_SHIFT      (CONDITION_TYPE_SHIFT - ACCEPTABLE_BITS)
+
 struct condition {
-    condition_type_t type;
+    condition_type_t type       : CONDITION_TYPE_BITS;
+    bool_t           acceptable : ACCEPTABLE_BITS;
 
     union {
         struct {
@@ -279,6 +290,9 @@ struct action {
  * Productions
  */
 struct production {
+#ifdef DEBUG
+    char*                 name;
+#endif
     struct condition*     conditions;
     struct action*        actions;
     struct instantiation* instantiations;
@@ -438,7 +452,6 @@ struct match {
 struct agent {
     /* For the symbol table */
     unsigned next_available_identifier;
-    symbol_t operator_symbol;
 
     /* For the RETE network */
     struct beta_node    root_node;
@@ -456,19 +469,14 @@ struct agent {
 
 /* ---------------------------------------------------------------------- */
 
-void
-pref_process_matches(struct agent* agent);
-
-struct preference*
-pref_create_preference(symbol_t id, symbol_t attr, symbol_t value,
-                       preference_type_t type,
-                       support_type_t support);
-
 /*
  * Initialize the network
  */
 extern void
 rete_init(struct agent* agent);
+
+extern void
+rete_finish(struct agent* agent);
 
 /*
  * Add a production to the network
@@ -493,6 +501,15 @@ extern void
 agent_init(struct agent* agent);
 
 extern void
+agent_reset(struct agent* agent);
+
+extern void
+agent_finish(struct agent* agent);
+
+extern void
+agent_elaborate(struct agent* agent);
+
+extern void
 rete_push_goal_id(struct agent* agent, symbol_t goal_id);
 
 extern symbol_t
@@ -505,13 +522,27 @@ extern void
 wmem_init(struct agent* agent);
 
 extern void
-wmem_add_preference(struct agent* agent, struct preference* pref);
+wmem_finish(struct agent* agent);
 
 extern void
-wmem_remove_preference(struct agent* agent, struct preference* pref);
+wmem_clear(struct agent* agent);
 
 extern void
-wmem_decide(struct agent* agent);
+wmem_add_preference(struct agent* agent,
+                    symbol_t id, symbol_t attr, symbol_t value,
+                    preference_type_t type,
+                    support_type_t support);
+
+extern void
+wmem_remove_preference(struct agent* agent,
+                       symbol_t id, symbol_t attr, symbol_t value,
+                       preference_type_t type);
+
+/*
+ * Returns non-zero when quiescence is reached
+ */
+bool_t
+wmem_elaborate(struct agent* agent);
 
 typedef void (*wme_enumerator_t)(struct agent* agent, struct wme* wme, void* closure);
 
