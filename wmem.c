@@ -1177,9 +1177,10 @@ select_operator(struct agent *agent)
                 free(wme);
 
                 if (goal->next) {
-                    /* XXX We may have resolved an operator no-change
-                       impasse */
-                    UNIMPLEMENTED();
+                    /* We have resolved an operator no-change
+                       impasse. */
+                    agent_pop_subgoals(agent, goal->next);
+                    goal->next = 0;
                 }
             }
             else if (! goal->next) {
@@ -1247,9 +1248,10 @@ select_operator(struct agent *agent)
                 rete_operate_wme(agent, op, wme_operation_add);
 
                 if (goal->next) {
-                    /* XXX We just resolved an impasse, so now we need
-                       to blow away any substates */
-                    UNIMPLEMENTED();
+                    /* We just resolved an impasse, so now we need to
+                       blow away any substates */
+                    agent_pop_subgoals(agent, goal->next);
+                    goal->next = 0;
                 }
 
                 return;

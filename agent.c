@@ -315,3 +315,49 @@ agent_operator_tie(struct agent *agent, symbol_t goal, struct symbol_list *opera
     for ( ; operators != 0; operators = operators->next)
         MAKE_ARCH_PREF(state, SYM(ITEM_CONSTANT), operators->symbol);
 }
+
+static void
+remove_arch_pref(struct agent *agent, symbol_t id, symbol_t attr)
+{
+    struct preference *pref;
+    for (pref = wmem_get_preferences(agent, id, attr);
+         pref != 0;
+         pref = pref->next_in_slot) {
+        if (pref->support == support_type_architecture) {
+            wmem_remove_preference(agent, pref);
+            break;
+        }
+    }
+}
+
+/*
+ * Pop all of the subgoals beneath (and including) the specified goal,
+ * removing preferences associated with those goals.
+ */
+void
+agent_pop_subgoals(struct agent *agent, struct symbol_list *goal)
+{
+    /* XXX This approach isn't sufficient: we'll need to forcefully
+       remove all of the preferences related to each subgoal
+       (recursively!) to get any o-supported prefs cleaned up. As it
+       stands, this implementation ought to `work', but will leak any
+       o-supported preferences created in a subgoal. */
+    ASSERT(goal != 0, ("no subgoals to pop"));
+
+    do {
+        struct preference *pref;
+        struct symbol_list *doomed = goal;
+        symbol_t state = doomed->symbol;
+        goal = goal->next;
+
+        remove_arch_pref(agent, state, SYM(SUPERSTATE_CONSTANT));
+        remove_arch_pref(agent, state, SYM(ATTRIBUTE_CONSTANT));
+        remove_arch_pref(agent, state, SYM(CHOICES_CONSTANT));
+        remove_arch_pref(agent, state, SYM(IMPASSE_CONSTANT));
+        remove_arch_pref(agent, state, SYM(QUIESCENCE_CONSTANT));
+        remove_arch_pref(agent, state, SYM(TYPE_CONSTANT));
+        remove_arch_pref(agent, state, SYM(ITEM_CONSTANT));
+
+        free(doomed);
+    } while (goal);
+}

@@ -576,10 +576,7 @@ extern void
 agent_operator_tie(struct agent *agent, symbol_t goal, struct symbol_list *operators);
 
 extern void
-rete_push_goal_id(struct agent *agent, symbol_t goal_id);
-
-extern symbol_t
-rete_pop_goal_id(struct agent *agent);
+agent_pop_subgoals(struct agent *agent, struct symbol_list *goal);
 
 extern symbol_t
 rete_get_variable_binding(variable_binding_t binding, struct token *token);
