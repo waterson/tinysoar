@@ -76,3 +76,11 @@ After we're done parsing the list of conditions, we remove all of the
 variable bindings. (Which, BTW, are stored in the `symbol table',
 making this part of the code non-reentrant.)
 
+---
+
+For a condition like `(state <s>)', Soar is creating a conjunctive
+condition whose first part is a `goal id' test, and whose second part
+is an `equality test'. It looks like how this works then is that the
+`goal id' part of the test checks the WME's `id' field to see if the
+identifier is actually a goal, and the second part of the test binds
+the goal to a variable. Tricky!

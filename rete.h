@@ -4,6 +4,15 @@
 #include "types.h"
 #include "pool.h"
 
+/*----------------------------------------------------------------------*/
+
+/*
+ * Productions
+ */
+
+/*
+ * Tests.
+ */
 typedef enum test_type {
     test_type_blank,
     test_type_equality,
@@ -19,15 +28,25 @@ typedef enum test_type {
     test_type_impasse_id,
 } test_type_t;
 
+struct test_list;
+
 struct test {
     test_type_t type;
     union {
         symbol_t referent;
-        /* list* conjunctions; */
-        /* list* disjunctions; */
+        struct test_list* conjuncts;
+        struct test_list* disjuncts;
     } data;
 };
 
+struct test_list {
+    struct test test;
+    struct test_list* next;
+};
+
+/*
+ * Conditions
+ */
 typedef enum condtion_type {
     condition_type_positive,
     condition_type_negative,
@@ -48,17 +67,31 @@ struct condition {
     struct condition* next;
 };
 
+/*
+ * Actions
+ */
 struct action {
     struct action* next;
 };
 
+/*
+ * Productions
+ */
 struct production {
     struct condition* lhs;
     struct action*    rhs;
 };
 
+/*----------------------------------------------------------------------*/
+
+/*
+ * RETE
+ */
 struct beta_node;
 
+/*
+ * Alpha Memory
+ */
 struct right_memory;
 
 struct alpha_node {
@@ -76,22 +109,39 @@ struct right_memory {
     struct right_memory* next_in_alpha_node;
 };
 
+/*
+ * Variables
+ */
+
+#define BINDING_FIELD_BITS   2
+#define BINDING_FIELD_SHIFT  (BITS_PER_WORD - BINDING_FIELD_BITS) 
+#define BINDING_DEPTH_BITS   BINDING_FIELD_SHIFT
+
 typedef enum field {
     field_id,
     field_attr,
     field_value
 } field_t;
 
-struct variable_binding {
-    unsigned depth : BITS_PER_WORD - 2;
-    field_t  field : 2;
-};
+typedef struct variable_binding {
+    unsigned depth : BINDING_DEPTH_BITS;
+    field_t  field : BINDING_FIELD_BITS;
+} variable_binding_t;
+
+
+/*
+ * Beta Memory
+ */
+
+#define BETA_TEST_FIELD_BITS   2
+#define BETA_TEST_FIELD_SHIFT  (BITS_PER_WORD - BETA_TEST_FIELD_BITS)
+#define BETA_TEST_TYPE_BITS    BETA_TEST_FIELD_SHIFT
 
 struct beta_test {
-    test_type_t type  : BITS_PER_WORD - 2;
-    field_t     field : 2;
+    test_type_t type  : BETA_TEST_TYPE_BITS;
+    field_t     field : BETA_TEST_FIELD_BITS;
     union {
-        struct variable_binding variable_referent;
+        variable_binding_t variable_referent;
         symbol_t constant_referent;
         /* list* disjunction_list; */
     } data;
@@ -122,12 +172,18 @@ struct beta_node {
     } data;
 };
 
+/*
+ * Tokens
+ */
 struct token {
     struct token* parent;
     struct beta_node* node;
     struct wme* wme;
 };
 
+/*
+ * The Network
+ */
 struct rete {
     struct beta_node root;
     struct pool beta_node_pool;
@@ -135,9 +191,18 @@ struct rete {
     struct pool variable_binding_list_pool;
 };
 
+/*----------------------------------------------------------------------*/
+
+
+/*
+ * Initialize the network
+ */
 extern void
 rete_init(struct rete* net);
 
+/*
+ * Add a production to the network
+ */
 extern void
 rete_add_production(struct rete* net, const struct production* p);
 

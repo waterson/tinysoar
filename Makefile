@@ -1,4 +1,9 @@
-CFLAGS=-Wall -g
+# Debug
+CFLAGS=-Wall -g -DDEBUG -UNDEBUG
+
+# Optimized
+#CFLAGS=-Wall -O -UDEBUG -DNDEBUG
+
 MDDEPDIR=.deps
 
 .c.o:

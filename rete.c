@@ -4,7 +4,7 @@
 
 struct variable_binding_list {
     symbol_t                      variable;
-    struct variable_binding       binding;
+    variable_binding_t            binding;
     struct variable_binding_list* next;
 };
 
@@ -35,7 +35,7 @@ new_variable_binding_list(struct rete* net)
     return (struct variable_binding_list*) pool_alloc(&net->variable_binding_list_pool);
 }
 
-static const struct variable_binding*
+static const variable_binding_t*
 find_bound_variable(const struct variable_binding_list* bindings, const symbol_t* variable)
 {
     while (bindings) {
@@ -47,6 +47,7 @@ find_bound_variable(const struct variable_binding_list* bindings, const symbol_t
 }
 
 /*
+ * 
  */
 static void
 bind_variables(struct rete* net,
@@ -57,10 +58,10 @@ bind_variables(struct rete* net,
 {
     switch (test->type) {
     case test_type_equality:
-        if ((GET_SYMBOL_TYPE(test->data.referent) == symbol_type_variable) &&
+        if ((test->data.referent.type == symbol_type_variable) &&
             !find_bound_variable(*bindings, &test->data.referent)) {
             struct variable_binding_list* entry = new_variable_binding_list(net);
-            entry->variable      = test->data.referent;
+            entry->variable = test->data.referent;
             entry->binding.depth = depth;
             entry->binding.field = field;
             entry->next = *bindings;
@@ -69,6 +70,11 @@ bind_variables(struct rete* net,
         break;
 
     case test_type_conjunctive:
+        {
+            struct test_list* tests;
+            for (tests = test->data.conjuncts; tests != 0; tests = tests->next)
+                bind_variables(net, &tests->test, depth, field, bindings);
+        }
         break;
 
     default:
@@ -81,6 +87,8 @@ bind_variables(struct rete* net,
  * Convert a `test' from a condition into the appropriate RETE
  * structures: constants that are tested by the alpha network and
  * nodes in the beta network.
+ *
+ * This corresponds to add_rete_tests_for_test() from rete.c in Soar8.
  */
 static void
 process_test(struct rete* net,
@@ -88,7 +96,7 @@ process_test(struct rete* net,
              field_t field,
              const struct variable_binding_list* bindings,
              symbol_t* constant,
-             struct beta_test** tests)
+             struct beta_test** beta_tests)
 {
     struct beta_test* beta_test = 0;
 
@@ -97,9 +105,9 @@ process_test(struct rete* net,
 
     switch (test->type) {
     case test_type_equality:
-        if (GET_SYMBOL_TYPE(test->data.referent) == symbol_type_variable) {
+        if (test->data.referent.type == symbol_type_variable) {
             /* It's a variable. Make a variable equality test */
-            const struct variable_binding* binding;
+            const variable_binding_t* binding;
             beta_test = new_beta_test(net);
 
             binding = find_bound_variable(bindings, &test->data.referent);
@@ -110,7 +118,7 @@ process_test(struct rete* net,
         else {
             /* It's a constant. Install an alpha test if possible;
                otherwise, create a beta test node */
-            if (! GET_SYMBOL_VALUE(*constant)) {
+            if (! constant->val) {
                 *constant = test->data.referent;
             }
             else {
@@ -124,6 +132,14 @@ process_test(struct rete* net,
         beta_test = new_beta_test(net);
         break;
 
+    case test_type_conjunctive:
+        {
+            struct test_list* tests;
+            for (tests = test->data.conjuncts; tests != 0; tests = tests->next)
+                process_test(net, &tests->test, field, bindings, constant, beta_tests);
+        }
+        break;
+
     default:
         assert(0); /* XXX */
     }
@@ -131,8 +147,8 @@ process_test(struct rete* net,
     if (beta_test) {
         beta_test->type  = test->type;
         beta_test->field = field;
-        beta_test->next = *tests;
-        *tests = beta_test;
+        beta_test->next = *beta_tests;
+        *beta_tests = beta_test;
     }
 }
 
@@ -195,6 +211,8 @@ rete_add_production(struct rete* net, const struct production* p)
 
         case condition_type_negative:
         case condition_type_conjunctive_negation:
+        default:
+            child = 0;
             break;
         }
 
