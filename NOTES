@@ -1,3 +1,5 @@
+-*- Mode: Text -*
+
 Beta Network
 
 - Memory node (also `mem node' or `m node'). A `beta memory'
@@ -111,3 +113,42 @@ the agent's `slots' hashtable. The only problem with this scheme are
 WMEs that are created `outside' the RETE network; e.g., by somebody
 doing brain surgery on the agent.
 
+---
+
+CHUNKING
+
+  1. Collect all ``result'' preferences created by an instantiation,
+     that is, preferences for superstates,
+     |get_results_for_instantiation()| in chunk.c does this.
+
+  2. For each preference, call |backtrace_through_instantiation()|
+     with the instantiation that created the preference. (Which is a
+     bit weird, because shouldn't all the preferences have been
+     created by the same instantiation?)
+
+  3. Repeatedly |trace_locals()|, |trace_grounded_potentials()|, and
+     |trace_ungrounded_potentials()| until there are no more (?)
+     ungrounded potentials.
+
+  4. Build the chunk conditions.
+
+  backtrace_through_instantiation(inst, grounds_level, trace_cond, indent)
+
+    1. Bail if we've already backtraced this |inst|; otherwise, note
+       that we've backtraced it.
+
+    2. Mark the transitive closure of each higher goal that was tested
+       in the ID field of a top-level positive condition.
+
+Hmm. Interesting. We associate a level in the goal stack with each
+identifier: this is important for chunking. Presumably identifiers
+``created'' in a subgoal get ``promoted'' to the goal-level to which
+they were returned.
+
+Okay, so |preference| is going to have to change. Instead of
+maintaining a doubly-linked list of the preferences in the current
+instantiation, it's going to need a back-pointer to the instantiation
+that created it. From the instantiation, we can get the token, and
+from the token, I think we can walk back up through the identifiers
+that we tested. Hrm, but how to get from _those_ identifiers to the
+preference that created it? (Do we need to?)
