@@ -1,5 +1,14 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
+Saturday, April 20, 2002
+
+Made disjunctive tests work.
+
+<https://sourceforge.net/tracker/index.php?func=detail&aid=516730&group_id=42131&atid=432196>
+
+Added a regression test harness.
+
+
 Monday, March 18, 2002
 
 Fixed bogus linked-list manipulation in the beta_node_type_negative
