@@ -11,7 +11,9 @@ if test "$target" = "$host"; then
   AC_PROG_CC
 
   AC_CHECK_PROG(AR, ar, ar, :)
+  AC_CHECK_PROG(LD, ld, ld, :)
   AC_PROG_RANLIB
+
   AC_PROG_INSTALL
 
   AC_CHECK_SIZEOF(int, 4)
@@ -19,9 +21,12 @@ else
   dnl We're doing a cross-compile. I _thought_ AC_PROG_CC was supposed to
   dnl detect this sort of thing, but apparently it doesn't.
   AR=${target}-ar
-  RANLIB=${target}-ranlib
   CC=${target}-gcc
   CPP="$CC -E"
+  LD=${target}-ld
+  RANLIB=${target}-ranlib
+
+  AC_PROG_INSTALL
 
   SIZEOF_INT=0
   AC_ARG_WITH(sizeof-int,
@@ -71,6 +76,7 @@ fi
 
 AC_SUBST(AR)
 AC_SUBST(CC)
+AC_SUBST(LD)
 AC_SUBST(RANLIB)
 
 AC_CONFIG_HEADER(defs.h)
