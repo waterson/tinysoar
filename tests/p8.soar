@@ -14,16 +14,21 @@
 
 package require TinySoar;
 
+# Elaborate the top state with ``three balls''.
 sp {elaborate*top-state
     (state <s> ^superstate nil)
     -->
     (<s> ^ball <b1> ^ball <b2> ^ball <b3>)}
 
+# Elaborate the state no-change that occurs as the ``count'' problem space.
 sp {elaborate*snc
     (state <s> ^impasse no-change ^attribute state)
     -->
     (<s> ^count zero ^name count)}
 
+# Proposals for the ``count'' operator. Propose that we count any
+# ball in the superstate that hasn't been marked as ``counted'' in
+# the substate.
 sp {propose*count*one
     (state <s> ^name count ^superstate <ss> ^count zero -^counted <b>)
     (<ss> ^ball <b>)
@@ -45,12 +50,16 @@ sp {propose*count*three
     (<s> ^operator <o> + =)
     (<o> ^name count ^object <b> ^value three)}
 
+# Implementation for the ``count'' operator: mark the object as
+# having been counted in the sub-state.
 sp {implement*count*mark-counted
     (state <s> ^operator <o>)
     (<o> ^name count ^object <b>)
     -->
     (<s> ^counted <b>)}
 
+# Implementation for the ``count'' operator: increment the counter
+# in the sub-state.
 sp {implement*count*increment
     (state <s> ^operator <o> ^count <old*c>)
     (<o> ^name count ^value <new*c>)
@@ -64,12 +73,17 @@ sp {reconsider*count
     -->
     (<s> ^operator <o> @)}
 
+# Proposal to return the result of the count. Since we can't do
+# conjunctive negative conditions, we'll just make this operator
+# have a ``worst'' preference.
 sp {propose*return
     (state <s> ^name count ^superstate <ss> ^count <c>)
     -->
     (<s> ^operator <o> + <)
     (<o> ^name return ^value <c>)}
 
+# Implement result return, which will build the chunk. Copies
+# the count to the superstate.
 sp {implement*return
     (state <s> ^superstate <ss> ^operator <o>)
     (<o> ^name return ^value <c>)
@@ -82,6 +96,7 @@ sp {reconsider*return
     -->
     (<s> ^operator <o> @)}
 
+# Once the top state has a count attribute, wait indefinitely.
 sp {propose*wait
     (state <s> ^superstate nil ^count <c>)
     -->
