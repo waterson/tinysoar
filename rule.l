@@ -96,6 +96,8 @@ state         { yylval->context = yytext; return CONTEXT; }
 
 "("|")"|"-"|"+"|"."|"^"|"{"|"}"|"="|"<"|">"|"!"|"~"|"@" return yytext[0];
 
+"\""[^\"]*"\"" return COMMENT;
+
 [[:space:]]+  /* consume whitespace */
 
 %%

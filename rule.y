@@ -144,6 +144,8 @@ extern int yylex(); /* Can't give it types, because we don't have
 %token GREATER_THAN_OR_EQUAL
 %token SAME_TYPE
 
+%token COMMENT
+
 %token <context> CONTEXT
 
 %token <symbol> VARIABLE
@@ -196,7 +198,7 @@ extern int yylex(); /* Can't give it types, because we don't have
 %type <symbol_list> constants
 %%
 
-rule: name lhs ARROW rhs
+rule: name opt_comment lhs ARROW rhs
     {
         struct parser *parser =
             (struct parser *) yyparse_param;
@@ -207,8 +209,8 @@ rule: name lhs ARROW rhs
         production->conditions =
             (struct condition *) malloc(sizeof(struct condition));
 
-        *(production->conditions) = $2;
-        production->actions = $4;
+        *(production->conditions) = $3;
+        production->actions = $5;
     }
     ;
 
@@ -224,6 +226,14 @@ name: NAME
 #endif
     }
     ;
+
+/*
+ * Comment
+ */
+
+opt_comment: COMMENT
+           |
+           ;
 
 /*
  * Left-hand side
