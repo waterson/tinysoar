@@ -186,7 +186,7 @@ test: tcl-extension
 
 # ----------------------------------------------------------------------
 #
-# A Soar agent from the Lego RCX.
+# A Soar agent for the Lego RCX.
 #
 
 LEGO_OBJS = \
