@@ -204,7 +204,7 @@ Trying to understand the backtracing algorithm...
         if |c.id| is in |tc| then
           /* the ID is in the transitive closure, so add the value */
           |tc| = |tc| U |c.value|
-        else if |c.id| is a goal and |c.backtrace_level <= grounds_level| then
+        else if |c.id| is a goal and |c.wme.id.level <= grounds_level| then
           /* id is a higher goal that was tested, so add the value */
           |tc| = |tc| U |c.value|
         endif
@@ -216,7 +216,7 @@ Trying to understand the backtracing algorithm...
       if |c| is a positive condition then
         if |c.id| in |tc| then
           |grounds| = |grounds| U |c|;
-        else if |c.backtrace_level <= grounds_level| then
+        else if |c.wme.id.level <= grounds_level| then
           |potentials| = |potentials| U |c|;
         else
           |locals| = |locals| U |c|;
@@ -236,8 +236,14 @@ Trying to understand the backtracing algorithm...
   procedure trace_locals()
   begin
     foreach condition |c| in |locals| do
-      |bt_pref| = find_clone_for_level(|c.preference|, |grounds_level| + 1);
+      |locals| = |locals| - |c|;
+
+      /* did we test a preference at this level that's a clone of some
+         higher-level preference? */
+      |bt_pref| = find_clone_for_level(|c.wme.preference|, |grounds_level| + 1);
       if |bt_pref| then
+        /* backtrace through the instantiation that created the
+           preference in our current match-goal level */
         backtrace_through_instantiation(|br_pref.instantiation|);
 
         /* XXX check if any prohibit preferences */
@@ -271,7 +277,7 @@ Trying to understand the backtracing algorithm...
     |pots_to_bt| = {};
 
     foreach condition |c| in |potentials| do
-      |bt_pref| = find_clone_for_level(|c.preference|, |grounds_level| + 1);
+      |bt_pref| = find_clone_for_level(|c.wme.preference|, |grounds_level| + 1);
       if |bt_pref| then
         |potentials| = |potentials| - |c|
         |pots_to_bt| = |pots_to_bt| U |c|
@@ -279,7 +285,7 @@ Trying to understand the backtracing algorithm...
     end
 
     foreach condition |c| in |pots_to_bt| do
-      |bt_pref| = find_clone_for_level(|c.preference|, |grounds_level| + 1);
+      |bt_pref| = find_clone_for_level(|c.wme.preference|, |grounds_level| + 1);
 
       backtrace_through_instantiation(|bt_pref.instantiation|);
 
@@ -289,6 +295,8 @@ Trying to understand the backtracing algorithm...
 
   procedure chunk(inst)
   begin
+    /* inst.match_goal_level = lowest goal tested; i.e., the
+       goal-level at which this instantiation ``fired''? */
     |grounds_level| = |inst.match_goal_level| - 1;
 
     |results| = get_results_of(inst);
@@ -314,3 +322,6 @@ Trying to understand the backtracing algorithm...
     /* add goal or impasse tests */
   end.
 
+I think that one thing that'll be hard to do in the raw RETE net will
+be to figure out how to string together matching |id| and |value|
+tests, as we need to do in |backtrace_through_instantiation()|.
