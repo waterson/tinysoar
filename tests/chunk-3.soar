@@ -21,6 +21,7 @@ sp {elaborate*snc
 sp {propose*copy-ball
     (state <s> ^impasse no-change ^attribute state ^superstate <ss>)
     (<ss> ^ball <b>)
+    (<b> ^color blue)
     (<s> -^thing <b>)
     -->
     (<s> ^operator <o> +)
