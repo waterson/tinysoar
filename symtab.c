@@ -20,7 +20,7 @@ hash_symbol(const char* name, symbol_type_t type)
     return h;
 }
 
-static
+static void
 add_symbol(struct symtab* symtab, struct ht_entry_header** entryp, const char* name, symbol_t symbol)
 {
     struct ht_entry_header* header =
@@ -129,7 +129,7 @@ symtab_init(struct symtab* symtab)
 {
     struct predefined_symbol* def;
 
-    ht_init(&symtab->table, compare_symbols);
+    ht_init(&symtab->table, (ht_key_compare_t) compare_symbols);
     symtab->next_sym_constant = 1;
     symtab->next_variable     = 1;
     symtab->next_identifier   = 1;

@@ -4,7 +4,7 @@
 %{
 #include "soar.h"
 #include "parser.h"
-#include "rule.tab.h"
+#include "y.tab.h"
 %}
 
 %%

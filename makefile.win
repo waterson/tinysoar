@@ -10,36 +10,43 @@ CFLAGS=$(CFLAGS) /Zi /Od /UNDEBUG /DDEBUG
 LFLAGS=$(LFLAGS) /debug
 !endif
 
-RUNTIME_LIB = soar_rt.lib
+SHARED_OBJS = \
+	ht.obj \
+	debug.obj \
+        $(NULL)        
 
 RUNTIME_OBJS = \
 	alloc.obj \
 	agent.obj \
-	ht.obj \
 	pref.obj \
 	rete.obj \
-	runtime.obj \
 	wmem.obj \
+        $(NULL)
+
+PARSER_OBJS = \
+        rule.tab.obj \
+        lex.yy.obj \
+        symtab.obj \
         $(NULL)
 
 all: rete-test.exe parser-test.exe
 
-parser-test.exe: parser-test.obj rule.tab.obj lex.yy.obj symtab.obj ht.obj runtime.obj
+parser-test.exe: parser-test.obj $(PARSER_OBJS) $(SHARED_OBJS)
         $(LINK) $(LFLAGS) /nologo /out:$@ $**
 
 parser-test.obj: parser-test.c parser.h config.h defs.h
 
-rule.tab.obj: rule.tab.c
+y.tab.obj: y.tab.c
 
-rule.tab.c rule.tab.h: rule.y
-        bison --defines $**
+y.tab.c y.tab.h: rule.y
+        bison --yacc --defines $**
 
 lex.yy.c: rule.l
         flex $**
 
-lex.yy.obj: lex.yy.c rule.tab.h
+lex.yy.obj: lex.yy.c y.tab.h
 
-rete-test.exe: 	rete-test.obj $(RUNTIME_LIB)
+rete-test.exe: 	rete-test.obj $(RUNTIME_OBJS) $(SHARED_OBJS)
         $(LINK) $(LFLAGS) /nologo /out:$@ $**
 
 rete-test.obj: rete-test.c soar.h alloc.h config.h defs.h
