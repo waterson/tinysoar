@@ -710,6 +710,9 @@ void
 debug_indent_by(int nest);
 
 const char *
+debug_test_type_to_string(test_type_t type);
+
+const char *
 debug_symbol_to_string(struct symtab *symtab, symbol_t symbol);
 
 void

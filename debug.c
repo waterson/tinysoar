@@ -93,6 +93,27 @@ debug_indent_by(int nest)
 }
 
 const char *
+debug_test_type_to_string(test_type_t type)
+{
+    switch (type) {
+    case test_type_blank:            return "(nil)";
+    case test_type_equality:         return "==";
+    case test_type_not_equal:        return "<>";
+    case test_type_less:             return "<";
+    case test_type_greater:          return ">";
+    case test_type_less_or_equal:    return "<=";
+    case test_type_greater_or_equal: return ">=";
+    case test_type_same_type:        return "<=>";
+    case test_type_conjunctive:      return "&&";
+    case test_type_disjunctive:      return "||";
+    case test_type_goal_id:          return "(goal)";
+    }
+
+    UNREACHABLE();
+    return "(error!)";
+}
+
+const char *
 debug_symbol_to_string(struct symtab *symtab, symbol_t symbol)
 {
     static char buf[16];
@@ -121,7 +142,8 @@ debug_symbol_to_string(struct symtab *symtab, symbol_t symbol)
         break;
     }
 
-    return buf;
+    /* XXX Leak, but this is debug-only code, so who cares. */
+    return strdup(buf);
 }
 
 void
