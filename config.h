@@ -50,4 +50,15 @@ typedef unsigned char bool_t;
 #define VERIFY_HEAP()
 #endif
 
+/* XXX These are debugging routines for the Lego RCX. They really
+   ought not be here, but oh well. */
+extern void
+lcd_show_number(unsigned format, int value, unsigned scalecode);
+
+static inline void
+lcd_show_int16(int r)
+{ 
+    lcd_show_number(0x3001, r, 0x3002);
+}
+
 #endif /* config_h__ */
