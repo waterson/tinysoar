@@ -1,5 +1,47 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
+Monday, March 18, 2002
+
+Fixed bogus linked-list manipulation in the beta_node_type_negative
+case for do_right_(addition|removal) that was causing us to end up in
+an infinite loop. Overzealous conversion to `for' loops probably
+introduced this bug. :-/
+
+
+Saturday, March 16, 2002
+
+Fixed a problem with the `export' command: we were crashing during
+export if a beta node had no beta tests.
+
+Fixed a problem with operator selection: `better' and `worse'
+preferences were dominating _every_ other candidate in the list, not
+just their referent. I think this may be the problem I was seeing with
+the `culled too many candidates' bugs.
+
+
+Thursday, March 14, 2002
+
+Fixed the `print' command so that it returned a result to the Tcl
+interpreter instead of just printf'ing. This allows script to inspect
+the agent's state (e.g., the ^output-link).
+
+
+Wednesday, March 13, 2002
+
+Get rid of the `impasse' test type: since we're supporting `pure'
+Soar-8.3 semantics, there can never be attribute impasses (which,
+AFAICT, is the only way that impasses can arise).
+
+Been fixing problems with clean up of o-supported preferences in
+substates. Implemented a simple garbage collection scheme that removes
+`unreachable' preferences; i.e., preferences that are no longer
+reachable from a goal in the goal stack.
+
+Started working on a simple eight-puzzle hack as a test-harness for
+substates and, eventually, chunking.
+
+----------------------------------------------------------------------
+
 Tuesday, February 12, 2002
 
 Removed the assertion in do_left_addition() requiring negative nodes
