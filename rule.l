@@ -2,8 +2,9 @@
 %option noyywrap
 
 %{
-#include "rule.tab.h"
 #include "soar.h"
+#include "parser.h"
+#include "rule.tab.h"
 %}
 
 %%
@@ -16,7 +17,7 @@ state|impasse return CONTEXT;
 ">=" return GREATER_THAN_OR_EQUAL;
 "<=>" return SAME_TYPE;
 "-->" return ARROW;
-[0-9]+ yylval = atoi(yytext); return INT_CONSTANT;
+[0-9]+ yylval.int_constant = atoi(yytext); return INT_CONSTANT;
 "<"[[:alnum:]]+">" return VARIABLE;
 [[:alnum:]]+ return SYM_CONSTANT;
 "("|")"|"-"|"+"|"."|"^"|"{"|"}"|"="|"<"|">"|"!"|"~"|"@" return yytext[0];
@@ -27,12 +28,14 @@ state|impasse return CONTEXT;
 struct production*
 soar_parse_rule(const char* rule)
 {
-    extern int yydebug;
     YY_BUFFER_STATE state;
     struct production* result =
         (struct production*) malloc(sizeof(struct production));
 
+#if YY_DEBUG != 0
+    extern int yydebug;
     yydebug = 1;
+#endif
 
     result->conditions       = 0;
     result->actions          = 0;
@@ -40,7 +43,7 @@ soar_parse_rule(const char* rule)
     result->num_unbound_vars = 0;
 
     state = yy_scan_string(rule);
-    if (yyparse() != 0) {
+    if (yyparse(result) != 0) {
         free(result);
         result = 0;
     }
