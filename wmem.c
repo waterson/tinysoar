@@ -522,7 +522,7 @@ instantiate_rhs_value(struct rhs_value   *value,
         UNREACHABLE();
     }
 
-    /* Sanity check the result */
+    /* Sanity check the result. */
     ASSERT(GET_SYMBOL_TYPE(result) != symbol_type_variable, ("rhs_value bound to variable"));
 
     return result;
@@ -544,7 +544,7 @@ create_instantiation(struct agent       *agent,
     struct action *action;
     int count;
 
-    /* initialize the instantiation */
+    /* Initialize the instantiation. */
     inst->production   = production;
     inst->token        = token;
     inst->next         = production->instantiations;
@@ -555,7 +555,7 @@ create_instantiation(struct agent       *agent,
         inst->preferences.prev_in_instantiation = 
         &inst->preferences;
 
-    /* generate identifiers for the unbound variables */
+    /* Generate identifiers for the unbound variables. */
     for (count = (int) production->num_unbound_vars - 1; count >= 0; --count) {
         struct symbol_list *entry =
             (struct symbol_list *) malloc(sizeof(struct symbol_list));
@@ -565,7 +565,7 @@ create_instantiation(struct agent       *agent,
         unbound_vars  = entry;
     }
 
-    /* process the right-hand side of the production */
+    /* Process the right-hand side of the production. */
     for (action = production->actions; action != 0; action = action->next) {
         struct preference *pref =
             (struct preference *) malloc(sizeof(struct preference));
