@@ -115,10 +115,13 @@ agent_finish(struct agent* agent)
 void
 agent_reset(struct agent* agent)
 {
+    /* Clear working memory _before_ popping the goal stack so that
+       our WME removals can propagate correctly through the RETE
+       network. */
+    wmem_clear(agent);
+
     while (agent->goals)
         pop_goal_id(agent);
-
-    wmem_clear(agent);
 
     agent->next_available_identifier = 1;
     init_top_state(agent);
