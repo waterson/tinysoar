@@ -4,7 +4,7 @@ package require TinySoar;
 sp {propose*drive
     (state <s> ^superstate nil ^io <io>)
     (<io> ^input-link <in>)
-    (<in> ^sensor-1 1023)
+    (<in> ^sensor-1 > 512)
     -->
     (<s> ^operator <o> +)
     (<o> ^name drive)}
