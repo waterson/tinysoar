@@ -1,6 +1,6 @@
 # Simple chunk test
 
-package require Soar;
+package require TinySoar;
 
 sp {propose*left
     (state <s> ^superstate nil)
