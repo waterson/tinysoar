@@ -1,5 +1,14 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
+Saturday, December 15, 2001
+
+Converted symbol_t and variable_binding_t from bit-packed structures
+to raw unsigned integers with hand bit-twiddling. Had to do this to
+get around the fact that different compilers (even different gcc
+back-ends) order the bit fields differently. (I need the order to be
+consistent so I can initialize unions with a single unsigned value.)
+
+
 Friday, December 14, 2001
 
 Tracked the remaining problems with the RCX: turns out the
