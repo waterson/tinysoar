@@ -284,9 +284,12 @@ dump_rete_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
             struct beta_node* beta;
             struct right_memory* rm;
 
-            printf("%s ", symbol_to_string(alpha->id));
+            printf("(%s ", symbol_to_string(alpha->id));
             printf("^%s ", symbol_to_string(alpha->attr));
-            printf("%s\n", symbol_to_string(alpha->value));
+            printf("%s", symbol_to_string(alpha->value));
+            if (i >= 8)
+                printf(" +");
+            printf(")\n");
 
             for (rm = alpha->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
                 indent_by(2);
