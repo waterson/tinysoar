@@ -419,12 +419,10 @@ do_left_removal(struct agent     *agent,
 
                 if (! token_saved)
                     free(doomed);
-#ifdef DEBUG
                 else {
                     token->shared = 1;
                     doomed->next = 0;
                 }
-#endif
 
                 break;
             }
