@@ -13,6 +13,16 @@ sp {implement*find-line*move-forward
     -->
     (<out> ^motor-a 100 ^motor-c 100)}
 
+
+sp {implement*find-line*detect-line
+    (state <s> ^operator <o> ^io <io>)
+    (<o> ^name find-line)
+    (<io> ^input-link <in>)
+    (<in> ^sensor-a > 75)
+    -->
+    (<s> ^found-line t)}
+
+
 sp {find-line*reconsider
     (state <s> ^operator <o>)
     (<o> ^name find-line)
