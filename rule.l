@@ -4,18 +4,32 @@
 %{
 #include "soar.h"
 #include "parser.h"
+#include "symtab.h"
 #include "y.tab.h"
 #include <stdlib.h>
+
+#define YY_DECL            \
+int yylex (yylval, parser) \
+    YYSTYPE* yylval;       \
+    struct parser* parser;
 %}
 
 ID [[:alpha:]]([[:alnum:]]|"-"|"_"|"*")*
 
 %%
 
-state|impasse yylval.context = yytext[0]; return CONTEXT;
-"<"{ID}">"    yylval.sym_constant = yytext; return VARIABLE;
-{ID}          yylval.sym_constant = yytext; return SYM_CONSTANT;
-[0-9]+        yylval.int_constant = atoi(yytext); return INT_CONSTANT;
+state|impasse yylval->context = yytext[0]; return CONTEXT;
+"<"{ID}">"    { yylval->symbol =
+                  symtab_lookup(parser->symtab,
+                                symbol_type_variable, 
+                                yytext, 1);
+                return VARIABLE; }
+{ID}          { yylval->symbol =
+                  symtab_lookup(parser->symtab,
+                                symbol_type_symbolic_constant,
+                                yytext, 1);
+                 return SYM_CONSTANT; }
+[0-9]+        yylval->int_constant = atoi(yytext); return INT_CONSTANT;
 "<<"          return LEFT_ANGLE;
 ">>"          return RIGHT_ANGLE;
 "<>"          return NOT_EQUAL;

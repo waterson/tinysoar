@@ -13,11 +13,14 @@
 
 #if YYDEBUG != 0
 extern void yyprint();
-#define YYPRINT(stream, token, lval) yyprint((stream), (token), (lval))
+#define YYPRINT(stream, token, lval) \
+    yyprint((struct parser*) yyparse_param, (stream), (token), (lval))
 #endif
 
 /* Prototypes to keep the compiler from whining */
 extern void yyerror(char*);
+
+#define YYLEX_PARAM yyparse_param
 extern int yylex(void);
 
 struct condition_list {
@@ -26,9 +29,10 @@ struct condition_list {
 };
 %}
 
+%pure_parser
+
 %union {
     char                context;
-    const char*         sym_constant;
     int                 int_constant;
     struct test         test;
     test_type_t         test_type;
@@ -55,8 +59,8 @@ struct condition_list {
 
 %token <context> CONTEXT
 
-%token <sym_constant> VARIABLE
-%token <sym_constant> SYM_CONSTANT
+%token <symbol> VARIABLE
+%token <symbol> SYM_CONSTANT
 
 %token <int_constant> INT_CONSTANT
 
@@ -399,12 +403,6 @@ relation: /* empty */
         ;
 
 single_test: VARIABLE
-           {
-               struct parser* parser =
-                   (struct parser*) yyparse_param;
-
-               $$ = symtab_lookup(parser->symtab, symbol_type_variable, $1, 1);
-           }
            | constant
            ;
 
@@ -437,9 +435,6 @@ rhs_action: '(' VARIABLE attr_value_make_list ')'
               struct parser* parser =
                   (struct parser*) yyparse_param;
 
-              symbol_t id =
-                  symtab_lookup(parser->symtab, symbol_type_variable, $2, 1);
-
               struct action* action = $3;
 
               /* At least one element must be specified in the
@@ -450,7 +445,7 @@ rhs_action: '(' VARIABLE attr_value_make_list ')'
               /* Fill in the `id' slot for each of the actions */
               for ( ; action != 0; action = action->next) {
                   action->id.type = rhs_value_type_symbol;
-                  action->id.val.symbol = id;
+                  action->id.val.symbol = $2;
               }
 
               $$ = $3;
@@ -589,12 +584,8 @@ preference_specifier: '+'
 
 rhs_value: VARIABLE
          {
-            struct parser* parser =
-                (struct parser*) yyparse_param;
-
              $$.type = rhs_value_type_symbol;
-             $$.val.symbol =
-                 symtab_lookup(parser->symtab, symbol_type_variable, $1, 1);
+             $$.val.symbol = $1;
          }
          | constant
          {
@@ -612,20 +603,26 @@ constants: /* empty */
          { $$ = 0; }
          | constants constant
          {
-             $$ = (struct symbol_list*) malloc(sizeof(struct symbol_list));
-             $$->symbol = $2;
-             $$->next = 0;
-             $1->next = $$;
+             struct symbol_list* new_entry =
+                 (struct symbol_list*) malloc(sizeof(struct symbol_list));
+
+             new_entry->symbol = $2;
+             new_entry->next = 0;
+
+             /* XXX do we care if these are maintained in order? */
+             if ($1) {
+                 struct symbol_list* entry = $1;
+                 while (entry->next)
+                     entry = entry->next;
+
+                 entry->next = new_entry;
+                 $$ = $1;
+             }
+             else $$ = new_entry;
          }
          ;
 
 constant: SYM_CONSTANT
-        {
-            struct parser* parser =
-                (struct parser*) yyparse_param;
-
-             $$ = symtab_lookup(parser->symtab, symbol_type_symbolic_constant, $1, 1);
-        }
         | INT_CONSTANT
         { MAKE_SYMBOL($$, symbol_type_integer_constant, $1); }
         ;
@@ -635,12 +632,14 @@ constant: SYM_CONSTANT
 
 #if YYDEBUG != 0
 void
-yyprint(FILE* stream, int token, YYSTYPE lval)
+yyprint(struct parser* parser, FILE* stream, int token, YYSTYPE lval)
 {
     switch (token) {
     case SYM_CONSTANT:
     case VARIABLE:
-        fprintf(stream, " `%s'", lval.sym_constant);
+        fprintf(stream, " `%s'",
+                symtab_find_name(parser->symtab, lval.symbol));
+
         break;
 
     default:
