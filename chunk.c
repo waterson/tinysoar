@@ -617,6 +617,7 @@ apply_restrictions(struct chunk                 *chunk,
 
                 *link = restriction->next;
                 free(restriction);
+                break;
             }
         }
     } while (restriction);
