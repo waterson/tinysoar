@@ -1,0 +1,33 @@
+package require TinySoar;
+
+sp {propose*flip*when-nothing
+    (state <s> ^superstate nil -^value <v>)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name flip)}
+
+sp {propose*flip*when-flop
+    (state <s> ^value flop)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name flip)}
+
+sp {implement*flip
+    (state <s> ^operator <o>)
+    (<o> ^name flip)
+    -->
+    (<s> ^value flop - ^value flip)}
+
+sp {propose*flop*when-flip
+    (state <s> ^value flip)
+    -->
+    (<s> ^operator <o> +)
+    (<o> ^name flop)}
+
+sp {implement*flop
+    (state <s> ^operator <o>)
+    (<o> ^name flop)
+    -->
+    (<s> ^value flip - ^value flop)}
+
+
