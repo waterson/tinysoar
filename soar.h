@@ -332,8 +332,8 @@ struct right_memory {
  */
 
 typedef enum relational_type {
-    relational_type_constant, /* XXX sign extension? */
-    relational_type_variable
+    relational_type_constant = 0,
+    relational_type_variable = -1
 } relational_type_t;
 
 #define BETA_TEST_FIELD_BITS   2

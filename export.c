@@ -250,6 +250,7 @@ preference_type_to_string(preference_type_t type)
     case preference_type_better:             return "preference_type_better";
     case preference_type_worse:              return "preference_type_worse";
     default:
+        break;
     }
 
     UNREACHABLE();
@@ -677,7 +678,7 @@ export_productions(FILE*             file,
 void
 export_symtab(FILE* file, struct symtab* symtab)
 {
-    int i;
+    unsigned i;
     for (i = 1; i < symtab->next_sym_constant; ++i) {
         symbol_t symbol;
         const char* name;
