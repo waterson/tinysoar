@@ -655,28 +655,31 @@ process_matches(struct agent* agent)
     agent->retractions = 0;
 
     /* Now process o-supported reject preferences. We'll simply clean
-       house on the slot, removing *every* preference there is. */
+       house on the slot, removing *every* preference there is with
+       the same value. */
     while (o_rejects) {
         struct preference* rejector = o_rejects;
         struct slot* slot = find_slot(agent, rejector->id, rejector->attr, 0);
-        struct preference* rejected = slot->preferences;
+        struct preference* pref = slot->preferences;
         struct preference** link = &slot->preferences;
 
-        while (rejected) {
-            struct preference* doomed = rejected;
-            *link = rejected->next_in_slot;
-            rejected = rejected->next_in_slot;
+        while (pref) {
+            struct preference* next = pref->next_in_slot;
 
-            if (rejected->support == support_type_architecture) {
-                /* You can't remove things the architecture puts in */
-                link = &rejected->next_in_slot;
-                continue;
-            }
+            /* Nuke the pref if it has the same value, and it's not
+               architecturally supported. */
+            if (SYMBOLS_ARE_EQUAL(pref->value, rejector->value) &&
+                (pref->support != support_type_architecture)) {
+                *link = next;
 
 #if 0 /* XXX leak! */
-            free(doomed); /* XXX ooh, not safe! need to unlink from
-                             instantiation, too. */
+                free(pref); /* XXX ooh, not safe! need to unlink from
+                                 instantiation, too. */
 #endif
+            }
+            else link = &pref->next_in_slot;
+
+            pref = next;
         }
 
         mark_slot_modified(agent, slot);
@@ -722,35 +725,37 @@ select_operator(struct agent* agent)
         struct slot* slot =
             find_slot(agent, goal->symbol, SYM(OPERATOR_CONSTANT), 0);
 
-        if (slot) {
-            struct wme* wme;
-            struct wme** link;
-            struct preference* pref;
+        struct wme* wme;
+        struct wme** link;
+        struct preference* pref;
 
-            /* Look for the operator */
-            for (wme = slot->wmes, link = &slot->wmes;
-                 wme != 0;
-                 link = &wme->next, wme = wme->next) {
-                if (wme->type == wme_type_normal)
-                    break;
-            }
+        /* If there's not even a slot, then there certainly is no
+           operator selected for this goal! */
+        if (! slot)
+            continue;
+
+        /* Look for the operator */
+        for (wme = slot->wmes, link = &slot->wmes;
+             wme != 0;
+             link = &wme->next, wme = wme->next) {
+            if (wme->type == wme_type_normal)
+                break;
+        }
 
 #ifdef DEBUG
-            /* Ensure there's only ever one operator selected! */
-            if (wme) {
-                struct wme* check;
-                for (check = wme->next; check != 0; check = check->next)
-                    ASSERT(check->type == wme_type_acceptable,
-                           ("more than one operator selected"));
-            }
+        /* Ensure there's only ever one operator selected! */
+        if (wme) {
+            struct wme* check;
+            for (check = wme->next; check != 0; check = check->next)
+                ASSERT(check->type == wme_type_acceptable,
+                       ("more than one operator selected"));
+        }
 #endif
 
-            /* If there's *no* selected operator, then we don't need
-               to worry about finding a reconsider preference for it;
-               move on to the next goal. */
-            if (! wme)
-                continue;
-
+        /* If there's selected operator, then we need to find a
+           reconsider preference for it to avoid an operator
+           no-change. */
+        if (wme) {
             /* Look for a reconsider preference */
             for (pref  = slot->preferences; pref != 0; pref = pref->next_in_slot) {
                 if (pref->type == preference_type_reconsider)
@@ -777,59 +782,51 @@ select_operator(struct agent* agent)
                 operator_no_change(agent, goal->symbol);
                 return 0;
             }
-        } 
-    }
+        }
 
-    /* Is a unique operator selected? */
-    for (goal = agent->goals; goal != 0; goal = goal->next) {
-        struct slot* slot = find_slot(agent, goal->symbol, SYM(OPERATOR_CONSTANT), 0);
+        /* Is a unique operator selected? */
+        for (wme = slot->wmes; wme != 0; wme = wme->next) {
+            if (wme->type == wme_type_acceptable)
+                break;
+        }
 
-        if (slot) {
-            struct wme* wme;
+        if (wme) {
+            /* At least one acceptable operator exists. Are there
+               more? */
+            struct wme* wme2;
 
-            for (wme = slot->wmes; wme != 0; wme = wme->next) {
-                if (wme->type == wme_type_acceptable)
+            for (wme2 = wme->next; wme2 != 0; wme2 = wme2->next) {
+                if (wme2->type == wme_type_acceptable)
                     break;
             }
 
-            if (wme) {
-                /* At least one acceptable operator exists. Are there
-                   more? */
-                struct wme* wme2;
-
-                for (wme2 = wme->next; wme2 != 0; wme2 = wme2->next) {
-                    if (wme2->type == wme_type_acceptable)
-                        break;
-                }
-
-                if (wme2) {
-                    return resolve_operator_tie(agent, goal->symbol);
+            if (wme2) {
+                return resolve_operator_tie(agent, goal->symbol);
+            }
+            else {
+                /* There is a unique acceptable operator */
+                if (goal->next) {
+                    /* We may have resolved an operator tie
+                       impasse */
                 }
                 else {
-                    /* There is a unique acceptable operator */
-                    if (goal->next) {
-                        /* We may have resolved an operator tie
-                           impasse */
-                    }
-                    else {
-                        struct wme* op = (struct wme*) malloc(sizeof(struct wme));
-                        op->slot  = slot;
-                        op->value = wme->value;
-                        op->type  = wme_type_normal;
-                        op->next  = slot->wmes;
-                        slot->wmes = op;
+                    struct wme* op = (struct wme*) malloc(sizeof(struct wme));
+                    op->slot  = slot;
+                    op->value = wme->value;
+                    op->type  = wme_type_normal;
+                    op->next  = slot->wmes;
+                    slot->wmes = op;
 
-                        rete_operate_wme(agent, op, wme_operation_add);
-                        return 1;
-                    }
+                    rete_operate_wme(agent, op, wme_operation_add);
+                    return 1;
                 }
             }
-            else if (! goal->next) {
-                /* No acceptable operators found in the bottom-most
-                   state; we're in a state no-change impasse */
-                state_no_change(agent, goal->symbol);
-                return 0;
-            }
+        }
+        else if (! goal->next) {
+            /* No acceptable operators found in the bottom-most
+               state; we're in a state no-change impasse */
+            state_no_change(agent, goal->symbol);
+            return 0;
         }
     }
 
