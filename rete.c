@@ -1349,10 +1349,12 @@ do_right_removal(struct agent* agent, struct beta_node* node, struct wme* wme)
 
     case beta_node_type_negative:
         {
-            struct token** link = &node->blocked;
-            struct token* token = *link;
+            struct token** link;
+            struct token* token;
 
-            while (token) {
+            for (link = &node->blocked, token = *link;
+                 token != 0;
+                 link = &token->next, token = *link) {
                 if (!node->data.tests || check_beta_tests(agent, node->data.tests, token, wme)) {
                     /* If there are no beta tests, or the beta tests
                        all pass, then this blocked token just became
