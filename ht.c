@@ -205,6 +205,7 @@ void
 ht_enumerate(struct ht *ht, ht_enumerator_t enumerator, void *closure)
 {
     int nbuckets = NBUCKETS(ht);
+    int newnbuckets = nbuckets;
     int i;
 
     for (i = nbuckets - 1; i >= 0; --i) {
@@ -223,6 +224,12 @@ ht_enumerate(struct ht *ht, ht_enumerator_t enumerator, void *closure)
                 *link = entry->next;
                 free(entry);
                 --ht->nentries;
+
+                if (ht->nentries < MIN_LOAD(newnbuckets)) {
+                    newnbuckets /= 2;
+                    ht->shift++;
+                }
+
                 break;
 
             default:
@@ -230,5 +237,17 @@ ht_enumerate(struct ht *ht, ht_enumerator_t enumerator, void *closure)
                 return;
             }
         }        
+    }
+
+    /* If the table has shrunk, rehash the remaining entries. */
+    if (nbuckets > newnbuckets) {
+        struct ht_entry_header **oldbuckets = ht->buckets;
+
+        ht->buckets = malloc(newnbuckets * sizeof(struct ht_entry_header *));
+        for (i = 0; i < newnbuckets; ++i)
+            ht->buckets[i] = 0;
+
+        rehash(ht, oldbuckets, nbuckets);
+        free(oldbuckets);
     }
 }
