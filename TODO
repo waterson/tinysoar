@@ -22,7 +22,15 @@
   on. That's bad.
 
   - Get rid of remaining use of bitfields in structures, and replace
-    with manual bit twiddling.
+    with manual bit twiddling.  Currently, only `struct wme' is using
+    bitfields.  The problem with `struct wme' is that there are two
+    bits that I need in addition to the three word-long fields (two of
+    which are pointers).  I could use the low bits of each of the two
+    pointers, but that makes list link handling more complicated
+    (e.g., `struct wme **link').  I could cram both bits into the
+    `slot' pointer, but that means I'll need to ensure four-byte
+    alignment on the RCX (currently, only two-byte alignment is all
+    that's needed).
 
   - Use generic list structure and remove duplicate code that's all
     over.

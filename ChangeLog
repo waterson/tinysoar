@@ -1,3 +1,11 @@
+2002-10-16  Chris Waterson  <waterson@maubi.net>
+
+	* agent.c, chunk.c, debug.c, soar.h, wmem.c:
+	  Get rid of bitfields in `struct preference'.
+
+	* agent.inc, chunk.c, debug.c, export.c, prod.c, rete.c, soar.h, tinysoar.c:
+	  Get rid of bitfields in `struct beta_test'.
+	
 2002-10-11  Chris Waterson  <waterson@maubi.net>
 
 	* chunk.c, TODO: Clean up comments.  In theory, justifications
