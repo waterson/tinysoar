@@ -133,6 +133,7 @@ tinysoar.so: tinysoar.c libtinysoar.a $(PARSER_LIBNAME) $(RUNTIME_LIBNAME) $(BAS
 LEGO_OBJS = \
 	lego.o \
 	alloc.o \
+	rcx.o \
 	$(NULL)
 
 lego: $(LEGO_OBJS) $(RUNTIME_LIBNAME) $(BASE_LIBNAME)
