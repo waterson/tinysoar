@@ -918,3 +918,38 @@ ignored during processing of the wmes in a slot.
 The zombies are removed from the slots when a goal is popped.
 
 ---
+
+The problem (well, one problem) with getting chunk-7.soar to work is
+that chunk-8.soar doesn't work. The problem I'm having with
+chunk-8.soar right appears to be getting the tokens ordered
+properly.  Specifically, I'm ending up with the tokens ordered
+something like this, after doing the parent/child sort:
+
+  token@0x2e440<parent=0x2e420 wme=wme@0x2fd50([1] ^operator [5] +)>
+  token@0x2e420<parent=0x2e3c0 wme=wme@0x2fd20([1] ^operator [6] +)>
+  token@0x2e460<parent=0x2e440 wme=wme@0x2fd00([6] ^name one)>
+  token@0x2e480<parent=0x2e460 wme=wme@0x2fce0([5] ^name two)>
+
+Now, if I look at the beta node associated with these tokens
+(token->node->parent), I see (ordered as above):
+
+  beta-node@0x260f0(tests={ value!=<1,value> id==<2,value> }> (* ^operator *)
+  beta-node@0x2a840(pos)<parent=0x2a7f0 tests={ id==<1,value> }> (* ^operator *)
+  beta-node@0x26160(pos)<parent=0x26130 tests={ id==<2,value> }> (* ^name one)
+  beta-node@0x261f0(pos)<parent=0x261a0 tests={ id==<2,value> }> (* ^name two)
+
+Note that the parent node of the first node (beta-node@0x260f0) is:
+
+  beta-node@0x260c0(m)<parent=0x2a840>
+
+In other words, we have a case where a child beta node appears before
+its parent in the sort.  So why didn't the token sorting take care of
+this?  Doh!  A quick inspection of the tokens above shows that the
+parent/child sort _didn't_ work.
+
+---
+
+The other problem with chunk-7.soar is that the dummy tokens that
+we've created for the ^item attributes don't have a reference back to
+the <> condition.  At least, that's what I thought the problem was a
+few days ago -- I'll need to check on that again.

@@ -9,10 +9,34 @@
 
 . Chunking:
 
+* - make chunk-8.soar work, then make chunk-7.soar work (pick up <> test).
   - figure out how to do bottom-up chunking (instead of all-goals)
   - figure out why the eight-puzzle isn't working
   - justifications
   - look for leaks
+
+. Think about getting rid of preferences (or working memory
+  elements). John pointed out that since Soar8 doesn't have
+  preferences for anything but the operator slot, it's overkill to
+  keep preferences around for _every_ slot.
+
+. The code has gotten too big to live on the RCX with chunking turned
+  on. That's bad.
+
+  - Get rid of remaining use of bitfields in structures, and replace
+    with manual bit twiddling.
+
+  - Use generic list structure and remove duplicate code that's all
+    over.
+
+. Make sure that the print_rule() stuff in tinysoar.c can handle tests
+  with multiple referents.
+
+. Get rid of `union' baloney for RETE structures to save space (i.e.,
+  we're dragging along a lot of empty fields). These should just use
+  poor-man's inheritance.
+
+. Somehow, wobble-2.soar is leaking memory.
 
 . Implement conjunctive negative conditions.
 
@@ -24,4 +48,3 @@
   mechanism to avoid busy-waiting (...but we're busy-waiting anyway
   with the |wait| operator).
 
-. Somehow, wobble-2.soar is leaking memory.

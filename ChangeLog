@@ -1,5 +1,21 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
+Saturday, August 17, 2002
+
+Finally unearthed the problem that was keeping chunk-8.soar from
+working: the post-collect token sorting was somehow broken. I changed
+the sort to happen on insertion, and chunk-8.soar started to work --
+yay!
+
+
+Tuesday, August 13, 2002
+
+Fixed some problems with print_rule and its descendants.  Fixed a
+problem with building on OS/X: .o files can't depend on the .deps
+directory, because directory mtime is updated whenever a file in the
+directory is touched.
+
+
 Wednesday, May 1, 2002
 
 Added code to properly maintain the goal level of each
