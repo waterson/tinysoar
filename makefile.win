@@ -77,7 +77,7 @@ defs.h:
         echo #define SIZEOF_INT 4 >> $@
 
 clean:
-        -del *.obj *.exe *.lib *.pdb *.ilk rule.output y.tab.* lex.yy.c *~
+        -del *.obj *.dll *.exp *.opt *.exe *.lib *.pdb *.ilk rule.output y.tab.* lex.yy.c .*~ *~
 
 distclean: clean
 	-del defs.h
