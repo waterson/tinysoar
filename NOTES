@@ -654,3 +654,10 @@ figure out how I'd do the simple case (i.e., pref returned whose
 dependencies still exist as proper tokens) first, anyway...
 
 
+---
+
+Been banging around with the Lego RCX recently. Discovered an odd bug
+with a test case (`tests/bumper.soar') that I need to work out:
+removing the |^superstate nil| condition from |prefer*drive-to-wait|
+causes the rule to never match. Urg.
+
