@@ -1,3 +1,7 @@
+2002-10-30  Chris Waterson  <waterson@maubi.net>
+
+	* configure.in: emacs now supports autoconf mode.
+
 2002-10-21  Chris Waterson  <waterson@maubi.net>
 
 	* rule.l, rule.y: Parse comments.
