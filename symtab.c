@@ -204,9 +204,18 @@ symtab_init(struct symtab* symtab)
     ++symtab->next_identifier;
 }
 
+static ht_enumerator_result_t
+symtab_entry_finalizer(struct ht_entry_header* header, void* closure)
+{
+    struct symtab_entry* entry =
+        (struct symtab_entry*) HT_ENTRY_DATA(header);
+
+    free(entry->name);
+    return ht_enumerator_result_delete;
+}
+
 void
 symtab_finish(struct symtab* symtab)
 {
-    /* XXX uh, needs to do a bit more than this */
-    ht_finish(&symtab->table);
+    ht_finish(&symtab->table, symtab_entry_finalizer, 0);
 }
