@@ -24,5 +24,3 @@
 
 (9) Implement semantic verification in rule.y.
 
-(11) Why isn't p8.soar's |propose*count*one| production matching?
-

@@ -665,6 +665,208 @@ process_rhs_value(struct rhs_value* value,
 }
 
 /*
+ * Add the variables from a single test to the list of visited variables
+ */
+static void
+add_variables_from_test(struct test* test, struct symbol_list** visited)
+{
+    switch (test->type) {
+    case test_type_blank:
+        return;
+
+    case test_type_equality:
+    case test_type_not_equal:
+    case test_type_less:
+    case test_type_greater:
+    case test_type_less_or_equal:
+    case test_type_greater_or_equal:
+    case test_type_same_type:
+    case test_type_goal_id:
+    case test_type_impasse_id:
+        if (GET_SYMBOL_TYPE(test->data.referent) == symbol_type_variable) {
+            struct symbol_list* entry;
+
+            /* Have we already added this variable to the visited list? */
+            for (entry = *visited; entry != 0; entry = entry->next) {
+                if (SYMBOLS_ARE_EQUAL(test->data.referent, entry->symbol))
+                    break;
+            }
+
+            if (! entry) {
+                /* Nope. */
+                entry = (struct symbol_list*) malloc(sizeof(struct symbol_list));
+
+                entry->symbol = test->data.referent;
+                entry->next = *visited;
+                *visited = entry;
+            }
+        }
+        break;
+
+    case test_type_conjunctive:
+    case test_type_disjunctive:
+        {
+            struct test_list* tests;
+            for (tests = test->data.conjuncts; tests != 0; tests = tests->next)
+                add_variables_from_test(&tests->test, visited);
+        }
+        break;
+    }
+}
+
+/*
+ * Add the variables from a condition to the list of visited variables
+ */
+static void
+add_variables_from(struct condition* cond, struct symbol_list** visited)
+{
+    ASSERT(cond->type == condition_type_positive, ("wrong type of condition"));
+    add_variables_from_test(&cond->data.simple.id_test, visited);
+    add_variables_from_test(&cond->data.simple.attr_test, visited);
+    add_variables_from_test(&cond->data.simple.value_test, visited);
+}
+
+/*
+ * Determine if all the variables in the specified test have been visited
+ */
+static bool_t
+all_variables_visited_in_test(struct test* test, struct symbol_list* visited)
+{
+    switch (test->type) {
+    case test_type_blank:
+        break;
+
+    case test_type_equality:
+    case test_type_not_equal:
+    case test_type_less:
+    case test_type_greater:
+    case test_type_less_or_equal:
+    case test_type_greater_or_equal:
+    case test_type_same_type:
+    case test_type_goal_id:
+    case test_type_impasse_id:
+        if (GET_SYMBOL_TYPE(test->data.referent) == symbol_type_variable) {
+            while (visited) {
+                if (SYMBOLS_ARE_EQUAL(visited->symbol, test->data.referent))
+                    return 1;
+
+                visited = visited->next;
+            }
+                
+            return 0;
+        }
+        break;
+
+    case test_type_conjunctive:
+    case test_type_disjunctive:
+        {
+            struct test_list* tests;
+            for (tests = test->data.conjuncts; tests != 0; tests = tests->next) {
+                if (! all_variables_visited_in_test(&tests->test, visited))
+                    return 0;
+            }
+        }
+        break;
+    }
+
+    return 1;
+}
+
+/*
+ * Determine if all the variables in the specified condition have been visited
+ */
+static bool_t
+all_variables_visited_in(struct condition* cond, struct symbol_list* visited)
+{
+    return all_variables_visited_in_test(&cond->data.simple.id_test, visited)
+        && all_variables_visited_in_test(&cond->data.simple.attr_test, visited)
+        && all_variables_visited_in_test(&cond->data.simple.value_test, visited);
+}
+
+/*
+ * Reorder the conditions of a production such that each negative
+ * condition appears after the positive conditions that bind variables
+ * which it refers to.
+ */
+static void
+reorder_conditions(struct production* p)
+{
+    struct condition** link = &p->conditions;
+    struct condition* cond = *link;
+    struct condition* deferred = 0;
+    struct symbol_list* visited = 0;
+
+    while (cond) {
+        switch (cond->type) {
+        case condition_type_positive:
+            {
+                struct condition** dlink = &deferred;
+                struct condition* d = *dlink;
+
+                add_variables_from(cond, &visited);
+
+                while (d) {
+                    /* For each deferred negative condition, see if
+                       we've now visited all the variables. If so, we
+                       can re-insert the condition into the condition
+                       list. */
+                    if (all_variables_visited_in(d, visited)) {
+                        *dlink = d->next;
+
+                        /* Insert the deferred condition _after_ the
+                           positive condition we just processed */
+                        d->next = cond->next;
+                        cond->next = d;
+
+                        /* XXX we'll re-process each of the negative
+                           conditions we've re-inserted the next time
+                           through the loop. Oh well. */
+                    }
+                    else {
+                        dlink = &d->next;
+                    }
+
+                    d = *dlink;
+                }
+            }
+            break;
+            
+        case condition_type_negative:
+            if (! all_variables_visited_in(cond, visited)) {
+                /* We haven't visited all of the variables in the
+                   negative condition, so it's possible that we might
+                   have a subsequent positive condition that binds the
+                   variable to a real value. Push the condition onto
+                   the ``deferred'' list */
+                *link = cond->next;
+
+                cond->next = deferred;
+                deferred = cond;
+
+                cond = *link;
+                continue;
+            }
+            break;
+
+        case condition_type_conjunctive_negation:
+            UNIMPLEMENTED();
+            break;
+        }
+
+        link = &cond->next;
+        cond = *link;
+    }
+
+    *link = deferred;
+
+    while (visited) {
+        struct symbol_list* doomed = visited;
+        visited = visited->next;
+        free(doomed);
+    }
+}
+
+/*
  * Add a production to the RETE network.
  */
 void
@@ -675,6 +877,10 @@ rete_add_production(struct agent* agent, struct production* p)
     struct condition* cond;
 
     struct variable_binding_list* bindings = 0;
+
+    /* Reorder conditions, demoting dependent negative conditions
+       after their dependencies */
+    reorder_conditions(p);
 
     /* Iterate through the conditions of the production, constructing the
        beta network as we do so. */
