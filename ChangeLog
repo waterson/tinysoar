@@ -1,5 +1,17 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
+Wednesday, January 9, 2002
+
+Fix lexer to grok signed integer constants. Swap type and value bits
+in symbol_t so that we handle signed integer constants correctly in
+other parts of the code. Streamline symbol bit monkeying a bit.
+
+----------------------------------------------------------------------
+
+Monday, December 31, 2001
+
+Release tinysoar-0.1.
+
 Thursday, December 20, 2001
 
 Take a first crack at implementing `.attr' notation.
