@@ -1,8 +1,9 @@
+#ifdef DEBUG
+
 #include <stdarg.h>
 #include <string.h>
 #include "config.h"
 
-#ifdef DEBUG
 #include <stdio.h>
 
 void
@@ -23,5 +24,6 @@ runtime_assert(const char *fmtstr, ...)
     asm("int $3");
 #endif
 }
-#endif
+
+#endif /* DEBUG */
 

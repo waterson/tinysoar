@@ -1,20 +1,33 @@
-CC = @CC@
-LEX = @LEX@
-YACC = @YACC@
-CFLAGS = @CFLAGS@ -Wall @DEFS@ -I@srcdir@ -I.
+# Substitutions from configure.
+srcdir	= @srcdir@
+VPATH	= @srcdir@
+AR	= @AR@
+RANLIB	= @RANLIB@
+CC	= @CC@
+LEX	= @LEX@
+YACC	= @YACC@
+CFLAGS	= @CFLAGS@ -Wall @DEFS@ -I$(srcdir) -I.
+INSTALL = @INSTALL@
 
-ifdef BUILD_OPT
-# Optimized
-CFLAGS += -O2 -UDEBUG -DNDEBUG
-else
-# Debug
-CFLAGS += -g -DDEBUG -UNDEBUG
-endif
+# ----------------------------------------------------------------------
+#
+# Top-level targets
+#
+
+all: tcl-extension
+
+clean:
+	rm -rf .deps tinysoar.so y.tab.* lex.yy.c *.o *.a core *~
+
+distclean: clean
+	rm -f Makefile config.cache config.log config.status defs.h
+
+# ----------------------------------------------------------------------
+#
+# Dependencies
+#
 
 MDDEPDIR=.deps
-
-srcdir=@srcdir@
-VPATH=@srcdir@
 
 %.o: %.c $(MDDEPDIR)
 	$(CC) -c $(CFLAGS) -Wp,-MD,$(MDDEPDIR)/$*.pp -o $@ $<
@@ -30,31 +43,61 @@ ifdef MDDEPFILES
 include $(MDDEPFILES)
 endif
 
-SHARED_OBJS = \
-	ht.o \
-	debug.o \
-	$(NULL)
+# ----------------------------------------------------------------------
+#
+# Other rules
+#
 
-RUNTIME_OBJS = \
-	alloc.o \
-	agent.o \
-	rete.o \
-	wmem.o \
-	$(NULL)
+%.a:
+	rm -f $@
+	$(AR) cr $@ $^
+	$(RANLIB) $@
 
-PARSER_OBJS = \
-	y.tab.o \
-	lex.yy.o \
-	prod.o \
-	symtab.o \
-	$(NULL)
+# ----------------------------------------------------------------------
+#
+# Basic stuff used everywhere.
+#
 
-TINYSOAR_OBJS = \
-	tinysoar.o \
-	export.o \
-	$(NULL)
+BASE		= base
+BASE_LIBNAME	= lib$(BASE).a
+BASE_OBJS 	= \
+		ht.o \
+		debug.o \
+		$(NULL)
 
-all: tinysoar.so
+$(BASE_LIBNAME): $(BASE_OBJS)
+
+# ----------------------------------------------------------------------
+#
+# Stuff specific to the Soar runtime.
+#
+
+RUNTIME		= rt
+RUNTIME_LIBNAME	= lib$(RUNTIME).a
+RUNTIME_OBJS 	= \
+		alloc.o \
+		agent.o \
+		rete.o \
+		wmem.o \
+		$(NULL)
+
+$(RUNTIME_LIBNAME): $(RUNTIME_OBJS)
+
+# ----------------------------------------------------------------------
+#
+# Stuff for the rule parser
+#
+
+PARSER		= parser
+PARSER_LIBNAME	= lib$(PARSER).a
+PARSER_OBJS	= \
+		y.tab.o \
+		lex.yy.o \
+		prod.o \
+		symtab.o \
+		$(NULL)
+
+$(PARSER_LIBNAME): $(PARSER_OBJS)
 
 y.tab.c: rule.y
 	$(YACC) -d $(srcdir)/rule.y
@@ -62,12 +105,20 @@ y.tab.c: rule.y
 lex.yy.c: rule.l
 	$(LEX) $(srcdir)/rule.l
 
-tinysoar.so: $(TINYSOAR_OBJS) $(PARSER_OBJS) $(RUNTIME_OBJS) $(SHARED_OBJS)
-	$(CC) -shared -o $@ $^ -ltcl
+# ----------------------------------------------------------------------
+#
+# A TCL extension for testing and development.
+#
 
-clean:
-	rm -rf .deps tinysoar.so y.tab.* lex.yy.c *.o core *~
+tcl-extension: tinysoar.so
 
-distclean: clean
-	rm -f Makefile config.cache config.log config.status defs.h
+TINYSOAR_OBJS = \
+	export.o \
+	$(NULL)
+
+libtinysoar.a: $(TINYSOAR_OBJS)
+
+tinysoar.so: tinysoar.c libtinysoar.a $(PARSER_LIBNAME) $(RUNTIME_LIBNAME) $(BASE_LIBNAME)
+	$(CC) $(CFLAGS) -shared -o $@ $< -ltcl -L. -ltinysoar -l$(PARSER) -l$(RUNTIME) -l$(BASE)
+	$(INSTALL) $(srcdir)/pkgIndex.tcl .
 

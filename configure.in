@@ -1,3 +1,4 @@
+dnl -*- Mode: m4 -*-
 AC_PREREQ(2.12)
 AC_INIT(soar.h)
 
@@ -5,15 +6,20 @@ dnl Deal with cross-compilation.
 if test "$target" = "$host"; then
   dnl We're doing a normal compile for the host architecture.
 
-  dnl Save the CFLAGS because AC_PROG_CC wants to gnu-ify them.
-  SAVE_CFLAGS=$CFLAGS
+  dnl By default, this'll give us `-g -O2'. Set CFLAGS if you want
+  dnl something else.
   AC_PROG_CC
-  CFLAGS=$SAVE_CFLAGS
+
+  AC_CHECK_PROG(AR, ar, ar, :)
+  AC_PROG_RANLIB
+  AC_PROG_INSTALL
 
   AC_CHECK_SIZEOF(int, 4)
 else
   dnl We're doing a cross-compile. I _thought_ AC_PROG_CC was supposed to
   dnl detect this sort of thing, but apparently it doesn't.
+  AR=${target}-ar
+  RANLIB=${target}-ranlib
   CC=${target}-gcc
   CPP="$CC -E"
 
@@ -47,7 +53,10 @@ dnl Checks for library functions.
 AC_FUNC_VPRINTF
 AC_CHECK_FUNC(printf, AC_DEFINE(HAVE_PRINTF))
 
+dnl ----------------------------------------------------------------------
+dnl
 dnl Configuration Options
+dnl
 
 RETE_CREATE="yes"
 AC_ARG_WITH(rete-create,
@@ -60,7 +69,9 @@ if test "$RETE_CREATE" = "yes"; then
   AC_DEFINE(CONF_SOAR_RETE_CREATE)
 fi
 
+AC_SUBST(AR)
 AC_SUBST(CC)
+AC_SUBST(RANLIB)
 
 AC_CONFIG_HEADER(defs.h)
 
