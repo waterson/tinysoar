@@ -159,8 +159,6 @@ struct instantiation {
  * Working Memory
  */
 
-struct wme;
-
 struct slot {
     symbol_t           id;
     symbol_t           attr;
@@ -208,8 +206,6 @@ typedef enum test_type {
     test_type_goal_id,
     test_type_impasse_id,
 } test_type_t;
-
-struct test_list;
 
 struct test {
     test_type_t type;
@@ -304,13 +300,10 @@ struct production {
 /*
  * RETE
  */
-struct beta_node;
 
 /*
  * Alpha Memory
  */
-
-struct right_memory;
 
 struct alpha_node {
     symbol_t id;
