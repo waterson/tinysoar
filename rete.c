@@ -267,7 +267,7 @@ ensure_alpha_node(struct rete* net, symbol_t id, symbol_t attr, symbol_t value, 
 static INLINE const variable_binding_t*
 find_bound_variable(const struct variable_binding_list* bindings, const symbol_t variable)
 {
-    while (bindings) {
+    for ( ; bindings != 0; bindings = bindings->next) {
         if (SYMBOLS_ARE_EQUAL(bindings->variable, variable))
             return &bindings->binding;
     }
@@ -377,7 +377,7 @@ process_test(struct rete* net,
             /* Fix up the variable referent's depth (which was stored
                as an `absolute depth' in the binding list) to be
                relative to the current depth of the test. */
-            beta_test->data.variable_referent.depth -= depth;
+            beta_test->data.variable_referent.depth = depth - beta_test->data.variable_referent.depth;
         }
         else {
             /* It's a constant. Install an alpha test if possible;
