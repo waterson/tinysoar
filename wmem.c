@@ -716,6 +716,8 @@ select_operator(struct agent* agent)
        operated been reconsidered? */
     struct symbol_list* goal;
 
+    ASSERT(agent->goals != 0, ("empty goal stack"));
+
     for (goal = agent->goals; goal != 0; goal = goal->next) {
         struct slot* slot =
             find_slot(agent, goal->symbol, SYM(OPERATOR_CONSTANT), 0);
@@ -817,7 +819,7 @@ select_operator(struct agent* agent)
                         op->next  = slot->wmes;
                         slot->wmes = op;
 
-                        rete_operate_wme(agent, wme, wme_operation_add);
+                        rete_operate_wme(agent, op, wme_operation_add);
                         return 1;
                     }
                 }
@@ -831,7 +833,8 @@ select_operator(struct agent* agent)
         }
     }
 
-    UNREACHABLE();
+    /* XXX is this right? */
+    state_no_change(agent, agent->goals->symbol);
     return 0;
 }
 
