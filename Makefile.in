@@ -131,16 +131,16 @@ tinysoar.so: tinysoar.c libtinysoar.a $(PARSER_LIBNAME) $(RUNTIME_LIBNAME) $(BAS
 #
 
 LEGO_OBJS = \
-	alloc.o \
 	lego.o \
+	alloc.o \
 	$(NULL)
 
 lego: $(LEGO_OBJS) $(RUNTIME_LIBNAME) $(BASE_LIBNAME)
 	$(CC) $(LEGO_OBJS) -nostdlib -Wl,-Map -Wl,lego.map -Wl,-T$(srcdir)/h8300.lds -o $@ -L. -l$(RUNTIME) -l$(BASE) -lgcc
 
 LEGO_SIM_OBJS = \
-	alloc.o \
 	lego-sim.o \
+	alloc.o \
 	$(NULL)
 
 lego-sim: $(LEGO_SIM_OBJS) $(RUNTIME_LIBNAME) $(BASE_LIBNAME)
