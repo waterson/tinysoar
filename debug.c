@@ -66,6 +66,8 @@ runtime_assert(const char *fmtstr, ...)
     __asm { int 3 };
 #elif defined(__GNUC__) && defined(__i386)
     asm("int $3");
+#else
+    abort();
 #endif
 }
 
