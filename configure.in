@@ -83,8 +83,39 @@ if test "$target" = "$host"; then
     AC_MSG_ERROR([tcl.h is required to build the Tcl extension.])
   fi
 
+  dnl Deal with finding the Tcl library.
+  AC_CHECK_PROG(TCLSH, tclsh, tclsh, :)
+
+  AC_MSG_CHECKING([Tcl version])
+  changequote(, )dnl
+  TCL_VERSION=`echo "puts [info tcl]" | $TCLSH`
+  changequote([, ])dnl
+  AC_MSG_RESULT([$TCL_VERSION])
+
+  AC_SUBST(TCL_VERSION)
+
+  if test -z "$LIB_TCLSTUB"; then
+    AC_CHECK_LIB(tclstub, Tcl_InitStubs, LIB_TCLSTUB=-ltclstub, LIB_TCLSTUB=)
+  fi
+
+  if test -z "$LIB_TCLSTUB"; then
+    AC_CHECK_LIB(tclstub$TCL_VERSION, Tcl_InitStubs, LIB_TCLSTUB=-ltclstub$TCL_VERSION, LIB_TCLSTUB=)
+  fi
+
+  if test -z "$LIB_TCLSTUB"; then
+    AC_MSG_ERROR([Could not find tclstub library; please specify LIB_TCLSTUB.])
+  fi
+
+  AC_SUBST(LIB_TCLSTUB)
+
   dnl Handle platform-specific issues.
   case "$target" in
+  *-darwin6.1)
+        CFLAGS="$CFLAGS -fno-common -arch ppc"
+        DSO_LDOPTS="-dynamiclib"
+        DSO_SUFFIX=dylib
+        ;;
+
   *-darwin*)
         CFLAGS="$CFLAGS -fno-common -arch ppc"
         DSO_LDOPTS="-bundle"
