@@ -695,7 +695,7 @@ make_production(struct agent           *agent,
     }
 
 #ifdef DEBUG_CHUNKING
-    debug_dump_beta_node(&symtab, agent->root_node->children, 0, 1);
+    debug_dump_beta_node(&symtab, agent->root_node->children, 0, 1, 1);
 #endif
 }
 

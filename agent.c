@@ -604,12 +604,15 @@ agent_pop_subgoals(struct agent *agent, struct goal_stack *bottom)
 {
     struct goal_stack *goal;
     struct wmem_sweep_data gc = { agent, 1 };
+#ifdef CONF_SOAR_CHUNKING
+    struct token *queue = 0;
+#endif
 
     ASSERT(bottom != 0, ("no subgoals to pop"));
 
 #ifdef CONF_SOAR_CHUNKING
     /* Clear the `shared' bit on tokens below the bottom. */
-    for (goal = bottom; goal != 0; goal = goal->next) {
+    for (goal = bottom->next; goal != 0; goal = goal->next) {
         struct instantiation *inst;
         for (inst = goal->instantiations; inst != 0; inst = inst->next) {
             struct token *token;
@@ -672,7 +675,7 @@ agent_pop_subgoals(struct agent *agent, struct goal_stack *bottom)
 #ifdef DEBUG
             printf("  %s\n", doomed->production->name);
 #endif
-            wmem_remove_instantiation(agent, doomed->data.instantiation, 1);
+            wmem_remove_instantiation(agent, doomed->data.instantiation, &queue);
 
             agent->retractions = doomed->next;
             free(doomed);
@@ -693,12 +696,19 @@ agent_pop_subgoals(struct agent *agent, struct goal_stack *bottom)
 
         while (inst) {
             struct instantiation *next = inst->next;
-            wmem_remove_instantiation(agent, inst, 1);
+            wmem_remove_instantiation(agent, inst, &queue);
             inst = next;
         }
 
         goal = goal->next;
     } while (goal);
+
+    /* Clean up unreachable tokens. */
+    while (queue) {
+        struct token *doomed = queue;
+        queue = queue->next;
+        free(doomed);
+    }
 #endif /* CONF_SOAR_CHUNKING */
 
     /* Cut the subgoals loose. We do this last so that all of the wme

@@ -899,17 +899,32 @@ token_is_reachable(struct token *doomed)
 #endif
 
 /*
- * `Un-instantiate' a production.
+ * `Un-instantiate' a production. The `queue' is an optional
+ * parameter. When set (which is the case when popping a subgoal), we
+ * treat this as a `finalization' pass. We unconditionally remove the
+ * preferences associated with the instantiation, and place the
+ * instantiation's `unshared' tokens (i.e., no longer reachable from a
+ * live instantiation or from an instantiation that may need to be
+ * backtraced) onto the queue for destruction. We can't immediately
+ * destroy a token because it may be reachable from another
+ * instantiation that is going to be finalized.
+ *
+ * If unset (as is the case when an instantiation is retracted
+ * `normally'), then we'll save the preferences and tokens associated
+ * with the instantiation if the instantiation is needed for
+ * backtracing. We detect this situation by testing the
+ * instantiation's token field: this is cleared in do_left_removal if
+ * there is no need to keep the instantiation for backtracing.
  */
 void
-wmem_remove_instantiation(struct agent         *agent,
-                          struct instantiation *inst,
-                          bool_t                final)
+wmem_remove_instantiation(struct agent          *agent,
+                          struct instantiation  *inst,
+                          struct token         **queue)
 {
     bool_t save;
 
 #ifdef CONF_SOAR_CHUNKING
-    if (! final) {
+    if (! queue) {
         /* Determine if we need to save the instantiation for
            backtracing. We'll know this if ownership of the tokens has
            been transferred to the instantiation; i.e., its `token'
@@ -936,7 +951,7 @@ wmem_remove_instantiation(struct agent         *agent,
             }
         }
 
-        ASSERT(final || doomed, ("couldn't find instantiation"));
+        ASSERT(queue || doomed, ("couldn't find instantiation"));
     }
 
     /* Remove all the i-supported preferences associated with the
@@ -981,18 +996,26 @@ wmem_remove_instantiation(struct agent         *agent,
             /* Kill the tokens. */
             struct token *token = inst->token;
             do {
-                struct token *doomed;
+                struct token *parent = token->parent;
 
                 /* If this is a `real' token, and it's shared or is
                    reachable from the rete network, we're done. */
                 if (token->node) {
-                    if (token->shared || token_is_reachable(token))
+                    if (token->shared || token->next || token_is_reachable(token))
                         break;
                 }
 
-                doomed = token;
-                token = token->parent;
-                free(doomed);
+                /* Thread the token onto the queue of tokens to be
+                   destroyed, or just destroy it if we aren't queuing
+                   token destruction. */
+                if (queue) {
+                    token->next = *queue;
+                    *queue = token;
+                }
+                else
+                    free(token);
+
+                token = parent;
             } while (token && token != &agent->root_token);
         }
 

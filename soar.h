@@ -661,7 +661,9 @@ extern void
 wmem_enumerate_wmes(struct agent *agent, wme_enumerator_t enumerator, void *closure);
 
 extern void
-wmem_remove_instantiation(struct agent *agent, struct instantiation *inst, bool_t final);
+wmem_remove_instantiation(struct agent          *agent,
+                          struct instantiation  *inst,
+                          struct token         **queue);
 
 struct wmem_sweep_data {
     struct agent *agent;
@@ -719,7 +721,11 @@ void
 debug_dump_rhs_value(struct symtab *symtab, struct rhs_value *value);
 
 void
-debug_dump_beta_node(struct symtab *symtab, struct beta_node *node, int nest, int recur);
+debug_dump_beta_node(struct symtab    *symtab,
+                     struct beta_node *node,
+                     int               nest,
+                     int               recur,
+                     int               tokens);
 
 void
 debug_dump_alpha_node(struct symtab *symtab, struct alpha_node *alpha, bool_t acceptable);

@@ -452,8 +452,8 @@ do_left_removal(struct agent     *agent,
     case beta_node_type_negative: {
         struct token *doomed, **link;
 
-        /* First see if this was a ``blocked'' token, in which
-           case its removal will have no side effects */
+        /* First see if this was a `blocked' token, in which case its
+           removal will have no side effects */
         for (link = &node->blocked; (doomed = *link) != 0; link = &doomed->next) {
             if ((doomed->wme == wme) && (doomed->parent == token)) {
                 *link = doomed->next;
@@ -1011,7 +1011,7 @@ rete_dump(struct agent *agent, struct symtab *symtab)
     }
 
     printf("\nBETA NETWORK\n");
-    debug_dump_beta_node(symtab, agent->root_node, 0, 1);
+    debug_dump_beta_node(symtab, agent->root_node, 0, 1, 1);
     printf("\n");
 }
 #endif
