@@ -1127,7 +1127,7 @@ do_left_removal(struct agent* agent,
                 if ((match->data.token->wme == wme) &&
                     tokens_are_equal(match->data.token->parent, token)) {
                     /* Yep. Remove from the assertion queue */
-                    (*link)->next = match->next;
+                    *link = match->next;
                     free(match);
                     break;
                 }
@@ -1138,13 +1138,21 @@ do_left_removal(struct agent* agent,
                  inst != 0;
                  inst = inst->next) {
                 if (inst->token->wme == wme /* XXX sufficient? */) {
-                    /* Gotcha. Allocate a new match and place on the
-                       retraction queue */
-                    match = (struct match*) malloc(sizeof(struct match));
-                    match->data.instantiation = inst;
-                    match->production = node->data.production;
-                    match->next = agent->retractions;
-                    agent->retractions = match;
+                    /* See if this match is already on the retraction queue */
+                    for (match = agent->retractions; match != 0; match = match->next) {
+                        if (match->data.instantiation = inst)
+                            break;
+                    }
+
+                    if (! match) {
+                        /* Gotcha. Allocate a new match and place on the
+                           retraction queue */
+                        match = (struct match*) malloc(sizeof(struct match));
+                        match->data.instantiation = inst;
+                        match->production = node->data.production;
+                        match->next = agent->retractions;
+                        agent->retractions = match;
+                    }
                 }
             }
         }
