@@ -41,5 +41,5 @@ clean:
 	rm -rf .deps rete-test *.o *~
 
 distclean: clean
-	rm -f config.cache config.log config.status config-defs.h
+	rm -f Makefile config.cache config.log config.status config-defs.h
 
