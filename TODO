@@ -9,7 +9,8 @@
 
 . Chunking:
 
-* - make chunk-8.soar work, then make chunk-7.soar work (pick up <> test).
+* - make chunk-7.soar work (pick up <> test) now that chunk-8.soar works.
+  - make chunk-6.soar not crash on OS/X.
   - figure out how to do bottom-up chunking (instead of all-goals)
   - figure out why the eight-puzzle isn't working
   - justifications

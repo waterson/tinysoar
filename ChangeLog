@@ -7,6 +7,9 @@ working: the post-collect token sorting was somehow broken. I changed
 the sort to happen on insertion, and chunk-8.soar started to work --
 yay!
 
+Added arbitrary post-conditions so that we could start regression
+testing chunks.
+
 
 Tuesday, August 13, 2002
 
