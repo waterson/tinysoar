@@ -558,6 +558,13 @@ extern int
 rete_get_instantiation_level(struct agent         *agent,
                              struct instantiation *inst);
 
+struct alpha_node *
+rete_find_alpha_node(struct agent *agent,
+                     symbol_t      id,
+                     symbol_t      attr,
+                     symbol_t      value,
+                     wme_type_t    type);
+
 extern void
 rete_finish(struct agent *agent);
 

@@ -127,31 +127,6 @@ beta_tests_are_identical(struct beta_test *left, struct beta_test *right)
 }
 
 /*
- * Find an existing alpha node that is appropriate for testing the
- * specified fields.
- *
- * Corresponds to find_alpha_mem() in rete.c from Soar8.
- */
-static struct alpha_node *
-find_alpha_node(struct agent *agent,
-                symbol_t      id,
-                symbol_t      attr,
-                symbol_t      value,
-                wme_type_t    type)
-{
-    struct alpha_node *node =
-        agent->alpha_nodes[get_alpha_test_index(id, attr, value, type)];
-
-    for ( ; node != 0; node = node->siblings) {
-        if (SYMBOLS_ARE_EQUAL(id, node->id) &&
-            SYMBOLS_ARE_EQUAL(attr, node->attr) &&
-            SYMBOLS_ARE_EQUAL(value, node->value))
-            return node;
-    }
-    return 0;
-}
-
-/*
  * Add existing WMEs to the alpha node when a new alpha node is
  * created.
  */
@@ -178,7 +153,7 @@ ensure_alpha_node(struct agent *agent,
 {
     struct alpha_node *result;
 
-    if (! (result = find_alpha_node(agent, id, attr, value, type))) {
+    if (! (result = rete_find_alpha_node(agent, id, attr, value, type))) {
         struct alpha_node **head =
             &agent->alpha_nodes[get_alpha_test_index(id, attr, value, type)];
 
@@ -199,10 +174,10 @@ ensure_alpha_node(struct agent *agent,
         CLEAR_SYMBOL(nil);
 
         if (! SYMBOL_IS_NIL(id))
-            more_general_node = find_alpha_node(agent, nil, attr, value, type);
+            more_general_node = rete_find_alpha_node(agent, nil, attr, value, type);
 
         if (! more_general_node && ! SYMBOL_IS_NIL(value))
-            more_general_node = find_alpha_node(agent, nil, attr, nil, type);
+            more_general_node = rete_find_alpha_node(agent, nil, attr, nil, type);
 
         if (more_general_node) {
             /* Found a more general working memory; use it to fill in
@@ -571,8 +546,8 @@ ensure_positive_condition_node(struct agent                  *agent,
            identical beta tests. */
         for (result = memory_node->children; result != 0; result = result->siblings) {
             if ((result->type == beta_node_type_positive_join)
-                && (find_alpha_node(agent, alpha_id, alpha_attr,
-                                    alpha_value, cond->acceptable)
+                && (rete_find_alpha_node(agent, alpha_id, alpha_attr,
+                                         alpha_value, cond->acceptable)
                     == result->alpha_node)
                 && beta_tests_are_identical(result->data.tests, tests)) {
                 break;
@@ -651,8 +626,8 @@ ensure_negative_condition_node(struct agent                  *agent,
        beta tests. */
     for (result = parent->children; result != 0; result = result->siblings) {
         if ((result->type == beta_node_type_negative)
-            && (find_alpha_node(agent, alpha_id, alpha_attr,
-                                alpha_value, cond->acceptable)
+            && (rete_find_alpha_node(agent, alpha_id, alpha_attr,
+                                     alpha_value, cond->acceptable)
                 == result->alpha_node)
             && beta_tests_are_identical(result->data.tests, tests))
             break;
