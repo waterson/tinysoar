@@ -745,26 +745,27 @@ run_operator_semantics_on(struct agent*        agent,
     struct symbol_list* conflicted = 0;
     struct symbol_list* dominated = 0;
     struct symbol_list* candidate;
-    struct symbol_list** link;
     bool_t bests = 0;
     bool_t worsts = 0;
     symbol_t nil;
 
     CLEAR_SYMBOL(nil);
 
-    /* Collect conflicted and dominated candidates */
-    for (link = candidates, candidate = *link;
-         candidate != 0;
-         link = &candidate->next, candidate = *link) {
+    /* Collect dominated candidates and detect trivial conflicts. */
+    for (candidate = *candidates; candidate != 0; candidate = candidate->next) {
         struct preference* p;
         for (p = preferences; p != 0; p = p->next_in_slot) {
             if ((p->type == preference_type_better || p->type == preference_type_worse)
                 && SYMBOLS_ARE_EQUAL(p->value, candidate->symbol)) {
                 struct symbol_list* referent;
+                struct preference* q;
+
+                /* Iterate through the candidates again to see which
+                   referent is dominated (or dominates us). */
                 for (referent = *candidates; referent != 0; referent = referent->next) {
                     struct symbol_list* entry;
 
-                    /* A candidate cannot conflict or dominate itself. */
+                    /* A candidate cannot dominate itself. */
                     if (SYMBOLS_ARE_EQUAL(candidate->symbol, referent->symbol))
                         continue;
 
@@ -781,42 +782,84 @@ run_operator_semantics_on(struct agent*        agent,
 
                     entry->next = dominated;
                     dominated = entry;
+                }
 
-                    if (SYMBOLS_ARE_EQUAL(p->referent, referent->symbol)) {
-                        struct preference* q;
-                        for (q = preferences; q != 0; q = q->next_in_slot) {
-                            /* XXX figure out if any are conflicted */
+                /* Iterate through the preferences to see if any of
+                   the ``better'' or ``worse'' preferences
+                   conflict. */
+                for (q = preferences; q != 0; q = q->next_in_slot) {
+                    /* A preference can't conflict itself. */
+                    if (p == q)
+                        continue;
+
+                    if (q->type == preference_type_better || q->type == preference_type_worse) {
+                        /* If |q| is a ``better'' or ``worse''
+                           preference, then it may conflict.
+
+                           Specifically, if it's the same type of
+                           preference as |p|, but the value and
+                           referent are swapped, it will conflict
+                           (e.g., 1 > 2 and 2 > 1).
+
+                           Alternatively, if |q|'s type is opposite
+                           that of |p|, and both preferences have the
+                           same value and referent, it will conflict
+                           (e.g., 1 > 2 and 1 < 2).
+
+                           XXX Note that this fails to detect
+                           non-trivial conflicts! */
+                        if ((SYMBOLS_ARE_EQUAL(p->referent, q->value)
+                             && SYMBOLS_ARE_EQUAL(q->referent, p->value)
+                             && (p->type == q->type))
+                            || (SYMBOLS_ARE_EQUAL(p->value, q->value)
+                                && SYMBOLS_ARE_EQUAL(p->referent, q->referent)
+                                && (p->type != q->type))) {
+                            /* Conflict! Add both |p| and |q| to the
+                               conflicted set if they've not been
+                               added already. */
+                            struct symbol_list* entry;
+
+                            for (entry = conflicted; entry != 0; entry = entry->next) {
+                                if (SYMBOLS_ARE_EQUAL(entry->symbol, p->value))
+                                    break;
+                            }
+
+                            if (! entry) {
+                                entry = (struct symbol_list*) malloc(sizeof(struct symbol_list));
+                                entry->symbol = p->value;
+                                entry->next = conflicted;
+                                conflicted = entry;
+                            }
+
+                            for (entry = conflicted; entry != 0; entry = entry->next) {
+                                if (SYMBOLS_ARE_EQUAL(entry->symbol, q->value))
+                                    break;
+                            }
+
+                            if (! entry) {
+                                entry = (struct symbol_list*) malloc(sizeof(struct symbol_list));
+                                entry->symbol = q->value;
+                                entry->next = conflicted;
+                                conflicted = entry;
+                            }
                         }
                     }
                 }
             }
             else if (p->type == preference_type_best) {
-                /* Remember we've seen a best preference. */
+                /* Remember we've seen a ``best'' preference. */
                 bests = 1;
             }
             else if (p->type == preference_type_worst) {
-                /* Remember we've seen a worst preference. */
+                /* Remember we've seen a ``worst'' preference. */
                 worsts = 1;
             }
         }
     }
 
-    if (conflicted) {
-        /* If there are conflicted candidates, then create an
-           operator-conflict impasse. */
-        agent_operator_conflict(agent, goal, conflicted);
-        
-        while (conflicted) {
-            struct symbol_list* doomed = conflicted;
-            conflicted = conflicted->next;
-            free(doomed);
-        }
-
-        return nil;
-    }
-
-    /* No conflicts, so remove dominated candidates from the
-       candidate list. */
+    /* Remove dominated candidates from the candidate list. If we've
+       got conflicts, then doing this is a bit of a waste of time;
+       however, it properly cleans up the |dominated| list. */
     while (dominated) {
         struct symbol_list* doomed = dominated;
         struct symbol_list** link = candidates;
@@ -837,18 +880,34 @@ run_operator_semantics_on(struct agent*        agent,
         free(doomed);
     }
 
-    /* If we have any ``best'' candidates, cull out all others and
-       we'll just choose from amongst those. Similarly, if we have
-       any ``worst'' candidates, cull them out as well.
+    if (conflicted) {
+        /* If there are conflicted candidates, then create an
+           operator-conflict impasse. */
+        agent_operator_conflict(agent, goal, conflicted);
+        
+        while (conflicted) {
+            struct symbol_list* doomed = conflicted;
+            conflicted = conflicted->next;
+            free(doomed);
+        }
+
+        return nil;
+    }
+
+    /* If we get here, then we've got no conflicts. If we have any
+       ``best'' candidates, cull out all others and we'll just choose
+       from amongst those.
+
+       Conversely, if we have any ``worst'' candidates, cull them out
+       as well.
 
        XXX this logic is pretty much the same as what appears in
-       Soar8's decide.c; however, Soar8 ends up with an
-       operator-tie if two worst preferences are proposed. I
-       suspect we'll end up with a state no-change. */
+       Soar8's decide.c; however, Soar8 ends up with an operator-tie
+       if two worst preferences are proposed. We'll end up culling out
+       all the ``worst'' candidates. */
     if (bests || worsts) {
-        link = candidates;
-        candidate = *link;
-        while (candidate) {
+        struct symbol_list** link;
+        for (link = candidates, candidate = *link; candidate != 0; candidate = *link) {
             bool_t best = 0;
             bool_t worst = 0;
             struct preference* p;
@@ -867,14 +926,21 @@ run_operator_semantics_on(struct agent*        agent,
             }
             else
                 link = &candidate->next;
-
-            candidate = *link;
         }
     }
 
-    /* Are all the candidates we've got left indifferent? */
+    /* We'd better have some candidates left! */
     ASSERT(*candidates != 0, ("culled too many candidates"));
 
+    if (! *candidates) {
+        /* Punt and drop into a state no-change. This can occur when
+           we have a non-trivial conflict, and this is how Soar8
+           handles it. */
+        agent_state_no_change(agent, goal);
+        return nil;
+    }
+
+    /* Are the remaining candidates all ``indifferent'' to one another? */
     for (candidate = *candidates; candidate != 0; candidate = candidate->next) {
         struct preference* p;
         for (p = preferences; p != 0; p = p->next_in_slot) {

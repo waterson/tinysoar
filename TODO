@@ -19,12 +19,8 @@
 (15) Fix operator preference semantics s.t. multiple ``worst''
      operators don't end up getting culled.
 
-(16) Fix operator preference semantics s.t. conflicting ``better''
-     preferences actually end up creating an operator conflict
-     impasses.
+(17) Fix architecture s.t. operator tie (and operator conflict, and
+     operator no-change) doesn't repeatedly fire in the top-state.
 
-(17) Fix architecture s.t. operator tie doesn't repeatedly fire in the
-     top-state.
-
-(18) Implement operator conflict detection. It's no-op'd now!
-
+(18) Figure out why ops-7.soar is failing: two well ordered
+     productions, but a third unordered, should cause an operator-tie.
