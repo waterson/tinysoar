@@ -234,14 +234,7 @@ check_beta_test(struct agent     *agent,
         break;
 
     case test_type_goal_id:
-        {
-            struct symbol_list *goal;
-            for (goal = agent->goals; goal != 0; goal = goal->next) {
-                if (SYMBOLS_ARE_EQUAL(goal->symbol, wme->slot->id))
-                    return 1;
-            }
-        }
-        break;
+        return agent_is_goal(agent, wme->slot->id);
 
     case test_type_disjunctive:
         {

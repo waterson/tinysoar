@@ -823,3 +823,55 @@ sp {chunk-1*d2*snochange*1
     -->
     (<s1> ^blar blot +)
 }
+
+---
+
+I think I have a better picture of how chunking works now.
+
+`Grounds' are the conditions of the chunk. Initially, this is set to
+only the condition that tested a goal identifier above the grounds
+level. It is then immediately `fanned out' through identifiers that
+are immediately reachable via the instantiation's conditions; i.e.,
+identifiers that are reachable via the conditions from the goal
+identifier.
+
+`Potentials' are conditions that tested WMEs from a higher goal level,
+but are not immediately reachable from a goal. Note that the level at
+which a condition matched is stored in the condition itself at the
+time that the match is instantiated.  Presumably this is done because
+a WME could later be promoted, skewing this specific test. The
+implication on the implementation that I'm thinking about
+(`backtracing' using the RETE network directly) would seem to be that
+we may need to store the `match level' in the token itself.
+
+`Locals' are conditions that are neither of the above. In other words,
+they tested identifiers from the current goal level.
+
+The function `trace_locals' works something like this. For each of the
+conditions in the `locals' set, it looks at the preference that
+created the WME that the condition matched. If the preference was
+`created at the current level', then we need to recursively backtrace
+through the instantation that created _it_. Otherwise, if the
+condition tests `^quiescence t', we set some flags so that no chunk is
+built. Otherwise, the condition tests a WME that was created from a
+preference that was `created at a higher level'. So, we'll move the
+condition to the `potentials' set.
+
+The function `trace_grounded_potentials' examines all of the
+`potentials' to see if any of them have become reachable from the
+`grounds' set. Those that have are removed from the potentials set and
+added to the grounds set.
+
+The function `trace_ungrounded_potentials' examines each of the
+conditions in the `potentials' set. For each condition, it looks at
+the preference that created the WME that the condition matched. If the
+preference was `created at the current level', then we recursively
+backtrace through the instantiation that created it. (Just like
+trace_locals, above.)
+
+To compute the grounds, we trace_locals, trace_grounded_potentials,
+and then trace_ungrounded_potentials until there are no ungrounded
+potentials left to backtrace. So the algorithm basically marks all the
+known conditions that constitute the LHS of the chunk, and then walks
+backwards through the locals and ungrounded potentials until a
+connection is made to the grounds, or no more backtracing can be done.

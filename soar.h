@@ -177,20 +177,20 @@ typedef enum support_type {
 } support_type_t;
 
 struct preference {
-    struct slot       *slot;
-    struct preference *next_in_slot;
-    struct preference *next_in_instantiation;
-    struct preference *prev_in_instantiation; /* XXX should be a back-pointer to the instantiation */
-    preference_type_t  type    : PREFERENCE_TYPE_BITS;
-    support_type_t     support : SUPPORT_TYPE_BITS;
-    symbol_t           value;
-    symbol_t           referent;
+    struct slot          *slot;
+    struct preference    *next_in_slot;
+    struct preference    *next_in_instantiation;
+    struct instantiation *instantiation;
+    preference_type_t     type    : PREFERENCE_TYPE_BITS;
+    support_type_t        support : SUPPORT_TYPE_BITS;
+    symbol_t              value;
+    symbol_t              referent;
 };
 
 struct instantiation {
     struct production    *production;
     struct token         *token;
-    struct preference     preferences;
+    struct preference    *preferences;
     struct instantiation *next;
 };
 
@@ -489,6 +489,15 @@ struct match {
 /* ---------------------------------------------------------------------- */
 
 /*
+ * The agent's goal stack.
+ */
+struct goal_stack {
+    symbol_t              symbol;
+    struct instantiation *instantiations;
+    struct goal_stack    *next;
+};
+
+/*
  * An `agent', which is everything that's needed to maintain the state
  * of a Soar process.
  */
@@ -502,7 +511,7 @@ struct agent {
     struct beta_node   *root_node;
     struct token        root_token;
     struct alpha_node  *alpha_nodes[16];
-    struct symbol_list *goals;
+    struct goal_stack  *goals;
     struct match       *assertions;
     struct match       *retractions;
 
@@ -566,19 +575,22 @@ extern void
 agent_elaborate(struct agent *agent);
 
 extern void
-agent_state_no_change(struct agent *agnet, symbol_t goal);
+agent_state_no_change(struct agent *agnet, symbol_t superstate);
 
 extern void
-agent_operator_no_change(struct agent *agent, symbol_t goal);
+agent_operator_no_change(struct agent *agent, symbol_t superstate);
 
 extern void
-agent_operator_conflict(struct agent *agent, symbol_t goal, struct symbol_list *operators);
+agent_operator_conflict(struct agent *agent, symbol_t superstate, struct symbol_list *operators);
 
 extern void
-agent_operator_tie(struct agent *agent, symbol_t goal, struct symbol_list *operators);
+agent_operator_tie(struct agent *agent, symbol_t superstate, struct symbol_list *operators);
 
 extern void
-agent_pop_subgoals(struct agent *agent, struct symbol_list *goal);
+agent_pop_subgoals(struct agent *agent, struct goal_stack *bottom);
+
+extern bool_t
+agent_is_goal(struct agent *agent, symbol_t id);
 
 extern symbol_t
 rete_get_variable_binding(variable_binding_t binding, struct token *token);

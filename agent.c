@@ -44,6 +44,13 @@
 #endif
 
 /*
+ * Constants meant for general use. These are used across agent
+ * instances.
+ */
+static bool_t constants_initialized = 0;
+symbol_t constants[USER_CONSTANT_BASE];
+
+/*
  * For managing the identifier map, which is a contiguous array that
  * is used to recycle identifiers and to associate a `goal level' with
  * each identifier. An identifier's value is used as a (one-based)
@@ -95,49 +102,106 @@
 
 
 /*
- * Constants meant for general use. These are used across agent
- * instances.
+ * Make a preference for an `^item' augmentation on the impasse. This
+ * creates a dummy instantiation, complete with token, so that its
+ * possible to backtrace to the original proposal.
  */
-static bool_t constants_initialized = 0;
-symbol_t constants[USER_CONSTANT_BASE];
+static void
+make_item_pref(struct agent      *agent,
+               symbol_t           superstate,
+               struct goal_stack *goal,
+               symbol_t           operator)
+{
+#ifdef CONF_SOAR_CHUNKING
+    struct instantiation *inst;
+    struct token *token;
+    struct wme *wme;
+
+    struct preference *pref =
+#endif
+        MAKE_ARCH_PREF(goal->symbol, SYM(ITEM_CONSTANT), operator);
+
+#ifdef CONF_SOAR_CHUNKING
+    /* Find the wme that corresponds to the operator's acceptable
+       preference. */
+    for (wme = wmem_get_wmes(agent, superstate, SYM(OPERATOR_CONSTANT));
+         wme != 0;
+         wme = wme->next) {
+        if ((wme->type == wme_type_acceptable) && (wme->value == operator))
+            break;
+    }
+
+    ASSERT(wme != 0,
+           ("unable to find wme for operator [%d] in superstate [%d]",
+            GET_SYMBOL_VALUE(operator), GET_SYMBOL_VALUE(superstate)));
+
+    /* Create a dummy token through which we'll reach the wme. */
+    token = (struct token *) malloc(sizeof(struct token));
+    token->node   = 0;
+    token->next   = 0;
+    token->parent = 0;
+    token->wme    = wme;
+
+    /* Create a dummy instantiation to reach the token. */
+    inst = (struct instantiation *) malloc(sizeof(struct instantiation));
+    inst->production  = 0;
+    inst->token       = token;
+    inst->preferences = 0;
+    inst->next        = goal->instantiations;
+
+    /* Tie the preference to the instantiation. */
+    pref->instantiation = inst;
+
+    /* Add to the set of `dummy' instantiations maintained by the
+       goal. We'll need to clean them up by hand when the subgoal gets
+       popped off the stack.*/
+    inst->next = goal->instantiations;
+    goal->instantiations = inst;
+#endif
+}
 
 /*
  * Push a new goal onto the goal stack.
  */
-static void
-push_goal_id(struct agent *agent, symbol_t goal_id)
+static struct goal_stack *
+push_goal_id(struct agent *agent, symbol_t id)
 {
-    struct symbol_list *entry =
-        (struct symbol_list *) malloc(sizeof(struct symbol_list));
-
-    struct symbol_list **link;
+    struct goal_stack **link, *entry;
     int level;
-
-    entry->symbol = goal_id;
-    entry->next   = 0;
 
     for (link = &agent->goals, level = 1; *link != 0; ++level)
         link = &((*link)->next);
 
-    agent_set_id_level(agent, goal_id, level);
+    entry = (struct goal_stack *) malloc(sizeof(struct goal_stack));
+    entry->symbol         = id;
+    entry->instantiations = 0;
+    entry->next           = 0;
+
     *link = entry;
+
+    agent_set_id_level(agent, id, level);
+
+    return entry;
 }
 
 /*
- * Pop the deepest goal from the goal stack.
+ * Pop all of the goals from the goal stack.
  */
 static void
 pop_goals(struct agent *agent)
 {
-    struct symbol_list *goal = agent->goals;
+    struct goal_stack *goals = agent->goals;
 
-    while (goal) {
-        struct symbol_list *doomed = goal;
-        goal = goal->next;
-        free(doomed);
+    if (goals) {
+        if (goals->next)
+            agent_pop_subgoals(agent, goals);
+
+        ASSERT(goals->instantiations == 0,
+               ("instantiations not allowed in top goal"));
+
+        free(goals);
+        agent->goals = 0;
     }
-
-    agent->goals = 0;
 }
 
 /*
@@ -255,6 +319,9 @@ mark_if_unused(struct agent *agent, symbol_t symbol)
     }
 }
 
+/*
+ * Mark each identifier that's touched by this slot as `used'.
+ */
 static ht_enumerator_result_t
 mark_slot_identifiers(struct ht_entry_header *header, void *closure)
 {
@@ -414,7 +481,7 @@ agent_elaborate(struct agent *agent)
  * substate and decorates it appropriately.
  */
 void
-agent_operator_no_change(struct agent *agent, symbol_t goal)
+agent_operator_no_change(struct agent *agent, symbol_t superstate)
 {
     symbol_t state;
 
@@ -427,7 +494,7 @@ agent_operator_no_change(struct agent *agent, symbol_t goal)
     printf("operator-no-change => [%d]\n", GET_SYMBOL_VALUE(state));
 #endif
 
-    MAKE_ARCH_PREF(state, SYM(SUPERSTATE_CONSTANT), goal);
+    MAKE_ARCH_PREF(state, SYM(SUPERSTATE_CONSTANT), superstate);
     MAKE_ARCH_PREF(state, SYM(ATTRIBUTE_CONSTANT),  SYM(OPERATOR_CONSTANT));
     MAKE_ARCH_PREF(state, SYM(CHOICES_CONSTANT),    SYM(NONE_CONSTANT));
     MAKE_ARCH_PREF(state, SYM(IMPASSE_CONSTANT),    SYM(NO_CHANGE_CONSTANT));
@@ -440,7 +507,7 @@ agent_operator_no_change(struct agent *agent, symbol_t goal)
  * substate and decorates it appropriately.
  */
 void
-agent_state_no_change(struct agent *agent, symbol_t goal)
+agent_state_no_change(struct agent *agent, symbol_t superstate)
 {
     symbol_t state;
 
@@ -453,7 +520,7 @@ agent_state_no_change(struct agent *agent, symbol_t goal)
     printf("state-no-change => [%d]\n", GET_SYMBOL_VALUE(state));
 #endif
 
-    MAKE_ARCH_PREF(state, SYM(SUPERSTATE_CONSTANT), goal);
+    MAKE_ARCH_PREF(state, SYM(SUPERSTATE_CONSTANT), superstate);
     MAKE_ARCH_PREF(state, SYM(ATTRIBUTE_CONSTANT),  SYM(STATE_CONSTANT));
     MAKE_ARCH_PREF(state, SYM(CHOICES_CONSTANT),    SYM(NONE_CONSTANT));
     MAKE_ARCH_PREF(state, SYM(IMPASSE_CONSTANT),    SYM(NO_CHANGE_CONSTANT));
@@ -466,20 +533,23 @@ agent_state_no_change(struct agent *agent, symbol_t goal)
  * substate and decorates it appropriately.
  */
 void
-agent_operator_conflict(struct agent *agent, symbol_t goal, struct symbol_list *operators)
+agent_operator_conflict(struct agent       *agent,
+                        symbol_t            superstate,
+                        struct symbol_list *operators)
 {
+    struct goal_stack *goal;
     symbol_t state;
 
     agent_reserve_identifiers(agent, 1);
     state = agent_get_identifier(agent);
 
-    push_goal_id(agent, state);
+    goal = push_goal_id(agent, state);
 
 #ifdef DEBUG
     printf("operator-conflict => [%d]\n", GET_SYMBOL_VALUE(state));
 #endif
 
-    MAKE_ARCH_PREF(state, SYM(SUPERSTATE_CONSTANT), goal);
+    MAKE_ARCH_PREF(state, SYM(SUPERSTATE_CONSTANT), superstate);
     MAKE_ARCH_PREF(state, SYM(CHOICES_CONSTANT),    SYM(MULTIPLE_CONSTANT));
     MAKE_ARCH_PREF(state, SYM(TYPE_CONSTANT),       SYM(STATE_CONSTANT));
     MAKE_ARCH_PREF(state, SYM(ATTRIBUTE_CONSTANT),  SYM(OPERATOR_CONSTANT));
@@ -487,7 +557,7 @@ agent_operator_conflict(struct agent *agent, symbol_t goal, struct symbol_list *
     MAKE_ARCH_PREF(state, SYM(QUIESCENCE_CONSTANT), SYM(T_CONSTANT));
 
     for ( ; operators != 0; operators = operators->next)
-        MAKE_ARCH_PREF(state, SYM(ITEM_CONSTANT), operators->symbol);
+        make_item_pref(agent, superstate, goal, operators->symbol);
 }
 
 /*
@@ -495,20 +565,23 @@ agent_operator_conflict(struct agent *agent, symbol_t goal, struct symbol_list *
  * substate and decorates it appropriately.
  */
 void
-agent_operator_tie(struct agent *agent, symbol_t goal, struct symbol_list *operators)
+agent_operator_tie(struct agent       *agent,
+                   symbol_t            superstate,
+                   struct symbol_list *operators)
 {
     symbol_t state;
+    struct goal_stack *goal;
 
     agent_reserve_identifiers(agent, 1);
     state = agent_get_identifier(agent);
 
-    push_goal_id(agent, state);
+    goal = push_goal_id(agent, state);
 
 #ifdef DEBUG
     printf("operator-tie => [%d]\n", GET_SYMBOL_VALUE(state));
 #endif
 
-    MAKE_ARCH_PREF(state, SYM(SUPERSTATE_CONSTANT), goal);
+    MAKE_ARCH_PREF(state, SYM(SUPERSTATE_CONSTANT), superstate);
     MAKE_ARCH_PREF(state, SYM(TYPE_CONSTANT),       SYM(STATE_CONSTANT));
     MAKE_ARCH_PREF(state, SYM(ATTRIBUTE_CONSTANT),  SYM(OPERATOR_CONSTANT));
     MAKE_ARCH_PREF(state, SYM(CHOICES_CONSTANT),    SYM(MULTIPLE_CONSTANT));
@@ -516,7 +589,7 @@ agent_operator_tie(struct agent *agent, symbol_t goal, struct symbol_list *opera
     MAKE_ARCH_PREF(state, SYM(QUIESCENCE_CONSTANT), SYM(T_CONSTANT));
 
     for ( ; operators != 0; operators = operators->next)
-        MAKE_ARCH_PREF(state, SYM(ITEM_CONSTANT), operators->symbol);
+        make_item_pref(agent, superstate, goal, operators->symbol);
 }
 
 struct gc_data {
@@ -595,9 +668,9 @@ sweep(struct ht_entry_header *header, void *closure)
  * preferences associated with those goals.
  */
 void
-agent_pop_subgoals(struct agent *agent, struct symbol_list *bottom)
+agent_pop_subgoals(struct agent *agent, struct goal_stack *bottom)
 {
-    struct symbol_list *goal;
+    struct goal_stack *goal;
     struct gc_data gc = { agent, 1 };
 
     ASSERT(bottom != 0, ("no subgoals to pop"));
@@ -614,9 +687,36 @@ agent_pop_subgoals(struct agent *agent, struct symbol_list *bottom)
     bottom->next = 0;
 
     do {
-        struct symbol_list *doomed = goal;
+        struct goal_stack *doomed = goal;
+#ifdef CONF_SOAR_CHUNKING
+        struct instantiation *inst;
+
+        inst = doomed->instantiations;
+        while (inst) {
+            struct instantiation *next = inst->next;
+            free(inst->token);
+            free(inst);
+            inst = next;
+        }
+#endif
+
         goal = goal->next;
         free(doomed);
     } while (goal);
 }
 
+/*
+ * Return non-zero if the specified identifier is a goal on the goal
+ * stack.
+ */
+bool_t
+agent_is_goal(struct agent *agent, symbol_t id)
+{
+    struct goal_stack *goal;
+    for (goal = agent->goals; goal != 0; goal = goal->next) {
+        if (SYMBOLS_ARE_EQUAL(goal->symbol, id))
+            return 1;
+    }
+
+    return 0;
+}

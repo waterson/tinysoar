@@ -238,13 +238,8 @@ wmem_get_wmes(struct agent *agent, symbol_t id, symbol_t attr)
 static bool_t
 is_operator_slot(struct agent *agent, struct slot *slot)
 {
-    if (SYMBOLS_ARE_EQUAL(SYM(OPERATOR_CONSTANT), slot->attr)) {
-        struct symbol_list *goal;
-        for (goal = agent->goals; goal != 0; goal = goal->next) {
-            if (SYMBOLS_ARE_EQUAL(goal->symbol, slot->id))
-                return 1;
-        }
-    }
+    if (SYMBOLS_ARE_EQUAL(SYM(OPERATOR_CONSTANT), slot->attr))
+        return agent_is_goal(agent, slot->id);
 
     return 0;
 }
@@ -446,9 +441,8 @@ wmem_add_preference(struct agent     *agent,
         (struct preference *) malloc(sizeof(struct preference));
 
     /* pref->next_in_slot will be initialized by hash_preference */
-    pref->next_in_instantiation =
-        pref->prev_in_instantiation =
-        pref;
+    pref->next_in_instantiation = 0;
+    pref->instantiation = 0;
 
     pref->type    = type;
     pref->support = support;
@@ -473,25 +467,28 @@ wmem_remove_preference(struct agent *agent, struct preference *doomed)
 
     for (link = &slot->preferences; (pref = *link) != 0; link = &pref->next_in_slot) {
         if (pref == doomed) {
-            if (pref->prev_in_instantiation) {
-                /* Splice the pref out of the instantiation list. */
-                pref->prev_in_instantiation->next_in_instantiation
-                    = pref->next_in_instantiation;
-
-                pref->next_in_instantiation->prev_in_instantiation
-                    = pref->prev_in_instantiation;
-            }
-
             /* Splice the pref out of preferences for the slot */
             *link = pref->next_in_slot;
-
-            free(pref);
 
             /* Add to the list of slots that have changed */
             mark_slot_modified(agent, slot);
             break;
         }
     }
+
+    if (doomed->instantiation) {
+        /* Splice the preference from the instantiation's preferences. */
+        for (link = &doomed->instantiation->preferences;
+             (pref = *link) != 0;
+             link = &pref->next_in_instantiation) {
+            if (pref == doomed) {
+                *link = pref->next_in_instantiation;
+                break;
+            }
+        }
+    }
+
+    free(doomed);
 }
 
 
@@ -606,12 +603,9 @@ create_instantiation(struct agent       *agent,
     inst->production   = production;
     inst->token        = token;
     inst->next         = production->instantiations;
+    inst->preferences  = 0;
 
     production->instantiations = inst;
-
-    inst->preferences.next_in_instantiation =
-        inst->preferences.prev_in_instantiation = 
-        &inst->preferences;
 
     /* Generate identifiers for the unbound variables. */
     agent_reserve_identifiers(agent, production->num_unbound_vars);
@@ -685,13 +679,11 @@ create_instantiation(struct agent       *agent,
             /* hash the preference into the slots table */
             hash_preference(agent, id, attr, pref);
 
-            /* insert at the tail of the instantiation's list of
+            /* insert at the head of the instantiation's list of
                preferences */
-            pref->next_in_instantiation = &inst->preferences;
-            pref->prev_in_instantiation = inst->preferences.prev_in_instantiation;
-
-            inst->preferences.prev_in_instantiation->next_in_instantiation = pref;
-            inst->preferences.prev_in_instantiation = pref;
+            pref->instantiation         = inst;
+            pref->next_in_instantiation = inst->preferences;
+            inst->preferences = pref;
         }
     }
 
@@ -727,7 +719,8 @@ remove_if_duplicate(struct agent      *agent,
 
     /* If we get here, it's not a duplicate. Splice it out of the
        instantiation to avoid any dangling pointers. */
-    doomed->next_in_instantiation = doomed->prev_in_instantiation = 0;
+    doomed->instantiation = 0;
+    doomed->next_in_instantiation = 0;
 }
 
 /*
@@ -760,8 +753,8 @@ remove_instantiation(struct agent         *agent,
     /* Remove all the i-supported preferences associated with the
        instantiation. */
     {
-        struct preference *pref = inst->preferences.next_in_instantiation;
-        while (pref != &inst->preferences) {
+        struct preference *pref = inst->preferences;
+        while (pref) {
             struct preference *next = pref->next_in_instantiation;
 
             if (pref->support == support_type_isupport) {
@@ -1184,8 +1177,8 @@ static void
 select_operator(struct agent *agent)
 {
     unsigned depth = 0;
-    struct symbol_list *goal;
-    struct symbol_list *bottom;
+    struct goal_stack *goal;
+    struct goal_stack *bottom;
 
     ASSERT(agent->goals != 0, ("empty goal stack"));
 

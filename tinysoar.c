@@ -413,7 +413,7 @@ static char *print_result;
     i = 1;
 
     if (strcmp(argv[i], "-stack") == 0) {
-        struct symbol_list *goal;
+        struct goal_stack *goal;
         for (goal = agent.goals; goal != 0; goal = goal->next) {
             vsmcatf(&print_result, &print_result_sz,
                     "[%d]", GET_SYMBOL_VALUE(goal->symbol));
