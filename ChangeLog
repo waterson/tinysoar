@@ -1,3 +1,12 @@
+Sunday, January 14, 2001
+
+Seems like it might be a good thing to do away with `productions' in
+the runtime. I don't see a real good reason that we need to remember
+them.
+
+It looks like the code that's supposed to propogate existing WMEs into
+new rules is broken. Gotta look at that.
+
 Monday, January 8, 2001
 
 Need to finish up the semantic actions for rule right-hand
