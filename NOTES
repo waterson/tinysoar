@@ -152,3 +152,24 @@ that created it. From the instantiation, we can get the token, and
 from the token, I think we can walk back up through the identifiers
 that we tested. Hrm, but how to get from _those_ identifiers to the
 preference that created it? (Do we need to?)
+
+---
+
+Since wme has a back-pointer to its slot, I think that we should be
+able to do everything we need to do in the RETE network.
+
+  . For each preference |pref| that got created as a result:
+
+    . Use the |pref->instantiation| back-pointer to determine the
+      instantiation |inst| that created the preference
+
+    . Start with token |tok| set to the |inst->token|; that is, the
+      token that is the tail of the instantiated match. walk up |tok|
+      via the |tok->parent| links. For each token |tok| along the
+      chain:
+
+      . The WME |wme| that instantiated the token is accessible via
+        |tok->wme|. The test is accessable via |tok->node|. The
+        preferences that created |wme| are accessible via
+        |wme->slot->preferences|. Recurse here!
+
