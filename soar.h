@@ -683,4 +683,39 @@ chunk_if_results(struct agent         *agent,
                  int                   level);
 #endif
 
+#ifdef DEBUG
+void
+debug_indent_by(int nest);
+
+const char *
+debug_symbol_to_string(struct symtab *symtab, symbol_t symbol);
+
+void
+debug_dump_wme(struct symtab *symtab, struct wme *wme);
+
+void
+debug_dump_token(struct symtab *symtab, struct token *token);
+
+void
+debug_dump_variable_binding(variable_binding_t binding);
+
+void
+debug_dump_test(struct symtab *symtab, struct beta_test *test);
+
+const char *
+debug_preference_type_to_string(preference_type_t type);
+
+void
+debug_dump_rhs_value(struct symtab *symtab, struct rhs_value *value);
+
+void
+debug_dump_beta_node(struct symtab *symtab, struct beta_node *node, int nest, int recur);
+
+void
+debug_dump_alpha_node(struct symtab *symtab, struct alpha_node *alpha, bool_t acceptable);
+
+void
+debug_dump_preference(struct symtab *symtab, struct preference *pref);
+#endif /* DEBUG */
+
 #endif /* soar_h__ */

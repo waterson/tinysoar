@@ -686,11 +686,10 @@ chunk(struct agent           *agent,
 
 #ifdef DEBUG
     {
-        extern void dump_token(struct symtab *, struct token *);
         extern struct symtab symtab;
         struct token_list *tokens;
         for (tokens = chunk.grounds; tokens != 0; tokens = tokens->next) {
-            dump_token(&symtab, tokens->token);
+            debug_dump_token(&symtab, tokens->token);
             printf("\n");
         }
     }

@@ -165,69 +165,6 @@ init_soar_command(ClientData data, Tcl_Interp *interp, int argc, char *argv[])
     return TCL_OK;
 }
 
-static void
-dump_preference(struct symtab *symtab, struct preference *pref)
-{
-    printf("%u: ", (unsigned) pref);
-
-    switch (GET_SYMBOL_TYPE(pref->value)) {
-    case symbol_type_symbolic_constant:
-        printf("%s ", symtab_find_name(symtab, pref->value));
-        break;
-            
-    case symbol_type_integer_constant:
-        printf("%d ", GET_SYMBOL_VALUE(pref->value));
-        break;
-
-    case symbol_type_identifier:
-        printf("[%d] ", GET_SYMBOL_VALUE(pref->value));
-        break;
-
-    default:
-        ERROR(("illegal value in preference"));
-    }
-
-    switch (pref->type) {
-    case preference_type_acceptable:         printf("+"); break;
-    case preference_type_reject:             printf("-"); break;
-    case preference_type_reconsider:         printf("@"); break;
-    case preference_type_unary_indifferent:
-    case preference_type_binary_indifferent: printf("="); break;
-    case preference_type_best:
-    case preference_type_better:             printf(">"); break;
-    case preference_type_worst:
-    case preference_type_worse:              printf("<"); break;
-    case preference_type_prohibit:           printf("~"); break;
-    case preference_type_require:            printf("!"); break;
-    default:                                 printf("?"); break;
-    }
-
-    if (pref->type & preference_type_binary) {
-        switch (GET_SYMBOL_TYPE(pref->referent)) {
-        case symbol_type_symbolic_constant:
-            printf("%s ", symtab_find_name(symtab, pref->referent));
-            break;
-            
-        case symbol_type_identifier:
-            printf("[%d] ", GET_SYMBOL_VALUE(pref->referent));
-            break;
-
-        case symbol_type_integer_constant:
-            printf("%d ", GET_SYMBOL_VALUE(pref->referent));
-            break;
-
-        default:
-            ERROR(("illegal referent in preference"));
-        }
-    }
-
-    if (pref->support == support_type_osupport)
-        printf(" :O");
-
-    if (pref->instantiation && pref->instantiation->production)
-        printf(" (%s)", pref->instantiation->production->name);
-}
-
 /*
  * `preferences'. Query or add preferences to working memory.
  */
@@ -291,7 +228,7 @@ preferences -r <pref>";
         /* Handle a query. */
         pref = wmem_get_preferences(&agent, id, attr);
         while (pref) {
-            dump_preference(&symtab, pref);
+            debug_dump_preference(&symtab, pref);
             printf("\n");
             pref = pref->next_in_slot;
         }

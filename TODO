@@ -9,10 +9,10 @@
 
 . Chunking:
 
-  - verify that chunking works across operators
   - deal with chunking of negative conditions
   - figure out how to do bottom-up chunking (instead of all-goals)
   - clean up the horror that is make_production
+  - look for leaks
 
 . Implement conjunctive negative conditions.
 
