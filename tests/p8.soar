@@ -62,7 +62,7 @@ sp {implement*count*mark-counted
 # in the sub-state.
 sp {implement*count*increment
     (state <s> ^operator <o> ^count <old*c>)
-    (<o> ^name count ^value <new*c>)
+    (<o> ^name count ^value { <new*c> <> <old*c> })
     -->
     (<s> ^count <old*c> -)
     (<s> ^count <new*c>)}
