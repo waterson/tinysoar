@@ -1,9 +1,15 @@
+/*
+ * rete.c
+ */
 #include "pool.h"
 #include "wmem.h"
 #include "rete.h"
 
 static void
 do_left_addition(struct rete* net, struct beta_node* node, struct token* token, struct wme* wme);
+
+static void
+do_right_addition(struct rete* net, struct beta_node* node, struct wme* wme);
 
 struct variable_binding_list {
     symbol_t                      variable;
@@ -119,6 +125,11 @@ create_token(struct rete* net, struct beta_node* node, struct token* parent, str
     result->parent = parent;
     result->node = node;
     result->wme = wme;
+
+    /* push onto list of tokens that are owned by `node' */
+    result->next = node->tokens;
+    node->tokens = result;
+
     return result;
 }
 
@@ -127,9 +138,9 @@ create_token(struct rete* net, struct beta_node* node, struct token* parent, str
  * memory bucket a test should be in.
  */
 static inline short
-get_alpha_test_index(symbol_t id, symbol_t attr, symbol_t value, alpha_type_t type)
+get_alpha_test_index(symbol_t id, symbol_t attr, symbol_t value, wme_type_t type)
 {
-    return ((type == alpha_type_acceptable_preference) ? 8 : 0) +
+    return ((type == wme_type_acceptable_preference) ? 8 : 0) +
         (GET_SYMBOL_VALUE(id) ? 4 : 0) +
         (GET_SYMBOL_VALUE(attr) ? 2 : 0) + 
         (GET_SYMBOL_VALUE(value) ? 1 : 0);
@@ -141,6 +152,7 @@ get_alpha_test_index(symbol_t id, symbol_t attr, symbol_t value, alpha_type_t ty
 static inline symbol_t
 get_field_from_wme(struct wme* wme, field_t field)
 {
+    assert(wme != 0);
     switch (field) {
     case field_id:     return wme->id;
     case field_attr:   return wme->attr;
@@ -179,7 +191,7 @@ add_wme_to_alpha_node(struct rete* net, struct alpha_node* node, struct wme* wme
  * Corresponds to find_alpha_mem() in rete.c from Soar8.
  */
 static struct alpha_node*
-find_alpha_node(struct rete* net, symbol_t id, symbol_t attr, symbol_t value, alpha_type_t type)
+find_alpha_node(struct rete* net, symbol_t id, symbol_t attr, symbol_t value, wme_type_t type)
 {
     struct alpha_node* node = net->alpha_nodes[get_alpha_test_index(id, attr, value, type)];
     for ( ; node != 0; node = node->siblings) {
@@ -198,7 +210,7 @@ find_alpha_node(struct rete* net, symbol_t id, symbol_t attr, symbol_t value, al
  * This corresponds to find_or_make_alpha_mem() in rete.c from Soar8.
  */
 static struct alpha_node*
-ensure_alpha_node(struct rete* net, symbol_t id, symbol_t attr, symbol_t value, alpha_type_t type)
+ensure_alpha_node(struct rete* net, symbol_t id, symbol_t attr, symbol_t value, wme_type_t type)
 {
     struct alpha_node* result;
 
@@ -238,7 +250,7 @@ ensure_alpha_node(struct rete* net, symbol_t id, symbol_t attr, symbol_t value, 
         else {
             /* Troll through *all* the wmes */
             struct wme* wme;
-            for (wme = net->wmem->wmes; wme != 0; wme = wme->next) {
+            for (wme = net->wmem->wmes; wme != 0; wme = GET_WME_NEXT(*wme)) {
                 if (wme_matches_alpha_node(wme, result))
                     add_wme_to_alpha_node(net, result, wme);
             }
@@ -596,6 +608,9 @@ create_positive_join_node(struct rete* net,
     result->children   = 0;
     result->data.tests = tests;
 
+    result->next_with_same_alpha_node = alpha_node->children;
+    alpha_node->children = result;
+
     return result;
 }
 
@@ -739,6 +754,39 @@ do_left_addition(struct rete* net, struct beta_node* node, struct token* token, 
 }
 
 
+static void
+do_right_addition(struct rete* net, struct beta_node* node, struct wme* wme)
+{
+    switch (node->type) {
+    case beta_node_type_positive_join:
+        {
+            struct token* token;
+            for (token = node->parent->tokens; token != 0; token = token->next) {
+                if (check_beta_tests(net, node->data.tests, token, wme)) {
+                    struct beta_node* child;
+                    for (child = node->children; child != 0; child = child->siblings)
+                        do_left_addition(net, child, token, wme);
+                }
+            }
+        }
+        break;
+
+    case beta_node_type_memory_positive_join:
+    case beta_node_type_negative:
+        assert(0); /* XXX write me! */
+        break;
+
+    case beta_node_type_conjunctive_negative:
+    case beta_node_type_conjunctive_negative_partner:
+    case beta_node_type_root:
+    case beta_node_type_production:
+    case beta_node_type_memory:
+        assert(0); /* can't get right addition on these nodes */
+        break;
+    }
+}
+
+
 /* ----------------------------------------------------------------------
  *
  * RETE API Routines
@@ -749,15 +797,17 @@ do_left_addition(struct rete* net, struct beta_node* node, struct token* token, 
  * Initialize the rete network.
  */
 void
-rete_init(struct rete* net, struct working_memory* wmem)
+rete_init(struct rete* net, struct wmem* wmem)
 {
     int i;
 
     net->root_node.type = beta_node_type_root;
+    net->root_node.tokens = &net->root_token;
 
     net->root_token.parent = 0;
     net->root_token.node   = &net->root_node;
     net->root_token.wme    = 0;
+    net->root_token.next   = 0;
 
     pool_init(&net->alpha_node_pool, sizeof(struct alpha_node), 8);
     pool_init(&net->right_memory_pool, sizeof(struct right_memory), 8);
@@ -822,11 +872,50 @@ rete_remove_production()
 }
 
 void
-rete_add_wme()
+rete_add_wme(struct rete* net, struct wme* wme)
 {
+    int offset;
+    int i;
+
+    offset = (GET_WME_TYPE(*wme) == wme_type_normal) ? 0 : 8;
+    for (i = 0; i < 8; ++i) {
+        struct alpha_node* alpha;
+
+        for (alpha = net->alpha_nodes[i + offset]; alpha != 0; alpha = alpha->siblings) {
+            if (wme_matches_alpha_node(wme, alpha)) {
+                struct beta_node* beta;
+                add_wme_to_alpha_node(net, alpha, wme);
+
+                for (beta = alpha->children; beta != 0; beta = beta->next_with_same_alpha_node)
+                    do_right_addition(net, beta, wme);
+            }
+        }
+    }
 }
 
 void
 rete_remove_wme()
 {
+}
+
+
+void
+rete_push_goal_id(struct rete* net, symbol_t goal_id)
+{
+    struct symbol_list* entry = (struct symbol_list*) pool_alloc(&net->goal_impasse_pool);
+    entry->symbol = goal_id;
+    entry->next = net->goals;
+    net->goals = entry;
+}
+
+symbol_t
+rete_pop_goal_id(struct rete* net)
+{
+    struct symbol_list* doomed = net->goals;
+    symbol_t last;
+    assert(doomed != 0);
+    last = doomed->symbol;
+    net->goals = doomed->next;
+    pool_free(&net->goal_impasse_pool, doomed);
+    return last;
 }

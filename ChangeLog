@@ -1,3 +1,11 @@
+Tuesday, December 19, 2000
+
+I've got the basic stuff for alpha nodes, memory nodes, and positive
+join nodes hooked up. I'm starting to go through debugging
+|rete_add_wme()|, and am bombing out in the right-addition routine
+because I'm not getting a binding for the `S1' stuff. Need to debug
+that.
+
 Tuesday, December 5, 2000
 
 There's also starting to be a bit of redundant code, so a bit of

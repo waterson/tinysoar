@@ -94,11 +94,6 @@ struct beta_node;
  * Alpha Memory
  */
 
-typedef enum alpha_type {
-    alpha_type_wme,
-    alpha_type_acceptable_preference
-} alpha_type_t;
-
 struct right_memory;
 
 struct alpha_node {
@@ -211,6 +206,8 @@ struct beta_node {
 
     struct beta_node* next_with_same_alpha_node;
 
+    struct token* tokens;
+
     union {
         struct beta_test*        tests;      /* if positive_join */
         const struct production* production; /* if production */
@@ -224,6 +221,7 @@ struct token {
     struct token* parent;
     struct beta_node* node;
     struct wme* wme;
+    struct token* next;
 };
 
 /*
@@ -239,7 +237,7 @@ struct rete {
     struct pool        variable_binding_list_pool;
     struct pool        token_pool;
     struct pool        goal_impasse_pool;
-    struct working_memory* wmem;
+    struct wmem*       wmem;
     struct alpha_node*  alpha_nodes[16];
     struct symbol_list* goals;
     struct symbol_list* impasses;
@@ -252,12 +250,26 @@ struct rete {
  * Initialize the network
  */
 extern void
-rete_init(struct rete* net, struct working_memory* wmem);
+rete_init(struct rete* net, struct wmem* wmem);
 
 /*
  * Add a production to the network
  */
 extern void
 rete_add_production(struct rete* net, const struct production* p);
+
+/*
+ * Notify the network that a new working memory element has been
+ * added.
+ */
+extern void
+rete_add_wme(struct rete* net, struct wme* wme);
+
+
+extern void
+rete_push_goal_id(struct rete* net, symbol_t goal_id);
+
+extern symbol_t
+rete_pop_goal_id(struct rete* net);
 
 #endif /* rete_h__ */

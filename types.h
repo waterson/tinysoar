@@ -29,8 +29,8 @@ typedef struct symbol {
 #define GET_SYMBOL_TYPE(s)     ((s).type)
 #define SET_SYMBOL_TYPE(s, t)  ((s).type = (t))
 
-#define DECLARE_SYMBOL(s, t) \
-  { (s), (t) }
+#define DECLARE_SYMBOL(v, t) \
+  { (v), (t) }
 
 #define MAKE_SYMBOL(s, t, v)     \
   BEGIN_MACRO                    \
