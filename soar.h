@@ -43,12 +43,12 @@ typedef struct symbol {
 
 #define CLEAR_SYMBOL(s)     \
    BEGIN_MACRO              \
-   *((unsigned*) &(s)) = 0; \
+   *((unsigned *) &(s)) = 0; \
    END_MACRO
 
-#define SYMBOLS_ARE_EQUAL(l, r) (*((unsigned*) &(l)) == *((unsigned*) &(r)))
+#define SYMBOLS_ARE_EQUAL(l, r) (*((unsigned *) &(l)) == *((unsigned *) &(r)))
 
-#define SYMBOL_IS_NIL(s)        (*((unsigned*) &(s)) == 0)
+#define SYMBOL_IS_NIL(s)        (*((unsigned *) &(s)) == 0)
 
 #define SYMBOL_TO_WORD(v, t)    (((t) << SYMBOL_TYPE_SHIFT) | (v))
 
@@ -81,7 +81,7 @@ extern symbol_t constants[NCONSTANTS];
 
 struct symbol_list {
     symbol_t symbol;
-    struct symbol_list* next;
+    struct symbol_list *next;
 };
 
 /* ---------------------------------------------------------------------- */
@@ -105,7 +105,7 @@ typedef struct variable_binding {
     field_t  field : BINDING_FIELD_BITS;
 } variable_binding_t;
 
-#define VARIABLE_BINDINGS_ARE_EQUAL(l, r)  (*((unsigned*)&(l)) == *((unsigned*)&(r)))
+#define VARIABLE_BINDINGS_ARE_EQUAL(l, r)  (*((unsigned *)&(l)) == *((unsigned *)&(r)))
 
 #define VARIABLE_BINDING_TO_WORD(f, d) (((f) << BINDING_FIELD_SHIFT) | (d))
 
@@ -144,10 +144,10 @@ typedef enum support_type {
 } support_type_t;
 
 struct preference {
-    struct slot*       slot;
-    struct preference* next_in_slot;
-    struct preference* next_in_instantiation;
-    struct preference* prev_in_instantiation; /* XXX should be a back-pointer to the instantiation */
+    struct slot       *slot;
+    struct preference *next_in_slot;
+    struct preference *next_in_instantiation;
+    struct preference *prev_in_instantiation; /* XXX should be a back-pointer to the instantiation */
     preference_type_t  type    : PREFERENCE_TYPE_BITS;
     support_type_t     support : SUPPORT_TYPE_BITS;
     symbol_t           value;
@@ -155,10 +155,10 @@ struct preference {
 };
 
 struct instantiation {
-    struct production*    production;
-    struct token*         token;
+    struct production    *production;
+    struct token         *token;
     struct preference     preferences;
-    struct instantiation* next;
+    struct instantiation *next;
 };
 
 /* ---------------------------------------------------------------------- */
@@ -170,8 +170,8 @@ struct instantiation {
 struct slot {
     symbol_t           id;
     symbol_t           attr;
-    struct preference* preferences;
-    struct wme*        wmes;
+    struct preference *preferences;
+    struct wme        *wmes;
 };
 
 typedef enum wme_type {
@@ -180,15 +180,15 @@ typedef enum wme_type {
 } wme_type_t;
 
 struct wme {
-    struct slot* slot;
+    struct slot *slot;
     symbol_t     value;
     wme_type_t   type;
-    struct wme*  next;
+    struct wme  *next;
 };
 
 struct slot_list {
-    struct slot*      slot;
-    struct slot_list* next;
+    struct slot      *slot;
+    struct slot_list *next;
 };
 
 /* ---------------------------------------------------------------------- */
@@ -219,14 +219,14 @@ struct test {
     test_type_t type;
     union {
         symbol_t          referent;
-        struct test_list* conjuncts;
-        struct test_list* disjuncts;
+        struct test_list *conjuncts;
+        struct test_list *disjuncts;
     } data;
 };
 
 struct test_list {
     struct test test;
-    struct test_list* next;
+    struct test_list *next;
 };
 
 /*
@@ -255,7 +255,7 @@ struct condition {
         } simple;
     } data;
 
-    struct condition* next;
+    struct condition *next;
 };
 
 /*
@@ -281,7 +281,7 @@ struct rhs_value {
  */
 
 struct action {
-    struct action*    next;
+    struct action    *next;
     preference_type_t preference_type;
     struct rhs_value  id;
     struct rhs_value  attr;
@@ -294,11 +294,11 @@ struct action {
  */
 struct production {
 #ifdef DEBUG
-    char*                 name;
+    char                 *name;
 #endif
-    struct condition*     conditions;
-    struct action*        actions;
-    struct instantiation* instantiations;
+    struct condition     *conditions;
+    struct action        *actions;
+    struct instantiation *instantiations;
     unsigned              num_unbound_vars;
     support_type_t        support;
 };
@@ -317,14 +317,14 @@ struct alpha_node {
     symbol_t id;
     symbol_t attr;
     symbol_t value;
-    struct alpha_node*   siblings;
-    struct beta_node*    children;
-    struct right_memory* right_memories;
+    struct alpha_node   *siblings;
+    struct beta_node    *children;
+    struct right_memory *right_memories;
 };
 
 struct right_memory {
-    struct wme* wme;
-    struct right_memory* next_in_alpha_node;
+    struct wme *wme;
+    struct right_memory *next_in_alpha_node;
 };
 
 /*
@@ -352,9 +352,9 @@ struct beta_test {
         unsigned           raw;
         symbol_t           constant_referent;
         variable_binding_t variable_referent;
-        struct beta_test*  disjuncts;
+        struct beta_test  *disjuncts;
     } data;
-    struct beta_test* next;
+    struct beta_test *next;
 };
 
 enum beta_node_type_bits {
@@ -397,33 +397,33 @@ struct beta_node {
     beta_node_type_t type;
 
     /* Beta network structure */
-    struct beta_node* parent;
-    struct beta_node* siblings;
-    struct beta_node* children;
+    struct beta_node *parent;
+    struct beta_node *siblings;
+    struct beta_node *children;
 
     /* Back-pointer to the alpha node that this beta node is
        `attached' to */
-    struct alpha_node* alpha_node;
+    struct alpha_node *alpha_node;
 
     /* List of beta nodes that share the alpha node */
-    struct beta_node* next_with_same_alpha_node;
+    struct beta_node *next_with_same_alpha_node;
 
     /* The tokens that exist at this beta node */
     /* XXX not needed for positive_join; could production nodes store
        this in the instantiation? */
-    struct token* tokens;
+    struct token *tokens;
 
     /* For negative nodes, the tokens that match the node and
        are ``blocked'' from propagating through. */
     /* XXX only needed by negative */
-    struct token* blocked;
+    struct token *blocked;
 
     union {
         /* if type in { positive_join, negative }, the tests to apply at this node */
-        struct beta_test*  tests;
+        struct beta_test  *tests;
 
         /* if type == production, the the production that's been matched */
-        struct production* production;
+        struct production *production;
     } data;
 };
 
@@ -432,26 +432,26 @@ struct beta_node {
  */
 struct token {
     /* Back-pointer to the beta node that owns the token */
-    struct beta_node* node;
+    struct beta_node *node;
 
     /* The next token in the list of tokens owned by the beta node */
-    struct token* next;
+    struct token *next;
 
     /* The token that this token extends */
-    struct token* parent;
+    struct token *parent;
 
     /* The wme that the token stands for */
-    struct wme* wme;
+    struct wme *wme;
 };
 
 
 struct match {
-    struct production* production;
+    struct production *production;
     union {
-        struct token*         token;         /* for assertions */
-        struct instantiation* instantiation; /* for retractions */
+        struct token         *token;         /* for assertions */
+        struct instantiation *instantiation; /* for retractions */
     } data;
-    struct match* next;
+    struct match *next;
 };
 
 /* ---------------------------------------------------------------------- */
@@ -465,17 +465,17 @@ struct agent {
     unsigned next_available_identifier;
 
     /* For the RETE network */
-    struct beta_node*   root_node;
+    struct beta_node   *root_node;
     struct token        root_token;
-    struct alpha_node*  alpha_nodes[16];
-    struct symbol_list* goals;
-    struct symbol_list* impasses;
-    struct match*       assertions;
-    struct match*       retractions;
+    struct alpha_node  *alpha_nodes[16];
+    struct symbol_list *goals;
+    struct symbol_list *impasses;
+    struct match       *assertions;
+    struct match       *retractions;
 
     /* For working memory */
     struct ht         slots;
-    struct slot_list* modified_slots;
+    struct slot_list *modified_slots;
 };
 
 /* ---------------------------------------------------------------------- */
@@ -484,28 +484,28 @@ struct agent {
  * Initialize the network
  */
 extern void
-rete_init(struct agent* agent);
+rete_init(struct agent *agent);
 
 #ifdef CONF_SOAR_RETE_CREATE
 extern void
-rete_create(struct agent* agent);
+rete_create(struct agent *agent);
 #endif
 
 extern void
-rete_finish(struct agent* agent);
+rete_finish(struct agent *agent);
 
 #ifdef DEBUG
 struct symtab;
 
 extern void
-rete_dump(struct agent* agent, struct symtab* symtab);
+rete_dump(struct agent *agent, struct symtab *symtab);
 #endif
 
 /*
  * Add a production to the network
  */
 extern void
-rete_add_production(struct agent* agent, struct production* p);
+rete_add_production(struct agent *agent, struct production *p);
 
 /*
  * Notify the network that a new working memory element has been
@@ -518,74 +518,74 @@ typedef enum wme_operation {
 } wme_operation_t;
 
 extern void
-rete_operate_wme(struct agent* agent, struct wme* wme, wme_operation_t op);
+rete_operate_wme(struct agent *agent, struct wme *wme, wme_operation_t op);
 
 extern void
-agent_init(struct agent* agent);
+agent_init(struct agent *agent);
 
 extern void
-agent_reset(struct agent* agent);
+agent_reset(struct agent *agent);
 
 extern void
-agent_finish(struct agent* agent);
+agent_finish(struct agent *agent);
 
 extern void
-agent_elaborate(struct agent* agent);
+agent_elaborate(struct agent *agent);
 
 extern void
-agent_state_no_change(struct agent* agnet, symbol_t goal);
+agent_state_no_change(struct agent *agnet, symbol_t goal);
 
 extern void
-agent_operator_no_change(struct agent* agent, symbol_t goal);
+agent_operator_no_change(struct agent *agent, symbol_t goal);
 
 extern void
-agent_operator_conflict(struct agent* agent, symbol_t goal, struct symbol_list* operators);
+agent_operator_conflict(struct agent *agent, symbol_t goal, struct symbol_list *operators);
 
 extern void
-agent_operator_tie(struct agent* agent, symbol_t goal, struct symbol_list* operators);
+agent_operator_tie(struct agent *agent, symbol_t goal, struct symbol_list *operators);
 
 extern void
-rete_push_goal_id(struct agent* agent, symbol_t goal_id);
+rete_push_goal_id(struct agent *agent, symbol_t goal_id);
 
 extern symbol_t
-rete_pop_goal_id(struct agent* agent);
+rete_pop_goal_id(struct agent *agent);
 
 extern symbol_t
-rete_get_variable_binding(variable_binding_t binding, struct token* token);
+rete_get_variable_binding(variable_binding_t binding, struct token *token);
 
 extern void
-wmem_init(struct agent* agent);
+wmem_init(struct agent *agent);
 
 extern void
-wmem_finish(struct agent* agent);
+wmem_finish(struct agent *agent);
 
 extern void
-wmem_clear(struct agent* agent);
+wmem_clear(struct agent *agent);
 
-extern struct preference*
-wmem_add_preference(struct agent* agent,
+extern struct preference *
+wmem_add_preference(struct agent *agent,
                     symbol_t id, symbol_t attr, symbol_t value,
                     preference_type_t type,
                     support_type_t support);
 
 extern void
-wmem_remove_preference(struct agent* agent, struct preference* pref);
+wmem_remove_preference(struct agent *agent, struct preference *pref);
 
-extern struct preference*
-wmem_get_preferences(struct agent* agent, symbol_t id, symbol_t attr);
+extern struct preference *
+wmem_get_preferences(struct agent *agent, symbol_t id, symbol_t attr);
 
-extern struct wme*
-wmem_get_wmes(struct agent* agent, symbol_t id, symbol_t attr);
-
-extern void
-wmem_elaborate(struct agent* agent);
-
-typedef void (*wme_enumerator_t)(struct agent* agent, struct wme* wme, void* closure);
+extern struct wme *
+wmem_get_wmes(struct agent *agent, symbol_t id, symbol_t attr);
 
 extern void
-wmem_enumerate_wmes(struct agent* agent, wme_enumerator_t enumerator, void* closure);
+wmem_elaborate(struct agent *agent);
+
+typedef void (*wme_enumerator_t)(struct agent *agent, struct wme *wme, void *closure);
+
+extern void
+wmem_enumerate_wmes(struct agent *agent, wme_enumerator_t enumerator, void *closure);
 
 extern symbol_t
-agent_get_identifier(struct agent* agent);
+agent_get_identifier(struct agent *agent);
 
 #endif /* soar_h__ */

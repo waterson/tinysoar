@@ -7,11 +7,11 @@
 #include <malloc.h>
 #else /* ! HAVE_MALLOC_H */
 
-extern void*
+extern void *
 malloc(unsigned size);
 
 extern void
-free(void* ptr);
+free(void *ptr);
 
 #endif /* ! HAVE_MALLOC_H */
 

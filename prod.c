@@ -8,10 +8,10 @@
  * Free a list of beta tests
  */
 static void
-free_beta_tests(struct agent* agent, struct beta_test* tests)
+free_beta_tests(struct agent *agent, struct beta_test *tests)
 {
     while (tests) {
-        struct beta_test* doomed = tests;
+        struct beta_test *doomed = tests;
         tests = tests->next;
         free(doomed);
     }
@@ -22,7 +22,7 @@ free_beta_tests(struct agent* agent, struct beta_test* tests)
  * because it doesn't handle goofy ordering, but oh well.
  */
 static bool_t
-beta_tests_are_identical(struct beta_test* left, struct beta_test* right)
+beta_tests_are_identical(struct beta_test *left, struct beta_test *right)
 {
     for ( ; left && right; left = left->next, right = right->next) {
         if (left->type != right->type)
@@ -86,14 +86,14 @@ beta_tests_are_identical(struct beta_test* left, struct beta_test* right)
  *
  * Corresponds to find_alpha_mem() in rete.c from Soar8.
  */
-static struct alpha_node*
-find_alpha_node(struct agent* agent,
-                symbol_t id,
-                symbol_t attr,
-                symbol_t value,
-                wme_type_t type)
+static struct alpha_node *
+find_alpha_node(struct agent *agent,
+                symbol_t      id,
+                symbol_t      attr,
+                symbol_t      value,
+                wme_type_t    type)
 {
-    struct alpha_node* node =
+    struct alpha_node *node =
         agent->alpha_nodes[get_alpha_test_index(id, attr, value, type)];
 
     for ( ; node != 0; node = node->siblings) {
@@ -106,9 +106,9 @@ find_alpha_node(struct agent* agent,
 }
 
 static void
-add_matching_wmes(struct agent* agent, struct wme* wme, void* closure)
+add_matching_wmes(struct agent *agent, struct wme *wme, void *closure)
 {
-    struct alpha_node* alpha_node = (struct alpha_node*) closure;
+    struct alpha_node *alpha_node = (struct alpha_node *) closure;
     if (wme_matches_alpha_node(wme, alpha_node))
         add_wme_to_alpha_node(agent, alpha_node, wme);
 }
@@ -119,23 +119,23 @@ add_matching_wmes(struct agent* agent, struct wme* wme, void* closure)
  *
  * This corresponds to find_or_make_alpha_mem() in rete.c from Soar8.
  */
-static struct alpha_node*
-ensure_alpha_node(struct agent* agent,
-                  symbol_t id,
-                  symbol_t attr,
-                  symbol_t value,
-                  wme_type_t type)
+static struct alpha_node *
+ensure_alpha_node(struct agent *agent,
+                  symbol_t      id,
+                  symbol_t      attr,
+                  symbol_t      value,
+                  wme_type_t    type)
 {
-    struct alpha_node* result;
+    struct alpha_node *result;
 
     if (! (result = find_alpha_node(agent, id, attr, value, type))) {
-        struct alpha_node** head =
+        struct alpha_node **head =
             &agent->alpha_nodes[get_alpha_test_index(id, attr, value, type)];
 
-        struct alpha_node* more_general_node;
+        struct alpha_node *more_general_node;
         symbol_t nil;
 
-        result = (struct alpha_node*) malloc(sizeof(struct alpha_node));
+        result = (struct alpha_node *) malloc(sizeof(struct alpha_node));
         result->id    = id;
         result->attr  = attr;
         result->value = value;
@@ -157,7 +157,7 @@ ensure_alpha_node(struct agent* agent,
         if (more_general_node) {
             /* Found a more general working memory; use it to fill in
                our right memory */
-            struct right_memory* rm;
+            struct right_memory *rm;
             for (rm = more_general_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
                 if (wme_matches_alpha_node(rm->wme, result))
                     add_wme_to_alpha_node(agent, result, rm->wme);
@@ -179,9 +179,9 @@ ensure_alpha_node(struct agent* agent,
  * rete.c in Soar8.
  */
 static void
-initialize_matches(struct agent* agent,
-                   struct beta_node* child,
-                   struct beta_node* parent)
+initialize_matches(struct agent     *agent,
+                   struct beta_node *child,
+                   struct beta_node *parent)
 {
     if (parent->type == beta_node_type_root) {
         do_left_addition(agent, child, &agent->root_token, 0);
@@ -190,9 +190,9 @@ initialize_matches(struct agent* agent,
         /* Temporarily splice out all of parent's children except
            `child', then call the right-addition routine, and restore
            parent's children. */
-        struct beta_node* old_children = parent->children;
-        struct beta_node* old_siblings = child->siblings;
-        struct right_memory* rm;
+        struct beta_node *old_children = parent->children;
+        struct beta_node *old_siblings = child->siblings;
+        struct right_memory *rm;
 
         parent->children = child;
         child->siblings = 0;
@@ -204,7 +204,7 @@ initialize_matches(struct agent* agent,
         child->siblings = old_siblings;
     }
     else if (parent->type & beta_node_type_bit_negative) {
-        struct token* token;
+        struct token *token;
         for (token = parent->tokens; token != 0; token = token->next)
             do_left_addition(agent, parent, token, 0); /* XXX not right */
     }
@@ -216,12 +216,12 @@ initialize_matches(struct agent* agent,
 /*
  * Create a beta memory node with the specified parent.
  */
-static struct beta_node*
-create_memory_node(struct agent* agent, struct beta_node* parent)
+static struct beta_node *
+create_memory_node(struct agent *agent, struct beta_node *parent)
 {
-    struct beta_node* result;
+    struct beta_node *result;
 
-    result = (struct beta_node*) malloc(sizeof(struct beta_node));
+    result = (struct beta_node *) malloc(sizeof(struct beta_node));
     result->type       = beta_node_type_memory;
     result->parent     = parent;
     result->siblings   = parent->children;
@@ -239,14 +239,14 @@ create_memory_node(struct agent* agent, struct beta_node* parent)
 /*
  * Create a positive join node with the specified parent.
  */
-static struct beta_node*
-create_positive_join_node(struct agent* agent,
-                          struct beta_node* parent,
-                          struct alpha_node* alpha_node,
-                          struct beta_test* tests)
+static struct beta_node *
+create_positive_join_node(struct agent      *agent,
+                          struct beta_node  *parent,
+                          struct alpha_node *alpha_node,
+                          struct beta_test  *tests)
 {
-    struct beta_node* result =
-        (struct beta_node*) malloc(sizeof(struct beta_node));
+    struct beta_node *result =
+        (struct beta_node *) malloc(sizeof(struct beta_node));
 
     result->type       = beta_node_type_positive_join;
     result->parent     = parent;
@@ -266,14 +266,14 @@ create_positive_join_node(struct agent* agent,
 }
 
 
-static struct beta_node*
-create_negative_node(struct agent* agent,
-                     struct beta_node* parent,
-                     struct alpha_node* alpha_node,
-                     struct beta_test* tests)
+static struct beta_node *
+create_negative_node(struct agent      *agent,
+                     struct beta_node  *parent,
+                     struct alpha_node *alpha_node,
+                     struct beta_test  *tests)
 {
-    struct beta_node* result =
-        (struct beta_node*) malloc(sizeof(struct beta_node));
+    struct beta_node *result =
+        (struct beta_node *) malloc(sizeof(struct beta_node));
 
     result->type       = beta_node_type_negative;
     result->parent     = parent;
@@ -298,14 +298,14 @@ create_negative_node(struct agent* agent,
 /*
  * Create a production node with the specified parent
  */
-static struct beta_node*
-create_production_node(struct agent* agent,
-                       struct beta_node* parent,
-                       struct production* production)
+static struct beta_node *
+create_production_node(struct agent      *agent,
+                       struct beta_node  *parent,
+                       struct production *production)
 {
-    struct beta_node* result;
+    struct beta_node *result;
 
-    result = (struct beta_node*) malloc(sizeof(struct beta_node));
+    result = (struct beta_node *) malloc(sizeof(struct beta_node));
     result->type       = beta_node_type_production;
     result->parent     = parent;
     result->siblings   = parent->children;
@@ -326,9 +326,9 @@ create_production_node(struct agent* agent,
  * Look through a variable binding list to find the binding for the
  * specified variable.
  */
-static inline const variable_binding_t*
-find_bound_variable(const struct variable_binding_list* bindings,
-                    const symbol_t variable)
+static inline const variable_binding_t *
+find_bound_variable(const struct variable_binding_list *bindings,
+                    const symbol_t                      variable)
 {
     for ( ; bindings != 0; bindings = bindings->next) {
         if (SYMBOLS_ARE_EQUAL(bindings->variable, variable))
@@ -346,14 +346,14 @@ find_bound_variable(const struct variable_binding_list* bindings,
  * This corresponds to add_rete_tests_for_test() from rete.c in Soar8.
  */
 static void
-process_test(const struct test* test,
-             unsigned depth,
-             field_t field,
-             const struct variable_binding_list* bindings,
-             symbol_t* constant,
-             struct beta_test** beta_tests)
+process_test(const struct test                  *test,
+             unsigned                            depth,
+             field_t                             field,
+             const struct variable_binding_list *bindings,
+             symbol_t                           *constant,
+             struct beta_test                  **beta_tests)
 {
-    struct beta_test* beta_test = 0;
+    struct beta_test *beta_test = 0;
     symbol_type_t symbol_type;
 
     if (test->type == test_type_blank)
@@ -379,7 +379,7 @@ process_test(const struct test* test,
     case test_type_same_type:
         if (symbol_type == symbol_type_variable) {
             /* It's a variable. Make a variable relational test */
-            const variable_binding_t* binding;
+            const variable_binding_t *binding;
             int relative_depth;
 
             binding = find_bound_variable(bindings, test->data.referent);
@@ -389,7 +389,7 @@ process_test(const struct test* test,
 
             if (relative_depth || binding->field != field) {
                 /* Don't bother to make vacuous tests. */
-                beta_test = (struct beta_test*) malloc(sizeof(struct beta_test));
+                beta_test = (struct beta_test *) malloc(sizeof(struct beta_test));
                 beta_test->relational_type = relational_type_variable;
                 beta_test->data.variable_referent = *binding;
 
@@ -401,7 +401,7 @@ process_test(const struct test* test,
         }
         else {
             beta_test =
-                (struct beta_test*) malloc(sizeof(struct beta_test));
+                (struct beta_test *) malloc(sizeof(struct beta_test));
 
             beta_test->relational_type = relational_type_constant;
             beta_test->data.constant_referent = test->data.referent;
@@ -410,7 +410,7 @@ process_test(const struct test* test,
 
     case test_type_goal_id:
     case test_type_impasse_id:
-        beta_test = (struct beta_test*) malloc(sizeof(struct beta_test));
+        beta_test = (struct beta_test *) malloc(sizeof(struct beta_test));
         beta_test->relational_type = relational_type_constant;
         CLEAR_SYMBOL(beta_test->data.constant_referent);
         break;
@@ -421,7 +421,7 @@ process_test(const struct test* test,
 
     case test_type_conjunctive:
         {
-            struct test_list* tests;
+            struct test_list *tests;
             for (tests = test->data.conjuncts; tests != 0; tests = tests->next)
                 process_test(&tests->test, depth, field, bindings, constant, beta_tests);
         }
@@ -454,10 +454,10 @@ process_test(const struct test* test,
  * before being stored in the beta_test struct.
  */
 static void
-bind_variables(const struct test* test,
-               unsigned depth,
-               field_t field,
-               struct variable_binding_list** bindings)
+bind_variables(const struct test             *test,
+               unsigned                       depth,
+               field_t                        field,
+               struct variable_binding_list **bindings)
 {
     switch (test->type) {
     case test_type_equality:
@@ -469,8 +469,8 @@ bind_variables(const struct test* test,
     case test_type_same_type:
         if ((GET_SYMBOL_TYPE(test->data.referent) == symbol_type_variable) &&
             !find_bound_variable(*bindings, test->data.referent)) {
-            struct variable_binding_list* entry =
-                (struct variable_binding_list*)
+            struct variable_binding_list *entry =
+                (struct variable_binding_list *)
                 malloc(sizeof(struct variable_binding_list));
 
             entry->variable = test->data.referent;
@@ -483,7 +483,7 @@ bind_variables(const struct test* test,
 
     case test_type_conjunctive:
         {
-            struct test_list* tests;
+            struct test_list *tests;
             for (tests = test->data.conjuncts; tests != 0; tests = tests->next)
                 bind_variables(&tests->test, depth, field, bindings);
         }
@@ -509,18 +509,18 @@ bind_variables(const struct test* test,
  * This corresponds to make_node_for_positive_cond() in rete.c in
  * Soar8.
  */
-static struct beta_node*
-ensure_positive_condition_node(struct agent* agent,
-                               const struct condition* cond,
-                               unsigned depth,
-                               struct beta_node* parent,
-                               struct variable_binding_list** bindings)
+static struct beta_node *
+ensure_positive_condition_node(struct agent                  *agent,
+                               const struct condition        *cond,
+                               unsigned                       depth,
+                               struct beta_node              *parent,
+                               struct variable_binding_list **bindings)
 {
-    struct beta_node* result;
-    struct beta_node* memory_node;
-    struct beta_test* tests = 0;
+    struct beta_node *result;
+    struct beta_node *memory_node;
+    struct beta_test *tests = 0;
     symbol_t alpha_id, alpha_attr, alpha_value;
-    struct alpha_node* alpha_node;
+    struct alpha_node *alpha_node;
 
     CLEAR_SYMBOL(alpha_id);
     CLEAR_SYMBOL(alpha_attr);
@@ -591,17 +591,17 @@ ensure_positive_condition_node(struct agent* agent,
  * This corresponds to make_node_for_negative_cond() in rete.c in
  * Soar8.
  */
-static struct beta_node*
-ensure_negative_condition_node(struct agent* agent,
-                               const struct condition* cond,
-                               unsigned depth,
-                               struct beta_node* parent,
-                               struct variable_binding_list** bindings)
+static struct beta_node *
+ensure_negative_condition_node(struct agent                  *agent,
+                               const struct condition        *cond,
+                               unsigned                       depth,
+                               struct beta_node              *parent,
+                               struct variable_binding_list **bindings)
 {
-    struct beta_node* result;
-    struct beta_test* tests = 0;
+    struct beta_node *result;
+    struct beta_test *tests = 0;
     symbol_t alpha_id, alpha_attr, alpha_value;
-    struct alpha_node* alpha_node;
+    struct alpha_node *alpha_node;
 
     CLEAR_SYMBOL(alpha_id);
     CLEAR_SYMBOL(alpha_attr);
@@ -645,15 +645,15 @@ ensure_negative_condition_node(struct agent* agent,
  * Convert variable symbols into the corresponding variable binding.
  */
 static void
-process_rhs_value(struct rhs_value* value,
-                  struct variable_binding_list* bindings,
-                  unsigned depth)
+process_rhs_value(struct rhs_value             *value,
+                  struct variable_binding_list *bindings,
+                  unsigned                      depth)
 {
     if ((value->type == rhs_value_type_symbol) &&
         (value->val.symbol.type == symbol_type_variable)) {
         /* Look up the binding for the variable. There'd better be
            one, or this trip'll end real quick. */
-        const variable_binding_t* binding =
+        const variable_binding_t *binding =
             find_bound_variable(bindings, value->val.symbol);
 
         ASSERT(binding != 0, ("null ptr"));
@@ -674,7 +674,7 @@ process_rhs_value(struct rhs_value* value,
  * Add the variables from a single test to the list of visited variables
  */
 static void
-add_variables_from_test(struct test* test, struct symbol_list** visited)
+add_variables_from_test(struct test *test, struct symbol_list **visited)
 {
     switch (test->type) {
     case test_type_blank:
@@ -690,7 +690,7 @@ add_variables_from_test(struct test* test, struct symbol_list** visited)
     case test_type_goal_id:
     case test_type_impasse_id:
         if (GET_SYMBOL_TYPE(test->data.referent) == symbol_type_variable) {
-            struct symbol_list* entry;
+            struct symbol_list *entry;
 
             /* Have we already added this variable to the visited list? */
             for (entry = *visited; entry != 0; entry = entry->next) {
@@ -700,7 +700,7 @@ add_variables_from_test(struct test* test, struct symbol_list** visited)
 
             if (! entry) {
                 /* Nope. */
-                entry = (struct symbol_list*) malloc(sizeof(struct symbol_list));
+                entry = (struct symbol_list *) malloc(sizeof(struct symbol_list));
 
                 entry->symbol = test->data.referent;
                 entry->next = *visited;
@@ -712,7 +712,7 @@ add_variables_from_test(struct test* test, struct symbol_list** visited)
     case test_type_conjunctive:
     case test_type_disjunctive:
         {
-            struct test_list* tests;
+            struct test_list *tests;
             for (tests = test->data.conjuncts; tests != 0; tests = tests->next)
                 add_variables_from_test(&tests->test, visited);
         }
@@ -724,7 +724,7 @@ add_variables_from_test(struct test* test, struct symbol_list** visited)
  * Add the variables from a condition to the list of visited variables
  */
 static void
-add_variables_from(struct condition* cond, struct symbol_list** visited)
+add_variables_from(struct condition *cond, struct symbol_list **visited)
 {
     ASSERT(cond->type == condition_type_positive, ("wrong type of condition"));
     add_variables_from_test(&cond->data.simple.id_test, visited);
@@ -736,7 +736,7 @@ add_variables_from(struct condition* cond, struct symbol_list** visited)
  * Determine if all the variables in the specified test have been visited
  */
 static bool_t
-all_variables_visited_in_test(struct test* test, struct symbol_list* visited)
+all_variables_visited_in_test(struct test *test, struct symbol_list *visited)
 {
     switch (test->type) {
     case test_type_blank:
@@ -766,7 +766,7 @@ all_variables_visited_in_test(struct test* test, struct symbol_list* visited)
     case test_type_conjunctive:
     case test_type_disjunctive:
         {
-            struct test_list* tests;
+            struct test_list *tests;
             for (tests = test->data.conjuncts; tests != 0; tests = tests->next) {
                 if (! all_variables_visited_in_test(&tests->test, visited))
                     return 0;
@@ -782,7 +782,7 @@ all_variables_visited_in_test(struct test* test, struct symbol_list* visited)
  * Determine if all the variables in the specified condition have been visited
  */
 static bool_t
-all_variables_visited_in(struct condition* cond, struct symbol_list* visited)
+all_variables_visited_in(struct condition *cond, struct symbol_list *visited)
 {
     return all_variables_visited_in_test(&cond->data.simple.id_test, visited)
         && all_variables_visited_in_test(&cond->data.simple.attr_test, visited)
@@ -795,19 +795,19 @@ all_variables_visited_in(struct condition* cond, struct symbol_list* visited)
  * which it refers to.
  */
 static void
-reorder_conditions(struct production* p)
+reorder_conditions(struct production *p)
 {
-    struct condition** link = &p->conditions;
-    struct condition* cond = *link;
-    struct condition* deferred = 0;
-    struct symbol_list* visited = 0;
+    struct condition **link = &p->conditions;
+    struct condition *cond = *link;
+    struct condition *deferred = 0;
+    struct symbol_list *visited = 0;
 
     while (cond) {
         switch (cond->type) {
         case condition_type_positive:
             {
-                struct condition** dlink = &deferred;
-                struct condition* d = *dlink;
+                struct condition **dlink = &deferred;
+                struct condition *d = *dlink;
 
                 add_variables_from(cond, &visited);
 
@@ -866,7 +866,7 @@ reorder_conditions(struct production* p)
     *link = deferred;
 
     while (visited) {
-        struct symbol_list* doomed = visited;
+        struct symbol_list *doomed = visited;
         visited = visited->next;
         free(doomed);
     }
@@ -876,13 +876,13 @@ reorder_conditions(struct production* p)
  * Add a production to the RETE network.
  */
 void
-rete_add_production(struct agent* agent, struct production* p)
+rete_add_production(struct agent *agent, struct production *p)
 {
     unsigned depth = 0;
-    struct beta_node* parent = agent->root_node;
-    struct condition* cond;
+    struct beta_node *parent = agent->root_node;
+    struct condition *cond;
 
-    struct variable_binding_list* bindings = 0;
+    struct variable_binding_list *bindings = 0;
 
     /* Reorder conditions, demoting dependent negative conditions
        after their dependencies */
@@ -891,7 +891,7 @@ rete_add_production(struct agent* agent, struct production* p)
     /* Iterate through the conditions of the production, constructing the
        beta network as we do so. */
     for (cond = p->conditions; cond != 0; cond = cond->next) {
-        struct beta_node* child = 0;
+        struct beta_node *child = 0;
 
         switch (cond->type) {
         case condition_type_positive:
@@ -913,9 +913,9 @@ rete_add_production(struct agent* agent, struct production* p)
 
     {
         /* Build the production node at the tail of the party */
-        struct action* action;
+        struct action *action;
 
-        struct beta_node* production_node =
+        struct beta_node *production_node =
             create_production_node(agent, parent, p);
 
         /* Convert any rhs_value's that are `variable' symbols into
@@ -933,7 +933,7 @@ rete_add_production(struct agent* agent, struct production* p)
     }
 
     while (bindings) {
-        struct variable_binding_list* doomed = bindings;
+        struct variable_binding_list *doomed = bindings;
         bindings = bindings->next;
         free(doomed);
     }

@@ -22,7 +22,7 @@ typedef unsigned char bool_t;
 /* More verbose equivalents of `assert()' */
 #ifdef DEBUG
    extern void
-   runtime_assert(const char* fmtstr, ...);
+   runtime_assert(const char *fmtstr, ...);
 
 #  define ASSERT(cond, args)   \
      BEGIN_MACRO               \

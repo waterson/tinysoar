@@ -25,7 +25,7 @@ static struct symtab symtab;
  * `dump-rete'.
  */
 static int
-dump_rete_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
+dump_rete_command(ClientData data, Tcl_Interp *interp, int argc, char *argv[])
 {
 #ifdef DEBUG
     rete_dump(&agent, &symtab);
@@ -38,7 +38,7 @@ dump_rete_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
  * `elaborate'. Run the agent one elaboration cycle.
  */
 static int
-elaborate_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
+elaborate_command(ClientData data, Tcl_Interp *interp, int argc, char *argv[])
 {
     agent_elaborate(&agent);
     return TCL_OK;
@@ -48,10 +48,10 @@ elaborate_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
  * `export'. Dump the RETE network as a set of C structs.
  */
 static int
-export_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
+export_command(ClientData data, Tcl_Interp *interp, int argc, char *argv[])
 {
-    extern void soar_export(FILE* file, struct agent* agent, struct symtab* symtab); /*XXX*/
-    FILE* file = stdout;
+    extern void soar_export(FILE *file, struct agent *agent, struct symtab *symtab); /*XXX*/
+    FILE *file = stdout;
 
     if (argc > 1)
         file = fopen(argv[1], "w");
@@ -72,7 +72,7 @@ export_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
  * `init-soar'. Re-initialize the agent.
  */
 static int
-init_soar_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
+init_soar_command(ClientData data, Tcl_Interp *interp, int argc, char *argv[])
 {
     agent_reset(&agent);
     return TCL_OK;
@@ -82,7 +82,7 @@ init_soar_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
  * `preferences'. Query or add preferences to working memory.
  */
 static int
-preferences_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
+preferences_command(ClientData data, Tcl_Interp *interp, int argc, char *argv[])
 {
 static char result[16];
 
@@ -90,7 +90,7 @@ static char result[16];
     int i;
     int op = 0; /* query */
     preference_type_t type;
-    struct preference* pref;
+    struct preference *pref;
 
     i = 1;
 
@@ -118,7 +118,7 @@ preferences -r <pref>";
         /* handle remove */
 
         /* XXX yeah, baby */
-        pref = (struct preference*) atoi(argv[i]);
+        pref = (struct preference *) atoi(argv[i]);
 
         /* XXX it'd be nice to make sure there is a really a pref with
            said address before whacking it */
@@ -257,9 +257,9 @@ preferences -r <pref>";
  * then this'll dump the dope.
  */
 static void
-print_enumerator(struct agent* agent, struct wme* wme, void* closure)
+print_enumerator(struct agent *agent, struct wme *wme, void *closure)
 {
-    symbol_t* id = (symbol_t*) closure;
+    symbol_t *id = (symbol_t *) closure;
     if (SYMBOLS_ARE_EQUAL(*id, wme->slot->id)) {
         printf(" ^%s ", symtab_find_name(&symtab, wme->slot->attr));
 
@@ -290,7 +290,7 @@ print_enumerator(struct agent* agent, struct wme* wme, void* closure)
  * `print'. Print stuff that's hanging off an identifier
  */
 static int
-print_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
+print_command(ClientData data, Tcl_Interp *interp, int argc, char *argv[])
 {
     int i;
 
@@ -302,7 +302,7 @@ print_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
     i = 1;
 
     if (strcmp(argv[i], "-stack") == 0) {
-        struct symbol_list* goal;
+        struct symbol_list *goal;
         int indent;
         for (goal = agent.goals, indent = 0; goal != 0; goal = goal->next, ++indent) {
             int j = indent;
@@ -331,9 +331,9 @@ print_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
  * `sp'. Add a production.
  */
 static int
-sp_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
+sp_command(ClientData data, Tcl_Interp *interp, int argc, char *argv[])
 {
-    struct production* prod;
+    struct production *prod;
 
     if (argc < 2) {
         interp->result = "too few arguments";
@@ -364,7 +364,7 @@ sp_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
 __declspec(dllexport)
 #endif
 int
-Tinysoar_Init(Tcl_Interp* interp)
+Tinysoar_Init(Tcl_Interp *interp)
 {
     Tcl_PkgProvide(interp, "TinySoar", "1.0");
 

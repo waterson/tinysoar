@@ -19,12 +19,12 @@
 /*
  * Create a new token
  */
-static inline struct token*
-create_token(struct beta_node* node,
-             struct token*     parent,
-             struct wme*       wme)
+static inline struct token *
+create_token(struct beta_node *node,
+             struct token     *parent,
+             struct wme       *wme)
 {
-    struct token* result = (struct token*) malloc(sizeof(struct token));
+    struct token *result = (struct token *) malloc(sizeof(struct token));
     result->parent = parent;
     result->node   = node;
     result->wme    = wme;
@@ -35,7 +35,7 @@ create_token(struct beta_node* node,
  * Select a field from the specified wme.
  */
 static symbol_t
-get_field_from_wme(struct wme* wme, field_t field)
+get_field_from_wme(struct wme *wme, field_t field)
 {
     ASSERT(wme != 0, ("null ptr"));
 
@@ -60,12 +60,12 @@ get_field_from_wme(struct wme* wme, field_t field)
  * Add a wme to the specified alpha node's right memory
  */
 /*static inline*/ void
-add_wme_to_alpha_node(struct agent*      agent,
-                      struct alpha_node* node,
-                      struct wme*        wme)
+add_wme_to_alpha_node(struct agent      *agent,
+                      struct alpha_node *node,
+                      struct wme        *wme)
 {
-    struct right_memory* rm =
-        (struct right_memory*) malloc(sizeof(struct right_memory));
+    struct right_memory *rm =
+        (struct right_memory *) malloc(sizeof(struct right_memory));
 
     rm->wme = wme;
     rm->next_in_alpha_node = node->right_memories;
@@ -76,12 +76,12 @@ add_wme_to_alpha_node(struct agent*      agent,
  * Remove a wme from the specified alpha node's right memory
  */
 static inline void
-remove_wme_from_alpha_node(struct agent*      agent,
-                           struct alpha_node* node,
-                           struct wme*        wme)
+remove_wme_from_alpha_node(struct agent      *agent,
+                           struct alpha_node *node,
+                           struct wme        *wme)
 {
-    struct right_memory** link = &node->right_memories;
-    struct right_memory* rm = *link;
+    struct right_memory **link = &node->right_memories;
+    struct right_memory *rm = *link;
 
     while (rm) {
         if (rm->wme == wme) {
@@ -99,10 +99,10 @@ remove_wme_from_alpha_node(struct agent*      agent,
  * Check a single beta test
  */
 static bool_t
-check_beta_test(struct agent*     agent,
-                struct beta_test* test,
-                struct token*     token,
-                struct wme*       wme)
+check_beta_test(struct agent     *agent,
+                struct beta_test *test,
+                struct token     *token,
+                struct wme       *wme)
 {
     switch (test->type) {
     case test_type_equality:
@@ -121,12 +121,12 @@ check_beta_test(struct agent*     agent,
                 left = test->data.constant_referent;
             }
             else {
-                struct wme* left_wme = wme;
+                struct wme *left_wme = wme;
                 int depth = (int) test->data.variable_referent.depth;
                 if (depth) {
                     /* Start with |depth == 1| referring to the WME
                        from the token. */
-                    struct token* t = token;
+                    struct token *t = token;
 
                     /* Walk up the token for anything deeper. */
                     while (--depth >= 1)
@@ -200,7 +200,7 @@ check_beta_test(struct agent*     agent,
 
     case test_type_goal_id:
         {
-            struct symbol_list* goal;
+            struct symbol_list *goal;
             for (goal = agent->goals; goal != 0; goal = goal->next) {
                 if (SYMBOLS_ARE_EQUAL(goal->symbol, wme->slot->id))
                     return 1;
@@ -210,7 +210,7 @@ check_beta_test(struct agent*     agent,
 
     case test_type_impasse_id:
         {
-            struct symbol_list* impasse;
+            struct symbol_list *impasse;
             for (impasse = agent->impasses; impasse != 0; impasse = impasse->next) {
                 if (SYMBOLS_ARE_EQUAL(impasse->symbol, wme->slot->id))
                     return 1;
@@ -220,7 +220,7 @@ check_beta_test(struct agent*     agent,
 
     case test_type_disjunctive:
         {
-            struct beta_test* disjunct;
+            struct beta_test *disjunct;
             for (disjunct = test->data.disjuncts; disjunct != 0; disjunct = disjunct->next) {
                 if (check_beta_test(agent, disjunct, token, wme))
                     return 1;
@@ -244,10 +244,10 @@ check_beta_test(struct agent*     agent,
  * Check a list of beta tests
  */
 static inline bool_t
-check_beta_tests(struct agent*     agent,
-                 struct beta_test* test,
-                 struct token*     token,
-                 struct wme*       wme)
+check_beta_tests(struct agent     *agent,
+                 struct beta_test *test,
+                 struct token     *token,
+                 struct wme       *wme)
 {
     for ( ; test != 0; test = test->next) {
         if (! check_beta_test(agent, test, token, wme))
@@ -267,17 +267,17 @@ check_beta_tests(struct agent*     agent,
  * of its own.
  */
 /*static*/ void
-do_left_addition(struct agent*     agent,
-                 struct beta_node* node,
-                 struct token*     token,
-                 struct wme*       wme)
+do_left_addition(struct agent     *agent,
+                 struct beta_node *node,
+                 struct token     *token,
+                 struct wme       *wme)
 {
     switch (node->type) {
     case beta_node_type_memory:
         {
             /* Add a new token to the memory and notify children */
-            struct token* new_token;
-            struct beta_node* child;
+            struct token *new_token;
+            struct beta_node *child;
 
             new_token = create_token(node, token, wme);
             new_token->next = node->tokens;
@@ -290,10 +290,10 @@ do_left_addition(struct agent*     agent,
 
     case beta_node_type_positive_join:
         {
-            struct right_memory* rm;
+            struct right_memory *rm;
             for (rm = node->alpha_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
                 if (check_beta_tests(agent, node->data.tests, token, rm->wme)) {
-                    struct beta_node* child;
+                    struct beta_node *child;
                     for (child = node->children; child != 0; child = child->siblings)
                         do_left_addition(agent, child, token, rm->wme);
                 }
@@ -303,8 +303,8 @@ do_left_addition(struct agent*     agent,
 
     case beta_node_type_negative:
         {
-            struct token* new_token;
-            struct right_memory* rm;
+            struct token *new_token;
+            struct right_memory *rm;
 
             ASSERT(wme != 0, ("no wme in left-addition to negative node"));
             new_token = create_token(node, token, wme);
@@ -322,7 +322,7 @@ do_left_addition(struct agent*     agent,
             if (! rm) {
                 /* Nothing matches the negative node, so go ahead and
                    propagate the token downwards. */
-                struct beta_node* child;
+                struct beta_node *child;
 
                 new_token->next = node->tokens;
                 node->tokens = new_token;
@@ -335,8 +335,8 @@ do_left_addition(struct agent*     agent,
 
     case beta_node_type_production:
         {
-            struct token* new_token = create_token(node, token, wme);
-            struct match* match;
+            struct token *new_token = create_token(node, token, wme);
+            struct match *match;
 
             new_token->next = node->tokens;
             node->tokens = new_token;
@@ -348,7 +348,7 @@ do_left_addition(struct agent*     agent,
                this gonna be a problem? */
 
             /* Allocate a new match and place on the firing queue */
-            match = (struct match*) malloc(sizeof(struct match));
+            match = (struct match *) malloc(sizeof(struct match));
             match->data.token = new_token;
             match->production = node->data.production;
             match->next       = agent->assertions;
@@ -373,20 +373,20 @@ do_left_addition(struct agent*     agent,
  * be removed from the parent beta node.
  */
 static void
-do_left_removal(struct agent*     agent,
-                struct beta_node* node,
-                struct token*     token,
-                struct wme*       wme)
+do_left_removal(struct agent     *agent,
+                struct beta_node *node,
+                struct token     *token,
+                struct wme       *wme)
 {
     switch (node->type) {
     case beta_node_type_memory:
         {
-            struct token* doomed;
+            struct token *doomed;
             struct token **link;
 
             for (link = &node->tokens; (doomed = *link) != 0; link = &doomed->next) {
                 if ((doomed->wme == wme) && (doomed->parent == token)) {
-                    struct beta_node* child;
+                    struct beta_node *child;
                     for (child = node->children; child != 0; child = child->siblings)
                         do_left_removal(agent, child, doomed, 0);
 
@@ -400,10 +400,10 @@ do_left_removal(struct agent*     agent,
 
     case beta_node_type_positive_join:
         {
-            struct right_memory* rm;
+            struct right_memory *rm;
             for (rm = node->alpha_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
                 if (check_beta_tests(agent, node->data.tests, token, rm->wme)) {
-                    struct beta_node* child;
+                    struct beta_node *child;
                     for (child = node->children; child != 0; child = child->siblings)
                         do_left_removal(agent, child, token, rm->wme);
                 }
@@ -413,8 +413,8 @@ do_left_removal(struct agent*     agent,
 
     case beta_node_type_negative:
         {
-            struct token** link;
-            struct token* doomed;
+            struct token **link;
+            struct token *doomed;
 
             /* First see if this was a ``blocked'' token, in which
                case its removal will have no side effects */
@@ -431,7 +431,7 @@ do_left_removal(struct agent*     agent,
                    downwards. Find it and yank it. */
                 for (link = &node->tokens; (doomed = *link) != 0; link = &doomed->next) {
                     if ((doomed->wme == wme) && (doomed->parent == token)) {
-                        struct beta_node* child;
+                        struct beta_node *child;
                         for (child = node->children; child != 0; child = child->siblings)
                             do_left_removal(agent, child, doomed, 0);
 
@@ -448,11 +448,11 @@ do_left_removal(struct agent*     agent,
 
     case beta_node_type_production:
         {
-            struct match* match;
+            struct match *match;
 
             /* See if this match is new */
             {
-                struct match** link;
+                struct match **link;
 
                 for (link = &agent->assertions; (match = *link) != 0; link = &match->next) {
                     if ((match->data.token->wme == wme) && (match->data.token->parent == token)) {
@@ -467,7 +467,7 @@ do_left_removal(struct agent*     agent,
             if (! match) {
                 /* It's not a new match. Find the instantiation that
                    we need to retract */
-                struct instantiation* inst;
+                struct instantiation *inst;
                 for (inst = node->data.production->instantiations; inst != 0; inst = inst->next) {
                     if ((inst->token->wme == wme) && (inst->token->parent == token)) {
                         /* See if this match is already on the retraction queue */
@@ -479,7 +479,7 @@ do_left_removal(struct agent*     agent,
                         if (! match) {
                             /* Gotcha. Allocate a new match and place on the
                                retraction queue */
-                            match = (struct match*) malloc(sizeof(struct match));
+                            match = (struct match *) malloc(sizeof(struct match));
                             match->data.instantiation = inst;
                             match->production         = node->data.production;
                             match->next               = agent->retractions;
@@ -492,8 +492,8 @@ do_left_removal(struct agent*     agent,
 
             /* Nuke the token */
             {
-                struct token** link;
-                struct token* doomed;
+                struct token **link;
+                struct token *doomed;
                 for (link = &node->tokens; (doomed = *link) != 0; link = &doomed->next) {
                     if ((doomed->wme == wme) && (doomed->parent == token)) {
                         *link = doomed->next;
@@ -524,10 +524,10 @@ do_left_removal(struct agent*     agent,
  * the right-memory to which |node| is attached.
  */
 /*static inline*/ void
-do_right_addition(struct agent* agent, struct beta_node* node, struct wme* wme)
+do_right_addition(struct agent *agent, struct beta_node *node, struct wme *wme)
 {
-    struct token** link;
-    struct token* token = node->tokens;
+    struct token **link;
+    struct token *token = node->tokens;
 
     switch (node->type) {
     case beta_node_type_positive_join:
@@ -547,7 +547,7 @@ do_right_addition(struct agent* agent, struct beta_node* node, struct wme* wme)
            children. */
         while (token) {
             if (check_beta_tests(agent, node->data.tests, token, wme)) {
-                struct beta_node* child;
+                struct beta_node *child;
                 for (child = node->children; child != 0; child = child->siblings)
                     do_left_addition(agent, child, token, wme);
             }
@@ -566,7 +566,7 @@ do_right_addition(struct agent* agent, struct beta_node* node, struct wme* wme)
                    all pass, then the negative condition has
                    matched. We need to remove any tokens that had
                    previously been propagated. */
-                struct beta_node* child;
+                struct beta_node *child;
                 for (child = node->children; child != 0; child = child->siblings)
                     do_left_removal(agent, child, token, 0);
 
@@ -594,10 +594,10 @@ do_right_addition(struct agent* agent, struct beta_node* node, struct wme* wme)
  * the right-memory to which |node| is attached.
  */
 static inline void
-do_right_removal(struct agent* agent, struct beta_node* node, struct wme* wme)
+do_right_removal(struct agent *agent, struct beta_node *node, struct wme *wme)
 {
-    struct token* token = node->tokens;
-    struct token** link;
+    struct token *token = node->tokens;
+    struct token **link;
 
     switch (node->type) {
     case beta_node_type_positive_join:
@@ -617,7 +617,7 @@ do_right_removal(struct agent* agent, struct beta_node* node, struct wme* wme)
            children. */
         while (token) {
             if (check_beta_tests(agent, node->data.tests, token, wme)) {
-                struct beta_node* child;
+                struct beta_node *child;
                 for (child = node->children; child != 0; child = child->siblings)
                     do_left_removal(agent, child, token, wme);
             }
@@ -635,7 +635,7 @@ do_right_removal(struct agent* agent, struct beta_node* node, struct wme* wme)
                 /* If there are no beta tests, or the beta tests
                    all pass, then this blocked token just became
                    unblocked. Propagate it downward. */
-                struct beta_node* child;
+                struct beta_node *child;
                 for (child = node->children; child != 0; child = child->siblings)
                     do_left_addition(agent, child, token, 0);
 
@@ -669,12 +669,12 @@ do_right_removal(struct agent* agent, struct beta_node* node, struct wme* wme)
 
 #ifdef CONF_SOAR_RETE_CREATE
 void
-rete_create(struct agent* agent)
+rete_create(struct agent *agent)
 {
     int i;
 
-    struct beta_node* root_node =
-        (struct beta_node*) malloc(sizeof(struct beta_node));
+    struct beta_node *root_node =
+        (struct beta_node *) malloc(sizeof(struct beta_node));
 
     root_node->type = beta_node_type_root;
     root_node->parent
@@ -702,9 +702,9 @@ rete_create(struct agent* agent)
 #endif
 
 void
-rete_init(struct agent* agent)
+rete_init(struct agent *agent)
 {
-    struct beta_node* node = agent->root_node->children;
+    struct beta_node *node = agent->root_node->children;
     while (node) {
         do_left_addition(agent, node, &agent->root_token, 0);
         node = node->siblings;
@@ -712,25 +712,25 @@ rete_init(struct agent* agent)
 }
 
 void
-rete_operate_wme(struct agent* agent, struct wme* wme, wme_operation_t op)
+rete_operate_wme(struct agent *agent, struct wme *wme, wme_operation_t op)
 {
     int offset = (wme->type == wme_type_normal) ? 0 : 8;
     int i;
 
     for (i = 0; i < 8; ++i) {
-        struct alpha_node* alpha;
+        struct alpha_node *alpha;
 
         for (alpha = agent->alpha_nodes[i + offset]; alpha != 0; alpha = alpha->siblings) {
             if (wme_matches_alpha_node(wme, alpha)) {
                 if (op == wme_operation_add) {
-                    struct beta_node* beta;
+                    struct beta_node *beta;
                     add_wme_to_alpha_node(agent, alpha, wme);
 
                     for (beta = alpha->children; beta != 0; beta = beta->next_with_same_alpha_node)
                         do_right_addition(agent, beta, wme);
                 }
                 else {
-                    struct beta_node* beta;
+                    struct beta_node *beta;
                     for (beta = alpha->children; beta != 0; beta = beta->next_with_same_alpha_node)
                         do_right_removal(agent, beta, wme);
 
@@ -745,7 +745,7 @@ rete_operate_wme(struct agent* agent, struct wme* wme, wme_operation_t op)
  * Extract the bound symbol from a variable binding and a token.
  */
 symbol_t
-rete_get_variable_binding(variable_binding_t binding, struct token* token)
+rete_get_variable_binding(variable_binding_t binding, struct token *token)
 {
     int depth = (int) binding.depth;
     while (--depth >= 0)
@@ -756,7 +756,7 @@ rete_get_variable_binding(variable_binding_t binding, struct token* token)
 
 
 void
-rete_finish(struct agent* agent)
+rete_finish(struct agent *agent)
 {
     UNIMPLEMENTED();
 }
@@ -773,8 +773,8 @@ indent_by(int nest)
         printf("  ");
 }
 
-static const char*
-symbol_to_string(struct symtab* symtab, symbol_t symbol)
+static const char *
+symbol_to_string(struct symtab *symtab, symbol_t symbol)
 {
     static char buf[16];
 
@@ -806,7 +806,7 @@ symbol_to_string(struct symtab* symtab, symbol_t symbol)
 }
 
 static void
-dump_wme(struct symtab* symtab, struct wme* wme)
+dump_wme(struct symtab *symtab, struct wme *wme)
 {
     printf("wme@%p(%s ", wme, symbol_to_string(symtab, wme->slot->id));
     printf("^%s ", symbol_to_string(symtab, wme->slot->attr));
@@ -814,7 +814,7 @@ dump_wme(struct symtab* symtab, struct wme* wme)
 }
 
 static void
-dump_token(struct symtab* symtab, struct token* token)
+dump_token(struct symtab *symtab, struct token *token)
 {
     printf("token@%p<parent=%p wme=", token, token->parent);
     if (token->wme)
@@ -825,7 +825,7 @@ dump_token(struct symtab* symtab, struct token* token)
 }
 
 static void
-dump_test(struct symtab* symtab, struct beta_test* test)
+dump_test(struct symtab *symtab, struct beta_test *test)
 {
     switch (test->field) {
     case field_id:      printf("id");     break;
@@ -870,7 +870,7 @@ dump_test(struct symtab* symtab, struct beta_test* test)
 
     case test_type_disjunctive:
         {
-            struct beta_test* disjunct = test->data.disjuncts;
+            struct beta_test *disjunct = test->data.disjuncts;
             while (disjunct) {
                 printf("( ");
                 dump_test(symtab, disjunct);
@@ -916,7 +916,7 @@ dump_test(struct symtab* symtab, struct beta_test* test)
 }
 
 static void
-dump_beta_node(struct symtab* symtab, struct beta_node* node, int nest, int recur)
+dump_beta_node(struct symtab *symtab, struct beta_node *node, int nest, int recur)
 {
     indent_by(nest);
 
@@ -963,7 +963,7 @@ dump_beta_node(struct symtab* symtab, struct beta_node* node, int nest, int recu
     case beta_node_type_memory_positive_join:
     case beta_node_type_negative:
         {
-            struct beta_test* test;
+            struct beta_test *test;
             printf(" tests={");
             for (test = node->data.tests; test != 0; test = test->next) {
                 printf(" ");
@@ -992,7 +992,7 @@ dump_beta_node(struct symtab* symtab, struct beta_node* node, int nest, int recu
         case beta_node_type_production:
             {
                 /* dump tokens at the node */
-                struct token* token;
+                struct token *token;
                 for (token = node->tokens; token != 0; token = token->next) {
                     indent_by(nest + 2);
                     printf("+ ");
@@ -1009,7 +1009,7 @@ dump_beta_node(struct symtab* symtab, struct beta_node* node, int nest, int recu
         case beta_node_type_negative:
             {
                 /* dump blocked tokens at the node */
-                struct token* token;
+                struct token *token;
                 for (token = node->blocked; token != 0; token = token->next) {
                     indent_by(nest + 2);
                     printf("x ");
@@ -1028,16 +1028,16 @@ dump_beta_node(struct symtab* symtab, struct beta_node* node, int nest, int recu
 }
 
 void
-rete_dump(struct agent* agent, struct symtab* symtab)
+rete_dump(struct agent *agent, struct symtab *symtab)
 {
     int i;
 
     printf("\nALPHA NETWORK\n");
     for (i = 0; i < 16; ++i) {
-        struct alpha_node* alpha = agent->alpha_nodes[i];
+        struct alpha_node *alpha = agent->alpha_nodes[i];
         while (alpha) {
-            struct beta_node* beta;
-            struct right_memory* rm;
+            struct beta_node *beta;
+            struct right_memory *rm;
 
             printf("(%s ", symbol_to_string(symtab, alpha->id));
             printf("^%s ", symbol_to_string(symtab, alpha->attr));

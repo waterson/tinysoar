@@ -6,7 +6,7 @@
 #include <stdio.h>
 
 void
-runtime_assert(const char* fmtstr, ...)
+runtime_assert(const char *fmtstr, ...)
 {
     va_list ap;
 

@@ -17,24 +17,24 @@
  * to a unique, monotonically ascending numeric identifier.
  */
 struct index_map {
-    void* ptr;
+    void *ptr;
     int   id;
 };
 
 static inline unsigned
-hash_pointer(const void* p)
+hash_pointer(const void *p)
 {
     return ((unsigned) p) >> 3;
 }
 
 static bool_t
-compare_map_entries(const struct index_map* p1, const struct index_map* p2)
+compare_map_entries(const struct index_map *p1, const struct index_map *p2)
 {
     return p1->ptr == p2->ptr;
 }
 
 static ht_enumerator_result_t
-free_index_map(struct ht_entry_header* header, void* closure)
+free_index_map(struct ht_entry_header *header, void *closure)
 {
     return ht_enumerator_result_delete;
 }
@@ -43,11 +43,11 @@ free_index_map(struct ht_entry_header* header, void* closure)
  * Retrieve the identifier for the specified pointer.
  */
 static int
-get_index_map_id(struct ht* table, void* ptr)
+get_index_map_id(struct ht *table, void *ptr)
 {
     struct index_map key;
-    struct ht_entry_header** entryp;
-    struct index_map* map;
+    struct ht_entry_header **entryp;
+    struct index_map *map;
 
     key.ptr = ptr;
     entryp = ht_lookup(table, hash_pointer(ptr), &key);
@@ -57,7 +57,7 @@ get_index_map_id(struct ht* table, void* ptr)
         return -1;
     }
 
-    map = (struct index_map*) HT_ENTRY_DATA(*entryp);
+    map = (struct index_map *) HT_ENTRY_DATA(*entryp);
     return map->id;
 }
 
@@ -65,21 +65,21 @@ get_index_map_id(struct ht* table, void* ptr)
  * Associate an identifier with the specified pointer.
  */
 static void
-put_index_map_id(struct ht* table, void* ptr, int id)
+put_index_map_id(struct ht *table, void *ptr, int id)
 {
     struct index_map key;
     unsigned hash = hash_pointer(ptr);
-    struct ht_entry_header** entryp;
-    struct ht_entry_header* entry;
-    struct index_map* map;
+    struct ht_entry_header **entryp;
+    struct ht_entry_header *entry;
+    struct index_map *map;
 
     key.ptr = ptr;
     entryp = ht_lookup(table, hash, &key);
 
     ASSERT(! *entryp, ("already added %p", ptr));
 
-    entry = (struct ht_entry_header*) malloc(sizeof(struct ht_entry_header) + sizeof(struct index_map));
-    map = (struct index_map*) HT_ENTRY_DATA(entry);
+    entry = (struct ht_entry_header *) malloc(sizeof(struct ht_entry_header) + sizeof(struct index_map));
+    map = (struct index_map *) HT_ENTRY_DATA(entry);
     map->ptr = ptr;
     map->id = id;
 
@@ -89,7 +89,7 @@ put_index_map_id(struct ht* table, void* ptr, int id)
 /*
  * Convert a symbol_type_t to a string for output.
  */
-static const char*
+static const char *
 symbol_type_to_string(symbol_type_t type)
 {
     switch (type) {
@@ -107,7 +107,7 @@ symbol_type_to_string(symbol_type_t type)
  * Emit a properly constructed DECLARE_SYMBOL() macro.
  */
 static void
-declare_symbol(FILE* file, symbol_t symbol)
+declare_symbol(FILE *file, symbol_t symbol)
 {
     if (SYMBOL_IS_NIL(symbol))
         fprintf(file, "DECLARE_NIL_SYMBOL");
@@ -121,7 +121,7 @@ declare_symbol(FILE* file, symbol_t symbol)
  * Emit a properly constructed SYMBOL_TO_WORD() macro.
  */
 static void
-symbol_to_word(FILE* file, symbol_t symbol)
+symbol_to_word(FILE *file, symbol_t symbol)
 {
     fprintf(file, "SYMBOL_TO_WORD(%d, %s)",
             GET_SYMBOL_VALUE(symbol),
@@ -131,7 +131,7 @@ symbol_to_word(FILE* file, symbol_t symbol)
 /*
  * Convert a beta_node_type_t to a string value for output.
  */
-static const char*
+static const char *
 beta_node_type_to_string(beta_node_type_t type)
 {
     switch (type) {
@@ -167,7 +167,7 @@ beta_node_type_to_string(beta_node_type_t type)
 /*
  * Convert a test_type_t to a string value for output.
  */
-static const char*
+static const char *
 test_type_to_string(test_type_t type)
 {
     switch (type) {
@@ -192,7 +192,7 @@ test_type_to_string(test_type_t type)
 /*
  * Convert a relational_type_t to a string value for output.
  */
-static const char*
+static const char *
 relational_type_to_string(relational_type_t type)
 {
     switch (type) {
@@ -207,7 +207,7 @@ relational_type_to_string(relational_type_t type)
 /*
  * Convert a field_t to a string value for output.
  */
-static const char*
+static const char *
 field_to_string(field_t field)
 {
     switch (field) {
@@ -224,7 +224,7 @@ field_to_string(field_t field)
  * Emit a properly constructed VARIABLE_BINDING_TO_WORD() macro.
  */
 static void
-variable_binding_to_word(FILE* file, variable_binding_t binding)
+variable_binding_to_word(FILE *file, variable_binding_t binding)
 {
     fprintf(file, "VARIABLE_BINDING_TO_WORD(%s, %d)",
             field_to_string(binding.field),
@@ -234,7 +234,7 @@ variable_binding_to_word(FILE* file, variable_binding_t binding)
 /*
  * Convert a preferenct_type_t to a string value for output.
  */
-static const char*
+static const char *
 preference_type_to_string(preference_type_t type)
 {
     switch (type) {
@@ -260,7 +260,7 @@ preference_type_to_string(preference_type_t type)
 /*
  * Convert a rhs_value_type_t to a string value for output.
  */
-static const char*
+static const char *
 rhs_value_type_to_string(rhs_value_type_t type)
 {
     switch (type) {
@@ -276,7 +276,7 @@ rhs_value_type_to_string(rhs_value_type_t type)
 /*
  * Convert a support_type_t to a string value for output
  */
-static const char*
+static const char *
 support_type_to_string(support_type_t type)
 {
     switch (type) {
@@ -294,13 +294,13 @@ support_type_to_string(support_type_t type)
  * Collect the alpha nodes into an index map.
  */
 static void
-collect_alpha_nodes(struct agent* agent, struct ht* alphas)
+collect_alpha_nodes(struct agent *agent, struct ht *alphas)
 {
     int id = 0;
     int i;
 
     for (i = 0; i < 16; ++i) {
-        struct alpha_node* node = agent->alpha_nodes[i];
+        struct alpha_node *node = agent->alpha_nodes[i];
         while (node) {
             put_index_map_id(alphas, node, id++);
             node = node->siblings;
@@ -312,11 +312,11 @@ collect_alpha_nodes(struct agent* agent, struct ht* alphas)
  * Emit the alpha nodes.
  */
 static void
-export_alpha_nodes(FILE* file, struct agent* agent, struct ht* alphas, struct ht* betas)
+export_alpha_nodes(FILE *file, struct agent *agent, struct ht *alphas, struct ht *betas)
 {
     int i;
     for (i = 0; i < 16; ++i) {
-        struct alpha_node* node = agent->alpha_nodes[i];
+        struct alpha_node *node = agent->alpha_nodes[i];
         while (node) {
             fprintf(file, "  { /* %d (%p) */\n    ", get_index_map_id(alphas, node), node);
             declare_symbol(file, node->id);
@@ -346,12 +346,12 @@ export_alpha_nodes(FILE* file, struct agent* agent, struct ht* alphas, struct ht
  * Collect an index map for the beta tests in a beta node.
  */
 static void
-collect_beta_tests(struct beta_test* test, struct ht* tests, int* id)
+collect_beta_tests(struct beta_test *test, struct ht *tests, int *id)
 {
     put_index_map_id(tests, test, (*id)++);
 
     if (test->type == test_type_disjunctive) {
-        struct beta_test* disjuncts = test->data.disjuncts;
+        struct beta_test *disjuncts = test->data.disjuncts;
         while (disjuncts) {
             collect_beta_tests(disjuncts, tests, id);
             disjuncts = disjuncts->next;
@@ -366,7 +366,7 @@ collect_beta_tests(struct beta_test* test, struct ht* tests, int* id)
  * Collect an index map for the actions in a production.
  */
 static void
-collect_actions(struct ht* actions, struct action* action, int* action_id)
+collect_actions(struct ht *actions, struct action *action, int *action_id)
 {
     put_index_map_id(actions, action, (*action_id)++);
 
@@ -379,15 +379,15 @@ collect_actions(struct ht* actions, struct action* action, int* action_id)
  * actions in the beta network.
  */
 static void
-collect_beta_nodes(struct beta_node* node,
-                   struct ht*        betas,
-                   struct ht*        tests,
-                   struct ht*        productions,
-                   struct ht*        actions,
-                   int*              beta_id,
-                   int*              test_id,
-                   int*              prod_id,
-                   int*              action_id)
+collect_beta_nodes(struct beta_node *node,
+                   struct ht        *betas,
+                   struct ht        *tests,
+                   struct ht        *productions,
+                   struct ht        *actions,
+                   int              *beta_id,
+                   int              *test_id,
+                   int              *prod_id,
+                   int              *action_id)
 {
     put_index_map_id(betas, node, (*beta_id)++);
 
@@ -422,12 +422,12 @@ collect_beta_nodes(struct beta_node* node,
  * Walk the beta network emitting static initializers for beta nodes.
  */
 static void
-export_beta_nodes(FILE*             file,
-                  struct beta_node* node,
-                  struct ht*        alphas,
-                  struct ht*        betas,
-                  struct ht*        tests,
-                  struct ht*        productions)
+export_beta_nodes(FILE *            file,
+                  struct beta_node *node,
+                  struct ht        *alphas,
+                  struct ht        *betas,
+                  struct ht        *tests,
+                  struct ht        *productions)
 {
     fprintf(file, "  { /* %d (%p) */\n    %s,\n",
             get_index_map_id(betas, node),
@@ -480,7 +480,7 @@ export_beta_nodes(FILE*             file,
 
     case beta_node_type_production:
         /* write production reference */
-        fprintf(file, "(struct beta_test*) &productions[%d]",
+        fprintf(file, "(struct beta_test *) &productions[%d]",
                 get_index_map_id(productions, node->data.production));
         break;
 
@@ -503,7 +503,7 @@ export_beta_nodes(FILE*             file,
  * Emit a static initializer for a beta_test.
  */
 static void
-export_beta_test(FILE* file, struct beta_test* test, struct ht* tests)
+export_beta_test(FILE *file, struct beta_test *test, struct ht *tests)
 {
     fprintf(file, "  { /* %d (%p) */\n", get_index_map_id(tests, test), test);
 
@@ -530,7 +530,7 @@ export_beta_test(FILE* file, struct beta_test* test, struct ht* tests)
     fprintf(file, " },\n");
 
     if (test->type == test_type_disjunctive) {
-        struct beta_test* disjuncts = test->data.disjuncts;
+        struct beta_test *disjuncts = test->data.disjuncts;
         while (disjuncts) {
             export_beta_test(file, disjuncts, tests);
             disjuncts = disjuncts->next;
@@ -546,7 +546,7 @@ export_beta_test(FILE* file, struct beta_test* test, struct ht* tests)
  * structures as appropriate beta_nodes are discovered.
  */
 static void
-export_beta_tests(FILE* file, struct beta_node* node, struct ht* tests)
+export_beta_tests(FILE *file, struct beta_node *node, struct ht *tests)
 {
     if (node->type == beta_node_type_positive_join ||
         node->type == beta_node_type_memory_positive_join ||
@@ -564,7 +564,7 @@ export_beta_tests(FILE* file, struct beta_node* node, struct ht* tests)
  * Emit a static initializer for a rhs_value structure.
  */
 static void
-rhs_value(FILE* file, struct rhs_value* value)
+rhs_value(FILE *file, struct rhs_value *value)
 {
     fprintf(file, "{ %s, ", rhs_value_type_to_string(value->type));
 
@@ -592,7 +592,7 @@ rhs_value(FILE* file, struct rhs_value* value)
  * Emit a static initializer for an action structure.
  */
 static void
-export_action(FILE* file, struct action* action, struct ht* actions)
+export_action(FILE *file, struct action *action, struct ht *actions)
 {
     fprintf(file, "  { /* %d (%p) */\n    ", get_index_map_id(actions, action), action);
 
@@ -626,7 +626,7 @@ export_action(FILE* file, struct action* action, struct ht* actions)
  * discovered.
  */
 static void
-export_actions(FILE* file, struct beta_node* node, struct ht* actions)
+export_actions(FILE *file, struct beta_node *node, struct ht *actions)
 {
     if (node->type == beta_node_type_production)
         export_action(file, node->data.production->actions, actions);
@@ -642,14 +642,22 @@ export_actions(FILE* file, struct beta_node* node, struct ht* actions)
  * Emit a static initializer for a production.
  */
 static void
-export_production(FILE*              file,
-                  struct production* production,
-                  struct ht*         productions,
-                  struct ht*         actions)
+export_production(FILE *             file,
+                  struct production *production,
+                  struct ht         *productions,
+                  struct ht         *actions)
 {
     fprintf(file, "  { /* %d (%p) */\n", get_index_map_id(productions, production), production);
     fprintf(file, "#ifdef DEBUG\n");
-    fprintf(file, "    \"%s\",\n", production->name);
+
+    fprintf(file, "    \"%s\",\n",
+#ifdef DEBUG
+            production->name
+#else
+            ""
+#endif
+            );
+
     fprintf(file, "#endif\n");
 
     fprintf(file, "    0, ");
@@ -667,10 +675,10 @@ export_production(FILE*              file,
  * Walk the beta network, exporting each production node in order.
  */
 static void
-export_productions(FILE*             file,
-                   struct beta_node* node,
-                   struct ht*        productions,
-                   struct ht*        actions)
+export_productions(FILE *            file,
+                   struct beta_node *node,
+                   struct ht        *productions,
+                   struct ht        *actions)
 {
     if (node->type == beta_node_type_production)
         export_production(file, node->data.production, productions, actions);
@@ -683,12 +691,12 @@ export_productions(FILE*             file,
 }
 
 void
-export_symtab(FILE* file, struct symtab* symtab)
+export_symtab(FILE *file, struct symtab *symtab)
 {
     unsigned i;
     for (i = 1; i < symtab->next_sym_constant; ++i) {
         symbol_t symbol;
-        const char* name;
+        const char *name;
 
         MAKE_SYMBOL(symbol, symbol_type_symbolic_constant, i);
         name = symtab_find_name(symtab, symbol);
@@ -716,7 +724,7 @@ export_symtab(FILE* file, struct symtab* symtab)
  * Write a static initializer for the agent
  */
 void
-export_agent(FILE* file, struct agent* agent, struct ht* alphas)
+export_agent(FILE *file, struct agent *agent, struct ht *alphas)
 {
     int i;
 
@@ -743,7 +751,7 @@ export_agent(FILE* file, struct agent* agent, struct ht* alphas)
 }
 
 void
-soar_export(FILE* file, struct agent* agent, struct symtab* symtab)
+soar_export(FILE *file, struct agent *agent, struct symtab *symtab)
 {
     struct ht alphas;
     struct ht betas;

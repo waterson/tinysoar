@@ -5,8 +5,8 @@
 #include "soar.h"
 
 struct symtab_entry {
-    char*    name;
-    symbol_t symbol;
+    char     *name;
+    symbol_t  symbol;
 };
 
 struct symtab {
@@ -17,15 +17,15 @@ struct symtab {
 };
 
 extern void
-symtab_init(struct symtab* symtab);
+symtab_init(struct symtab *symtab);
 
 extern symbol_t
-symtab_lookup(struct symtab* symtab, symbol_type_t type, const char* name, bool_t create);
+symtab_lookup(struct symtab *symtab, symbol_type_t type, const char *name, bool_t create);
 
-extern const char*
-symtab_find_name(struct symtab* symtab, symbol_t symbol);
+extern const char *
+symtab_find_name(struct symtab *symtab, symbol_t symbol);
 
 extern void
-symtab_finish(struct symtab* symtab);
+symtab_finish(struct symtab *symtab);
 
 #endif /* symtab_h__ */

@@ -22,12 +22,12 @@ static bool_t constants_initialized = 0;
 symbol_t constants[USER_CONSTANT_BASE];
 
 static void
-push_goal_id(struct agent* agent, symbol_t goal_id)
+push_goal_id(struct agent *agent, symbol_t goal_id)
 {
-    struct symbol_list* entry =
-        (struct symbol_list*) malloc(sizeof(struct symbol_list));
+    struct symbol_list *entry =
+        (struct symbol_list *) malloc(sizeof(struct symbol_list));
 
-    struct symbol_list** link = &agent->goals;
+    struct symbol_list **link = &agent->goals;
 
     entry->symbol = goal_id;
     entry->next   = 0;
@@ -39,10 +39,10 @@ push_goal_id(struct agent* agent, symbol_t goal_id)
 }
 
 static symbol_t
-pop_goal_id(struct agent* agent)
+pop_goal_id(struct agent *agent)
 {
-    struct symbol_list* doomed = agent->goals;
-    struct symbol_list** link = &agent->goals;
+    struct symbol_list *doomed = agent->goals;
+    struct symbol_list **link = &agent->goals;
     symbol_t last;
 
     ASSERT(doomed != 0, ("popped too many goals"));
@@ -69,7 +69,7 @@ pop_goal_id(struct agent* agent)
  *
  */
 static void
-init_top_state(struct agent* agent)
+init_top_state(struct agent *agent)
 {
     /* The goal stack is completely empty; create initial state */
     symbol_t state  = agent_get_identifier(agent);
@@ -86,7 +86,7 @@ init_top_state(struct agent* agent)
 }
 
 void
-agent_init(struct agent* agent)
+agent_init(struct agent *agent)
 {
     if (! constants_initialized) {
         /* Do one-time initialization */
@@ -114,7 +114,7 @@ agent_init(struct agent* agent)
 }
 
 void
-agent_finish(struct agent* agent)
+agent_finish(struct agent *agent)
 {
     while (agent->goals)
         pop_goal_id(agent);
@@ -124,7 +124,7 @@ agent_finish(struct agent* agent)
 }
 
 void
-agent_reset(struct agent* agent)
+agent_reset(struct agent *agent)
 {
     /* Clear working memory _before_ popping the goal stack so that
        our WME removals can propagate correctly through the RETE
@@ -139,7 +139,7 @@ agent_reset(struct agent* agent)
 }
 
 symbol_t
-agent_get_identifier(struct agent* agent)
+agent_get_identifier(struct agent *agent)
 {
     symbol_t result;
 
@@ -154,14 +154,14 @@ agent_get_identifier(struct agent* agent)
 }
 
 void
-agent_elaborate(struct agent* agent)
+agent_elaborate(struct agent *agent)
 {
     ASSERT(agent->goals != 0, ("no top-state"));
     wmem_elaborate(agent);
 }
 
 void
-agent_operator_no_change(struct agent* agent, symbol_t goal)
+agent_operator_no_change(struct agent *agent, symbol_t goal)
 {
     symbol_t state = agent_get_identifier(agent);
 
@@ -181,7 +181,7 @@ agent_operator_no_change(struct agent* agent, symbol_t goal)
 
 
 void
-agent_state_no_change(struct agent* agent, symbol_t goal)
+agent_state_no_change(struct agent *agent, symbol_t goal)
 {
     symbol_t state = agent_get_identifier(agent);
 
@@ -200,7 +200,7 @@ agent_state_no_change(struct agent* agent, symbol_t goal)
 }
 
 void
-agent_operator_conflict(struct agent* agent, symbol_t goal, struct symbol_list* operators)
+agent_operator_conflict(struct agent *agent, symbol_t goal, struct symbol_list *operators)
 {
     symbol_t state = agent_get_identifier(agent);
 
@@ -221,7 +221,7 @@ agent_operator_conflict(struct agent* agent, symbol_t goal, struct symbol_list* 
 }
 
 void
-agent_operator_tie(struct agent* agent, symbol_t goal, struct symbol_list* operators)
+agent_operator_tie(struct agent *agent, symbol_t goal, struct symbol_list *operators)
 {
     symbol_t state = agent_get_identifier(agent);
 

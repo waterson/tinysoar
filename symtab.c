@@ -4,14 +4,14 @@
 #include <string.h>
 
 static bool_t
-compare_symbols(const struct symtab_entry* e1, const struct symtab_entry* e2)
+compare_symbols(const struct symtab_entry *e1, const struct symtab_entry *e2)
 {
     return e1->symbol.type == e2->symbol.type
         && strcmp(e1->name, e2->name) == 0;
 }
 
 static inline unsigned
-hash_symbol(const char* name, symbol_type_t type)
+hash_symbol(const char *name, symbol_type_t type)
 {
     unsigned h = (unsigned) type;
     for ( ; *name != 0; ++name)
@@ -21,13 +21,13 @@ hash_symbol(const char* name, symbol_type_t type)
 }
 
 static void
-add_symbol(struct symtab* symtab, struct ht_entry_header** entryp, const char* name, symbol_t symbol)
+add_symbol(struct symtab *symtab, struct ht_entry_header **entryp, const char *name, symbol_t symbol)
 {
-    struct ht_entry_header* header =
-        (struct ht_entry_header*) malloc(sizeof(struct ht_entry_header) + sizeof(struct symtab_entry));
+    struct ht_entry_header *header =
+        (struct ht_entry_header *) malloc(sizeof(struct ht_entry_header) + sizeof(struct symtab_entry));
 
-    struct symtab_entry* entry =
-        (struct symtab_entry*) HT_ENTRY_DATA(header);
+    struct symtab_entry *entry =
+        (struct symtab_entry *) HT_ENTRY_DATA(header);
 
     unsigned hash = hash_symbol(name, symbol.type);
 
@@ -37,34 +37,34 @@ add_symbol(struct symtab* symtab, struct ht_entry_header** entryp, const char* n
     if (! entryp) {
         struct symtab_entry key;
 
-        key.name = (char*) name;
+        key.name = (char *) name;
         key.symbol.type = symbol.type;
 
         entryp = ht_lookup(&symtab->table, hash, &key);
 
         ASSERT(! *entryp, ("over-writing symbol table entry for `%s'",
-                           ((struct symtab_entry*) HT_ENTRY_DATA(*entryp))->name));
+                           ((struct symtab_entry *) HT_ENTRY_DATA(*entryp))->name));
     }
 
     ht_add(&symtab->table, entryp, hash, header);
 }
 
 symbol_t
-symtab_lookup(struct symtab* symtab, symbol_type_t type, const char* name, bool_t create)
+symtab_lookup(struct symtab *symtab, symbol_type_t type, const char *name, bool_t create)
 {
     unsigned hash = hash_symbol(name, type);
-    struct ht_entry_header** entryp;
+    struct ht_entry_header **entryp;
     struct symtab_entry key;
     symbol_t result;
 
-    key.name = (char*) name;
+    key.name = (char *) name;
     key.symbol.type = type;
 
     entryp = ht_lookup(&symtab->table, hash, &key);
 
     if (*entryp) {
-        struct symtab_entry* entry =
-            (struct symtab_entry*) HT_ENTRY_DATA(*entryp);
+        struct symtab_entry *entry =
+            (struct symtab_entry *) HT_ENTRY_DATA(*entryp);
 
         result = entry->symbol;
     }
@@ -103,15 +103,15 @@ symtab_lookup(struct symtab* symtab, symbol_type_t type, const char* name, bool_
 
 struct find_name_closure {
     symbol_t    symbol;
-    const char* result;
+    const char *result;
 };
 
 static ht_enumerator_result_t
-find_name_enumerator(struct ht_entry_header* header,
-                     struct find_name_closure* closure)
+find_name_enumerator(struct ht_entry_header *header,
+                     struct find_name_closure *closure)
 {
-    struct symtab_entry* entry =
-        (struct symtab_entry*) HT_ENTRY_DATA(header);
+    struct symtab_entry *entry =
+        (struct symtab_entry *) HT_ENTRY_DATA(header);
 
     if (SYMBOLS_ARE_EQUAL(entry->symbol, closure->symbol)) {
         closure->result = entry->name;
@@ -121,8 +121,8 @@ find_name_enumerator(struct ht_entry_header* header,
     return ht_enumerator_result_ok;
 }
 
-const char*
-symtab_find_name(struct symtab* symtab, symbol_t symbol)
+const char *
+symtab_find_name(struct symtab *symtab, symbol_t symbol)
 {
     struct find_name_closure closure;
     closure.symbol = symbol;
@@ -138,7 +138,7 @@ symtab_find_name(struct symtab* symtab, symbol_t symbol)
 struct predefined_symbol {
     symbol_type_t type;
     unsigned      val;
-    const char*   name;
+    const char   *name;
 };
 
 struct predefined_symbol symbols[] = {
@@ -165,9 +165,9 @@ struct predefined_symbol symbols[] = {
 };
 
 void
-symtab_init(struct symtab* symtab)
+symtab_init(struct symtab *symtab)
 {
-    struct predefined_symbol* def;
+    struct predefined_symbol *def;
 
     ht_init(&symtab->table, (ht_key_compare_t) compare_symbols);
     symtab->next_sym_constant = 0;
@@ -209,17 +209,17 @@ symtab_init(struct symtab* symtab)
 }
 
 static ht_enumerator_result_t
-symtab_entry_finalizer(struct ht_entry_header* header, void* closure)
+symtab_entry_finalizer(struct ht_entry_header *header, void *closure)
 {
-    struct symtab_entry* entry =
-        (struct symtab_entry*) HT_ENTRY_DATA(header);
+    struct symtab_entry *entry =
+        (struct symtab_entry *) HT_ENTRY_DATA(header);
 
     free(entry->name);
     return ht_enumerator_result_delete;
 }
 
 void
-symtab_finish(struct symtab* symtab)
+symtab_finish(struct symtab *symtab)
 {
     ht_finish(&symtab->table, symtab_entry_finalizer, 0);
 }

@@ -40,7 +40,7 @@
 #include <string.h>
 
 static bool_t
-is_operator_test(struct test* test);
+is_operator_test(struct test *test);
 
 /*
  * So we'll get verbose error reporting if YYERROR is defined
@@ -49,7 +49,7 @@ is_operator_test(struct test* test);
 
 /*
  * So we'll have a parameter passed in to yyparse(). This'll end up
- *  being a `struct parser*'
+ *  being a `struct parser *'
  */
 #define YYPARSE_PARAM yyparse_param
 #define YYLEX_PARAM   yyparse_param
@@ -60,13 +60,13 @@ is_operator_test(struct test* test);
 #if YYDEBUG != 0
 extern void yyprint();
 #define YYPRINT(stream, token, lval) \
-    yyprint((struct parser*) yyparse_param, (stream), (token), (lval))
+    yyprint((struct parser *) yyparse_param, (stream), (token), (lval))
 #endif
 
 /*
  * Prototypes to keep the compiler from whining
  */
-extern void yyerror(char*);
+extern void yyerror(char *);
 extern int yylex(); /* Can't give it types, because we don't have
                        YYLVAL defined yet. */
 %}
@@ -88,21 +88,21 @@ extern int yylex(); /* Can't give it types, because we don't have
  * The YYSTYPE
  */
 %union {
-    char*               name;
-    char*               context;
+    char               *name;
+    char               *context;
     struct test         test;
     test_type_t         test_type;
-    struct test_list*   test_list;
+    struct test_list   *test_list;
     struct condition    condition;
-    struct condition*   condition_list;
+    struct condition   *condition_list;
     bool_t              negated;
     bool_t              acceptable;
     symbol_t            symbol;
     int                 int_constant;
     struct rhs_value    rhs_value;
-    struct symbol_list* symbol_list;
+    struct symbol_list *symbol_list;
     struct action       action;
-    struct action*      action_list;
+    struct action      *action_list;
 }
 
 %token <name> NAME
@@ -170,14 +170,14 @@ extern int yylex(); /* Can't give it types, because we don't have
 
 rule: name lhs ARROW rhs
     {
-        struct parser* parser =
-            (struct parser*) yyparse_param;
+        struct parser *parser =
+            (struct parser *) yyparse_param;
 
-        struct production* production =
+        struct production *production =
             parser->production;
 
         production->conditions =
-            (struct condition*) malloc(sizeof(struct condition));
+            (struct condition *) malloc(sizeof(struct condition));
 
         *(production->conditions) = $2;
         production->actions = $4;
@@ -186,8 +186,8 @@ rule: name lhs ARROW rhs
 
 name: NAME
     {
-        struct parser* parser = 
-            (struct parser*) yyparse_param;
+        struct parser *parser = 
+            (struct parser *) yyparse_param;
 
         parser->parsed_name = 1;
 
@@ -203,7 +203,7 @@ name: NAME
 
 lhs: cond cond_list
    {
-       struct condition* cond = &$1;
+       struct condition *cond = &$1;
        while (cond->next)
            cond = cond->next;
 
@@ -228,7 +228,7 @@ positive_cond: conds_for_one_id
              {
                  /* XXX O(n^2), because we have to get to the tail of
                     the condition list */
-                 struct condition* cond = &$2;
+                 struct condition *cond = &$2;
                  while (cond->next)
                      cond = cond->next;
 
@@ -241,15 +241,15 @@ cond_list: /* empty */
          { $$ = 0; }
          | cond_list cond
          {
-             struct condition* new_cond =
-                 (struct condition*) malloc(sizeof(struct condition));
+             struct condition *new_cond =
+                 (struct condition *) malloc(sizeof(struct condition));
 
              *new_cond = $2;
 
              if ($1) {
                  /* XXX O(n^2), because we have to get to the tail of
                     the condition list */
-                 struct condition* cond = $1;
+                 struct condition *cond = $1;
                  while (cond->next)
                      cond = cond->next;
 
@@ -267,8 +267,8 @@ conds_for_one_id: '(' id_test attr_value_test_list ')'
 
                 | '(' CONTEXT id_test attr_value_test_list ')'
                 {
-                    struct test_list* context_conjunct;
-                    struct test_list* id_test_conjunct;
+                    struct test_list *context_conjunct;
+                    struct test_list *id_test_conjunct;
 
                     /* Pull up whatever got computed as `id_test', but... */
                     $$ = $3;
@@ -281,7 +281,7 @@ conds_for_one_id: '(' id_test attr_value_test_list ')'
                     $$.data.simple.id_test.type = test_type_conjunctive;
 
                     id_test_conjunct =
-                        (struct test_list*) malloc(sizeof(struct test_list));
+                        (struct test_list *) malloc(sizeof(struct test_list));
 
                     id_test_conjunct->test = $3.data.simple.id_test;
 
@@ -294,7 +294,7 @@ conds_for_one_id: '(' id_test attr_value_test_list ')'
                     }
 
                     context_conjunct =
-                        (struct test_list*) malloc(sizeof(struct test_list));
+                        (struct test_list *) malloc(sizeof(struct test_list));
 
                     context_conjunct->test.type = ($2[0] == 's')
                         ? test_type_goal_id
@@ -343,9 +343,9 @@ attr_value_test_list: /* empty */
                             $<condition>0.acceptable = $2.acceptable;
                         }
                         else {
-                            struct condition* cond;
-                            struct condition* new_cond =
-                                (struct condition*) malloc(sizeof(struct condition));
+                            struct condition *cond;
+                            struct condition *new_cond =
+                                (struct condition *) malloc(sizeof(struct condition));
 
                             /* Pull the attr_ and value_tests from the
                                attr_value_test we just reduced */
@@ -386,7 +386,7 @@ attr_value_test: opt_negated '^' attr_test dot_attr_list value_test opt_acceptab
                           o-supported preferences. (This seems a bit
                           too liberal, but I think it's how Soar8
                           works.) */
-                       struct parser* parser = (struct parser*) yyparse_param;
+                       struct parser *parser = (struct parser *) yyparse_param;
                        parser->production->support = support_type_osupport;
                    }
 
@@ -426,8 +426,8 @@ test: conjunctive_test
 
 conjunctive_test: '{' simple_test simple_test_list '}'
                 {
-                    struct test_list* entry =
-                        (struct test_list*) malloc(sizeof(struct test_list));
+                    struct test_list *entry =
+                        (struct test_list *) malloc(sizeof(struct test_list));
 
                     entry->test = $2;
                     entry->next = $3;
@@ -439,8 +439,8 @@ conjunctive_test: '{' simple_test simple_test_list '}'
 
 simple_test_list: simple_test_list simple_test
                 {
-                    struct test_list* entry =
-                        (struct test_list*) malloc(sizeof(struct test_list));
+                    struct test_list *entry =
+                        (struct test_list *) malloc(sizeof(struct test_list));
 
                     entry->test = $2;
                     entry->next = 0;
@@ -461,16 +461,16 @@ simple_test: disjunction_test
 
 disjunction_test: LEFT_ANGLE constants RIGHT_ANGLE
                 {
-                    struct symbol_list* entry = $2;
+                    struct symbol_list *entry = $2;
 
                     $$.type = test_type_disjunctive;
                     $$.data.disjuncts = 0;
 
                     while (entry != 0) {
-                        struct symbol_list* doomed;
+                        struct symbol_list *doomed;
 
-                        struct test_list* disjunct =
-                            (struct test_list*) malloc(sizeof(struct test_list));
+                        struct test_list *disjunct =
+                            (struct test_list *) malloc(sizeof(struct test_list));
 
                         disjunct->test.type = test_type_equality;
                         disjunct->test.data.referent = entry->symbol;
@@ -512,11 +512,11 @@ relation: /* empty */
 single_test: VARIABLE
            {
                /* Note that the variable appears in the LHS. */
-               struct parser* parser =
-                   (struct parser*) yyparse_param;
+               struct parser *parser =
+                   (struct parser *) yyparse_param;
 
-               struct symbol_list* entry;
-               struct symbol_list** link;
+               struct symbol_list *entry;
+               struct symbol_list **link;
 
                for (link = &parser->lhs_vars; (entry = *link) != 0; link = &entry->next) {
                    if (SYMBOLS_ARE_EQUAL(entry->symbol, $1))
@@ -524,7 +524,7 @@ single_test: VARIABLE
                }
 
                if (! entry) {
-                   entry = (struct symbol_list*) malloc(sizeof(struct symbol_list));
+                   entry = (struct symbol_list *) malloc(sizeof(struct symbol_list));
                    entry->symbol = $1;
                    entry->next   = 0;
 
@@ -548,7 +548,7 @@ rhs_action_list: /* empty */
                | rhs_action_list rhs_action
                {
                    if ($1) {
-                       struct action* action = $1;
+                       struct action *action = $1;
                        while (action->next)
                            action = action->next;
 
@@ -562,7 +562,7 @@ rhs_action_list: /* empty */
 
 rhs_action: '(' rhs_variable attr_value_make_list ')'
           {
-              struct action* action = $3;
+              struct action *action = $3;
 
               /* At least one element must be specified in the
                  `attr_value_make_list' */
@@ -582,7 +582,7 @@ attr_value_make_list: /* empty */
                     | attr_value_make_list attr_value_make
                     {
                         if ($1) {
-                            struct action* action = $1;
+                            struct action *action = $1;
 
                             while (action->next)
                                 action = action->next;
@@ -597,7 +597,7 @@ attr_value_make_list: /* empty */
 
 attr_value_make: '^' rhs_value value_make_list
                {
-                   struct action* action = $3;
+                   struct action *action = $3;
 
                    /* There must be at least one action in the
                       `value_make_list' */
@@ -618,7 +618,7 @@ value_make_list: /* empty */
                | value_make_list value_make
                {
                    if ($1) {
-                       struct action* action = $1;
+                       struct action *action = $1;
 
                        while (action->next)
                            action = action->next;
@@ -635,7 +635,7 @@ value_make: rhs_value preference_specifier_list
           {
               if ($2) {
                   /* There's a preference specifier list. */
-                  struct action* action = $2;
+                  struct action *action = $2;
 
                   /* Fill in the value for each action */
                   for ( ; action != 0; action = action->next)
@@ -647,7 +647,7 @@ value_make: rhs_value preference_specifier_list
                   /* There's no preference specifier list; that means
                      that we'll create a default `acceptable'
                      preference action */
-                  $$ = (struct action*) malloc(sizeof(struct action));
+                  $$ = (struct action *) malloc(sizeof(struct action));
                   $$->next            = 0;
                   $$->preference_type = preference_type_acceptable;
                   $$->value           = $1;
@@ -659,8 +659,8 @@ preference_specifier_list: /* empty */
                          { $$ = 0; }
                          | preference_specifier_list preference_specifier
                          {
-                             struct action* new_action =
-                                 (struct action*) malloc(sizeof(struct action));
+                             struct action *new_action =
+                                 (struct action *) malloc(sizeof(struct action));
 
                              *new_action = $2;
 
@@ -669,7 +669,7 @@ preference_specifier_list: /* empty */
                              if ($1) {
                                  /* Append the new action to the list
                                     of actions specified */
-                                 struct action* action = $1;
+                                 struct action *action = $1;
 
                                  while (action->next)
                                      action = action->next;
@@ -716,10 +716,10 @@ rhs_value: rhs_variable
 
 rhs_variable: VARIABLE
             {
-                struct parser* parser =
-                    (struct parser*) yyparse_param;
+                struct parser *parser =
+                    (struct parser *) yyparse_param;
 
-                struct symbol_list* entry;
+                struct symbol_list *entry;
 
                 /* Is this a bound variable from the lhs? */
                 for (entry = parser->lhs_vars; entry != 0; entry = entry->next) {
@@ -735,7 +735,7 @@ rhs_variable: VARIABLE
                 else {
                     /* It's unbound */
                     unsigned index = 0;
-                    struct symbol_list** link;
+                    struct symbol_list **link;
 
                     $$.type = rhs_value_type_unbound_variable;
 
@@ -753,7 +753,7 @@ rhs_variable: VARIABLE
                            before. Remember it. */
                         ++parser->production->num_unbound_vars;
 
-                        entry = (struct symbol_list*) malloc(sizeof(struct symbol_list));
+                        entry = (struct symbol_list *) malloc(sizeof(struct symbol_list));
                         entry->symbol = $1;
                         entry->next = 0;
 
@@ -775,8 +775,8 @@ constants: /* empty */
          { $$ = 0; }
          | constants constant
          {
-             struct symbol_list* new_entry =
-                 (struct symbol_list*) malloc(sizeof(struct symbol_list));
+             struct symbol_list *new_entry =
+                 (struct symbol_list *) malloc(sizeof(struct symbol_list));
 
              new_entry->symbol = $2;
              new_entry->next = 0;
@@ -784,7 +784,7 @@ constants: /* empty */
              /* XXX do we care if these are maintained in order? If
                 not, no need to walk the list. */
              if ($1) {
-                 struct symbol_list* entry = $1;
+                 struct symbol_list *entry = $1;
                  while (entry->next)
                      entry = entry->next;
 
@@ -800,7 +800,7 @@ constant: SYM_CONSTANT
         { MAKE_SYMBOL($$, symbol_type_integer_constant, $1); }
         | CONTEXT /* hack to pull `state' and `impasse' through as constants */
         {
-            struct parser* parser = (struct parser*) yyparse_param;
+            struct parser *parser = (struct parser *) yyparse_param;
             $$ = symtab_lookup(parser->symtab,
                                symbol_type_symbolic_constant,
                                $1, 1);
@@ -812,7 +812,7 @@ constant: SYM_CONSTANT
 
 #if YYDEBUG != 0
 void
-yyprint(struct parser* parser, FILE* stream, int token, YYSTYPE lval)
+yyprint(struct parser *parser, FILE *stream, int token, YYSTYPE lval)
 {
     switch (token) {
     case SYM_CONSTANT:
@@ -830,7 +830,7 @@ yyprint(struct parser* parser, FILE* stream, int token, YYSTYPE lval)
 #endif /* YYDEBUG */
 
 static bool_t
-is_operator_test(struct test* test)
+is_operator_test(struct test *test)
 {
     switch (test->type) {
     case test_type_equality:
@@ -840,7 +840,7 @@ is_operator_test(struct test* test)
     case test_type_disjunctive: {
         /* If any of the conjuncts or disjuncts test for ^operator,
            we'll call this an ``operator test''. Too liberal? */
-        struct test_list* tests;
+        struct test_list *tests;
 
         /* |struct test|'s |conjuncts| and |disjuncts| fields overlap,
            so we'll just use |conjuncts| regardless. */

@@ -5,7 +5,7 @@ CFLAGS = @CFLAGS@ -Wall @DEFS@ -I@srcdir@ -I.
 
 ifdef BUILD_OPT
 # Optimized
-CFLAGS += -O -UDEBUG -DNDEBUG
+CFLAGS += -O2 -UDEBUG -DNDEBUG
 else
 # Debug
 CFLAGS += -g -DDEBUG -UNDEBUG

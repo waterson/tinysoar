@@ -8,8 +8,8 @@
  * first few bytes of which are used for hashtable bookkeeping.
  */
 struct ht_entry_header {
-    struct ht_entry_header* next;
-    unsigned hash;
+    struct ht_entry_header *next;
+    unsigned                hash;
 };
 
 /*

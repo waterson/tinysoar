@@ -4,7 +4,7 @@
 struct variable_binding_list {
     symbol_t                      variable;
     variable_binding_t            binding;
-    struct variable_binding_list* next;
+    struct variable_binding_list *next;
 };
 
 /*
@@ -12,9 +12,9 @@ struct variable_binding_list {
  * memory bucket a test should be in.
  */
 static inline short
-get_alpha_test_index(symbol_t id,
-                     symbol_t attr,
-                     symbol_t value,
+get_alpha_test_index(symbol_t   id,
+                     symbol_t   attr,
+                     symbol_t   value,
                      wme_type_t type)
 {
     return ((type == wme_type_acceptable) ? 8 : 0) |
@@ -27,7 +27,7 @@ get_alpha_test_index(symbol_t id,
  * Determine if a working memory element matches an alpha node
  */
 static inline bool_t
-wme_matches_alpha_node(const struct wme* wme, const struct alpha_node* node)
+wme_matches_alpha_node(const struct wme *wme, const struct alpha_node *node)
 {
     return (SYMBOL_IS_NIL(node->id) ||
             SYMBOLS_ARE_EQUAL(node->id, wme->slot->id)) &&
@@ -38,20 +38,20 @@ wme_matches_alpha_node(const struct wme* wme, const struct alpha_node* node)
 }
 
 extern void
-add_wme_to_alpha_node(struct agent* agent,
-                      struct alpha_node* node,
-                      struct wme* wme);
+add_wme_to_alpha_node(struct agent      *agent,
+                      struct alpha_node *node,
+                      struct wme        *wme);
 
 void
-do_left_addition(struct agent* agent,
-                 struct beta_node* node,
-                 struct token* token,
-                 struct wme* wme);
+do_left_addition(struct agent     *agent,
+                 struct beta_node *node,
+                 struct token     *token,
+                 struct wme       *wme);
 
 void
-do_right_addition(struct agent* agent,
-                  struct beta_node* node,
-                  struct wme* wme);
+do_right_addition(struct agent     *agent,
+                  struct beta_node *node,
+                  struct wme       *wme);
 
 #endif /* rete_h__ */
 

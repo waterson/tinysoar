@@ -23,7 +23,7 @@
 #endif
 
 static bool_t
-compare_slots(const struct slot* s1, const struct slot* s2)
+compare_slots(const struct slot *s1, const struct slot *s2)
 {
     return SYMBOLS_ARE_EQUAL(s1->id, s2->id)
         && SYMBOLS_ARE_EQUAL(s1->attr, s2->attr);
@@ -32,22 +32,22 @@ compare_slots(const struct slot* s1, const struct slot* s2)
 static inline unsigned
 hash_slot(symbol_t id, symbol_t attr)
 {
-    return ( *((unsigned*)&id)) ^
-        ( ( *((unsigned*)&attr) << (BITS_PER_WORD / 2)) |
-          ( *((unsigned*)&attr) >> (BITS_PER_WORD / 2)) );
+    return ( *((unsigned *)&id)) ^
+        ( ( *((unsigned *)&attr) << (BITS_PER_WORD / 2)) |
+          ( *((unsigned *)&attr) >> (BITS_PER_WORD / 2)) );
 }
 
 /*
  * Find the slot with the specified `id' and `attr', creating a new
  * one if necessary when `create' is non-zero.
  */
-static struct slot*
-find_slot(struct agent* agent, symbol_t id, symbol_t attr, bool_t create)
+static struct slot *
+find_slot(struct agent *agent, symbol_t id, symbol_t attr, bool_t create)
 {
     unsigned hash = hash_slot(id, attr);
-    struct ht_entry_header** entryp;
+    struct ht_entry_header **entryp;
     struct slot key;
-    struct slot* slot;
+    struct slot *slot;
 
     key.id   = id;
     key.attr = attr;
@@ -55,13 +55,13 @@ find_slot(struct agent* agent, symbol_t id, symbol_t attr, bool_t create)
     entryp = ht_lookup(&agent->slots, hash, &key);
 
     if (*entryp) {
-        slot = (struct slot*) HT_ENTRY_DATA(*entryp);
+        slot = (struct slot *) HT_ENTRY_DATA(*entryp);
     }
     else if (create) {
-        struct ht_entry_header* entry =
-            (struct ht_entry_header*) malloc(sizeof(struct ht_entry_header) + sizeof(struct slot));
+        struct ht_entry_header *entry =
+            (struct ht_entry_header *) malloc(sizeof(struct ht_entry_header) + sizeof(struct slot));
 
-        slot = (struct slot*) HT_ENTRY_DATA(entry);
+        slot = (struct slot *) HT_ENTRY_DATA(entry);
         slot->id          = id;
         slot->attr        = attr;
         slot->preferences = 0;
@@ -78,11 +78,11 @@ find_slot(struct agent* agent, symbol_t id, symbol_t attr, bool_t create)
  * Remove the specified slot
  */
 static void
-remove_slot(struct agent* agent, struct slot* slot)
+remove_slot(struct agent *agent, struct slot *slot)
 {
     unsigned hash = hash_slot(slot->id, slot->attr);
-    struct ht_entry_header** headerp = ht_lookup(&agent->slots, hash, slot);
-    struct ht_entry_header* header = *headerp;
+    struct ht_entry_header **headerp = ht_lookup(&agent->slots, hash, slot);
+    struct ht_entry_header *header = *headerp;
 
     ASSERT(slot->wmes == 0, ("removing slot while it contains wmes"));
     ASSERT(slot->preferences == 0, ("removing slot while it contains preferences"));
@@ -98,9 +98,9 @@ remove_slot(struct agent* agent, struct slot* slot)
  * modified slots.
  */
 static void
-mark_slot_modified(struct agent* agent, struct slot* slot)
+mark_slot_modified(struct agent *agent, struct slot *slot)
 {
-    struct slot_list* entry;
+    struct slot_list *entry;
 
     /* Has the slot already been marked as modified? */
     for (entry = agent->modified_slots; entry != 0; entry = entry->next) {
@@ -109,7 +109,7 @@ mark_slot_modified(struct agent* agent, struct slot* slot)
     }
 
     /* Nope. Push it on the list of modified slots for the agent */
-    entry = (struct slot_list*) malloc(sizeof(struct slot_list));
+    entry = (struct slot_list *) malloc(sizeof(struct slot_list));
 
     entry->slot = slot;
     entry->next = agent->modified_slots;
@@ -120,16 +120,16 @@ mark_slot_modified(struct agent* agent, struct slot* slot)
  * Given a list of preferences, compute candidate symbol values.
  */
 static void
-collect_candidates(struct preference*   preferences,
-                   struct symbol_list** candidates)
+collect_candidates(struct preference   *preferences,
+                   struct symbol_list **candidates)
 {
-    struct preference* pref;
+    struct preference *pref;
 
     /* Iterate through all the preferences for the slot, adding each
        `acceptable' to the candidate list */
     for (pref = preferences; pref != 0; pref = pref->next_in_slot) {
         if (pref->type == preference_type_acceptable) {
-            struct symbol_list* candidate;
+            struct symbol_list *candidate;
             symbol_t value = pref->value;
 
             for (candidate = *candidates; candidate != 0; candidate = candidate->next) {
@@ -138,7 +138,7 @@ collect_candidates(struct preference*   preferences,
             }
 
             if (! candidate) {
-                candidate = (struct symbol_list*) malloc(sizeof(struct symbol_list));
+                candidate = (struct symbol_list *) malloc(sizeof(struct symbol_list));
 
                 candidate->symbol = pref->value;
                 candidate->next = *candidates;
@@ -154,8 +154,8 @@ collect_candidates(struct preference*   preferences,
     for (pref = preferences; pref != 0; pref = pref->next_in_slot) {
         if (pref->type == preference_type_prohibit ||
             pref->type == preference_type_reject) {
-            struct symbol_list* candidate = *candidates;
-            struct symbol_list** link = candidates;
+            struct symbol_list *candidate = *candidates;
+            struct symbol_list **link = candidates;
 
             while (candidate != 0) {
                 if (SYMBOLS_ARE_EQUAL(candidate->symbol, pref->value)) {
@@ -171,32 +171,32 @@ collect_candidates(struct preference*   preferences,
     }
 }
 
-static struct preference*
-get_preferences_for_slot(struct agent* agent, struct slot* slot)
+static struct preference *
+get_preferences_for_slot(struct agent *agent, struct slot *slot)
 {
     unsigned hash = hash_slot(slot->id, slot->attr);
-    struct ht_entry_header** entryp
+    struct ht_entry_header **entryp
         = ht_lookup(&agent->slots, hash, slot);
 
     if (*entryp) {
-        struct slot* slot = (struct slot*) HT_ENTRY_DATA(*entryp);
+        struct slot *slot = (struct slot *) HT_ENTRY_DATA(*entryp);
         return slot->preferences;
     }
 
     return 0;
 }
 
-struct preference*
-wmem_get_preferences(struct agent* agent, symbol_t id, symbol_t attr)
+struct preference *
+wmem_get_preferences(struct agent *agent, symbol_t id, symbol_t attr)
 {
-    struct slot* slot = find_slot(agent, id, attr, 0);;
+    struct slot *slot = find_slot(agent, id, attr, 0);;
     return slot ? slot->preferences : 0;
 }
 
-struct wme*
-wmem_get_wmes(struct agent* agent, symbol_t id, symbol_t attr)
+struct wme *
+wmem_get_wmes(struct agent *agent, symbol_t id, symbol_t attr)
 {
-    struct slot* slot = find_slot(agent, id, attr, 0);
+    struct slot *slot = find_slot(agent, id, attr, 0);
     return slot ? slot->wmes : 0;
 }
 
@@ -205,10 +205,10 @@ wmem_get_wmes(struct agent* agent, symbol_t id, symbol_t attr)
  * goal stack.
  */
 static bool_t
-is_goal_slot(struct agent* agent, struct slot* slot)
+is_goal_slot(struct agent *agent, struct slot *slot)
 {
     if (SYMBOLS_ARE_EQUAL(SYM(OPERATOR_CONSTANT), slot->attr)) {
-        struct symbol_list* goal;
+        struct symbol_list *goal;
         for (goal = agent->goals; goal != 0; goal = goal->next) {
             if (SYMBOLS_ARE_EQUAL(goal->symbol, slot->id))
                 return 1;
@@ -223,13 +223,13 @@ is_goal_slot(struct agent* agent, struct slot* slot)
  * slot correctly reflect the preferences in the slot.
  */
 static void
-decide_slots(struct agent* agent)
+decide_slots(struct agent *agent)
 {
-    struct slot_list* slots;
-    struct slot_list* next;
+    struct slot_list *slots;
+    struct slot_list *next;
 
     for (slots = agent->modified_slots; slots != 0; slots = next) {
-        struct preference* pref =
+        struct preference *pref =
             get_preferences_for_slot(agent, slots->slot);
 
         bool_t goal_slot = is_goal_slot(agent, slots->slot);
@@ -239,14 +239,14 @@ decide_slots(struct agent* agent)
         if (pref) {
             /* Okay, there are preferences in this slot. Compute the
                candidate values for the slot. */
-            struct symbol_list* candidates = 0;
+            struct symbol_list *candidates = 0;
             collect_candidates(pref, &candidates);
 
             /* Add wmes that aren't in the slot */
             {
-                struct symbol_list* candidate;
+                struct symbol_list *candidate;
                 for (candidate = candidates; candidate != 0; candidate = candidate->next) {
-                    struct wme* wme;
+                    struct wme *wme;
                     for (wme = slots->slot->wmes; wme != 0; wme = wme->next) {
                         if (SYMBOLS_ARE_EQUAL(wme->value, candidate->symbol))
                             break;
@@ -256,7 +256,7 @@ decide_slots(struct agent* agent)
                         /* Make a new wme. Note that wme's that go
                            into a goal slot are `acceptable', not
                            `normal'. */
-                        wme = (struct wme*) malloc(sizeof(struct wme));
+                        wme = (struct wme *) malloc(sizeof(struct wme));
                         wme->slot  = slots->slot;
                         wme->value = candidate->symbol;
                         wme->type  = goal_slot ? wme_type_acceptable : wme_type_normal;
@@ -270,11 +270,11 @@ decide_slots(struct agent* agent)
 
             /* Remove wmes that have no preference */
             {
-                struct wme* wme = slots->slot->wmes;
-                struct wme** link = &slots->slot->wmes;
+                struct wme *wme = slots->slot->wmes;
+                struct wme **link = &slots->slot->wmes;
 
                 while (wme) {
-                    struct symbol_list* candidate;
+                    struct symbol_list *candidate;
                     for (candidate = candidates; candidate != 0; candidate = candidate->next) {
                         if (SYMBOLS_ARE_EQUAL(wme->value, candidate->symbol))
                             break;
@@ -285,7 +285,7 @@ decide_slots(struct agent* agent)
                         wme = wme->next;
                     }
                     else {
-                        struct wme* doomed = wme;
+                        struct wme *doomed = wme;
                         *link = wme->next;
                         wme = wme->next;
 
@@ -296,7 +296,7 @@ decide_slots(struct agent* agent)
             }
 
             while (candidates) {
-                struct symbol_list* doomed = candidates;
+                struct symbol_list *doomed = candidates;
                 candidates = candidates->next;
                 free(doomed);
             }
@@ -304,9 +304,9 @@ decide_slots(struct agent* agent)
         else {
             /* There are no preferences for the slot. Nuke the wmes
                and remove the slot */
-            struct wme* wme = slots->slot->wmes;
+            struct wme *wme = slots->slot->wmes;
             while (wme) {
-                struct wme* doomed = wme;
+                struct wme *doomed = wme;
                 wme = wme->next;
 
                 rete_operate_wme(agent, doomed, wme_operation_remove);
@@ -328,12 +328,12 @@ decide_slots(struct agent* agent)
  * Add the preference to the appropriate slot
  */
 static void
-hash_preference(struct agent*      agent,
+hash_preference(struct agent      *agent,
                 symbol_t           id,
                 symbol_t           attr,
-                struct preference* pref)
+                struct preference *pref)
 {
-    struct slot* slot = find_slot(agent, id, attr, 1);
+    struct slot *slot = find_slot(agent, id, attr, 1);
 
     ASSERT(slot != 0, ("couldn't find a slot"));
 
@@ -349,16 +349,16 @@ hash_preference(struct agent*      agent,
 /*
  * Add a new preference to working memory
  */
-struct preference*
-wmem_add_preference(struct agent*     agent,
+struct preference *
+wmem_add_preference(struct agent     *agent,
                     symbol_t          id,
                     symbol_t          attr,
                     symbol_t          value,
                     preference_type_t type,
                     support_type_t    support)
 {
-    struct preference* pref =
-        (struct preference*) malloc(sizeof(struct preference));
+    struct preference *pref =
+        (struct preference *) malloc(sizeof(struct preference));
 
     /* pref->next_in_slot will be initialized by hash_preference */
     pref->next_in_instantiation =
@@ -378,11 +378,11 @@ wmem_add_preference(struct agent*     agent,
  * Remove a preference from working memory
  */
 void
-wmem_remove_preference(struct agent* agent, struct preference* doomed)
+wmem_remove_preference(struct agent *agent, struct preference *doomed)
 {
-    struct slot* slot = doomed->slot;
-    struct preference* pref;
-    struct preference** link;
+    struct slot *slot = doomed->slot;
+    struct preference *pref;
+    struct preference **link;
 
     ASSERT(slot != 0, ("no slot"));
 
@@ -414,23 +414,23 @@ wmem_remove_preference(struct agent* agent, struct preference* doomed)
  * Closure data for wmem_enumerates_wmes()
  */
 struct wme_enumerator_data {
-    struct agent*    agent;
+    struct agent    *agent;
     wme_enumerator_t enumerator;
-    void*            closure;
+    void            *closure;
 };
 
 /*
  * Helper for wmem_enumerate_wmes(): enumerates the wmes in each slot.
  */
 static ht_enumerator_result_t
-wme_enumerator_helper(struct ht_entry_header* entry, void* closure)
+wme_enumerator_helper(struct ht_entry_header *entry, void *closure)
 {
-    struct wme_enumerator_data* data =
-        (struct wme_enumerator_data*) closure;
+    struct wme_enumerator_data *data =
+        (struct wme_enumerator_data *) closure;
 
-    struct slot* slot = (struct slot*) HT_ENTRY_DATA(entry);
+    struct slot *slot = (struct slot *) HT_ENTRY_DATA(entry);
 
-    struct wme* wme = slot->wmes;
+    struct wme *wme = slot->wmes;
 
     while (wme) {
         (*data->enumerator)(data->agent, wme, data->closure);
@@ -444,9 +444,9 @@ wme_enumerator_helper(struct ht_entry_header* entry, void* closure)
  * Enumerate all the working memory elements
  */
 void
-wmem_enumerate_wmes(struct agent* agent,
-                    wme_enumerator_t enumerator,
-                    void* closure)
+wmem_enumerate_wmes(struct agent     *agent,
+                    wme_enumerator_t  enumerator,
+                    void             *closure)
 {
     struct wme_enumerator_data data;
     data.agent      = agent;
@@ -462,9 +462,9 @@ wmem_enumerate_wmes(struct agent* agent,
  * value.
  */
 static symbol_t
-instantiate_rhs_value(struct rhs_value*   value,
-                      struct token*       token,
-                      struct symbol_list* unbound_vars)
+instantiate_rhs_value(struct rhs_value   *value,
+                      struct token       *token,
+                      struct symbol_list *unbound_vars)
 {
     symbol_t result;
 
@@ -503,16 +503,16 @@ instantiate_rhs_value(struct rhs_value*   value,
  * Instantiate a production.
  */
 static void
-create_instantiation(struct agent*       agent,
-                     struct production*  production,
-                     struct token*       token,
-                     struct preference** o_rejects)
+create_instantiation(struct agent       *agent,
+                     struct production  *production,
+                     struct token       *token,
+                     struct preference **o_rejects)
 {
-    struct instantiation* inst =
-        (struct instantiation*) malloc(sizeof(struct instantiation));
+    struct instantiation *inst =
+        (struct instantiation *) malloc(sizeof(struct instantiation));
 
-    struct symbol_list* unbound_vars = 0;
-    struct action* action;
+    struct symbol_list *unbound_vars = 0;
+    struct action *action;
     int count;
 
     /* initialize the instantiation */
@@ -528,8 +528,8 @@ create_instantiation(struct agent*       agent,
 
     /* generate identifiers for the unbound variables */
     for (count = (int) production->num_unbound_vars - 1; count >= 0; --count) {
-        struct symbol_list* entry =
-            (struct symbol_list*) malloc(sizeof(struct symbol_list));
+        struct symbol_list *entry =
+            (struct symbol_list *) malloc(sizeof(struct symbol_list));
 
         entry->symbol = agent_get_identifier(agent);
         entry->next   = unbound_vars;
@@ -538,8 +538,8 @@ create_instantiation(struct agent*       agent,
 
     /* process the right-hand side of the production */
     for (action = production->actions; action != 0; action = action->next) {
-        struct preference* pref =
-            (struct preference*) malloc(sizeof(struct preference));
+        struct preference *pref =
+            (struct preference *) malloc(sizeof(struct preference));
 
         symbol_t id, attr;
 
@@ -590,7 +590,7 @@ create_instantiation(struct agent*       agent,
 
     /* release unbound variables */
     while (unbound_vars) {
-        struct symbol_list* doomed = unbound_vars;
+        struct symbol_list *doomed = unbound_vars;
         unbound_vars = unbound_vars->next;
         free(doomed);
     }
@@ -601,15 +601,15 @@ create_instantiation(struct agent*       agent,
  * ``Un-instantiate'' a production.
  */
 static void
-remove_instantiation(struct agent*         agent,
-                     struct instantiation* inst)
+remove_instantiation(struct agent         *agent,
+                     struct instantiation *inst)
 {
     /* Yank the instantiation from the production */
     {
-        struct instantiation** link =
+        struct instantiation **link =
             &inst->production->instantiations;
 
-        struct instantiation* scan = *link;
+        struct instantiation *scan = *link;
 
         while (scan) {
             if (scan == inst) {
@@ -627,9 +627,9 @@ remove_instantiation(struct agent*         agent,
     /* Remove all the i-supported preferences associated with the
        instantiation. */
     {
-        struct preference* pref = inst->preferences.next_in_instantiation;
+        struct preference *pref = inst->preferences.next_in_instantiation;
         while (pref != &inst->preferences) {
-            struct preference* next = pref->next_in_instantiation;
+            struct preference *next = pref->next_in_instantiation;
 
             if (pref->support == support_type_isupport) {
                 /* If the preference is only i-supported, remove it. */
@@ -653,11 +653,11 @@ remove_instantiation(struct agent*         agent,
  * retracting them for `retractions'.
  */
 static void
-process_matches(struct agent* agent)
+process_matches(struct agent *agent)
 {
-    struct preference* o_rejects = 0;
-    struct match* match;
-    struct match* doomed;
+    struct preference *o_rejects = 0;
+    struct match *match;
+    struct match *doomed;
 
 #ifdef DEBUG
     printf("Firing:\n");
@@ -704,14 +704,14 @@ process_matches(struct agent* agent)
        house on the slot, removing *every* preference there is with
        the same value. */
     while (o_rejects) {
-        struct preference* rejector = o_rejects;
-        struct slot* slot = find_slot(agent, rejector->slot->id, rejector->slot->attr, 0);
+        struct preference *rejector = o_rejects;
+        struct slot *slot = find_slot(agent, rejector->slot->id, rejector->slot->attr, 0);
 
         if (slot) {
-            struct preference* pref = slot->preferences;
+            struct preference *pref = slot->preferences;
 
             while (pref) {
-                struct preference* next = pref->next_in_slot;
+                struct preference *next = pref->next_in_slot;
 
                 /* Nuke the pref if it has the same value, and it's not
                    architecturally supported. */
@@ -735,15 +735,15 @@ process_matches(struct agent* agent)
  * candidate operators, pushing impasses if necessary.
  */
 static symbol_t
-run_operator_semantics_on(struct agent*        agent,
+run_operator_semantics_on(struct agent        *agent,
                           symbol_t             goal,
-                          struct preference*   preferences,
-                          struct symbol_list** candidates,
+                          struct preference   *preferences,
+                          struct symbol_list **candidates,
                           bool_t               can_make_new_impasse)
 {
-    struct symbol_list* conflicted = 0;
-    struct symbol_list* dominated = 0;
-    struct symbol_list* candidate;
+    struct symbol_list *conflicted = 0;
+    struct symbol_list *dominated = 0;
+    struct symbol_list *candidate;
     bool_t bests = 0;
     bool_t worsts = 0;
     symbol_t nil;
@@ -752,24 +752,24 @@ run_operator_semantics_on(struct agent*        agent,
 
     /* Collect dominated candidates and detect trivial conflicts. */
     for (candidate = *candidates; candidate != 0; candidate = candidate->next) {
-        struct preference* p;
+        struct preference *p;
         for (p = preferences; p != 0; p = p->next_in_slot) {
             if ((p->type == preference_type_better ||
                  p->type == preference_type_worse)
                 && SYMBOLS_ARE_EQUAL(p->value, candidate->symbol)) {
-                struct symbol_list* referent;
-                struct preference* q;
+                struct symbol_list *referent;
+                struct preference *q;
 
                 /* Iterate through the candidates again to see which
                    referent is dominated (or dominates us). */
                 for (referent = *candidates; referent != 0; referent = referent->next) {
-                    struct symbol_list* entry;
+                    struct symbol_list *entry;
 
                     /* A candidate cannot dominate itself. */
                     if (SYMBOLS_ARE_EQUAL(candidate->symbol, referent->symbol))
                         continue;
 
-                    entry = (struct symbol_list*) malloc(sizeof(struct symbol_list));
+                    entry = (struct symbol_list *) malloc(sizeof(struct symbol_list));
 
                     if (p->type == preference_type_better) {
                         /* The candidate dominates its referent. */
@@ -818,7 +818,7 @@ run_operator_semantics_on(struct agent*        agent,
                             /* Conflict! Add both |p| and |q| to the
                                conflicted set if they've not been
                                added already. */
-                            struct symbol_list* entry;
+                            struct symbol_list *entry;
 
                             for (entry = conflicted; entry != 0; entry = entry->next) {
                                 if (SYMBOLS_ARE_EQUAL(entry->symbol, p->value))
@@ -826,7 +826,7 @@ run_operator_semantics_on(struct agent*        agent,
                             }
 
                             if (! entry) {
-                                entry = (struct symbol_list*) malloc(sizeof(struct symbol_list));
+                                entry = (struct symbol_list *) malloc(sizeof(struct symbol_list));
                                 entry->symbol = p->value;
                                 entry->next = conflicted;
                                 conflicted = entry;
@@ -838,7 +838,7 @@ run_operator_semantics_on(struct agent*        agent,
                             }
 
                             if (! entry) {
-                                entry = (struct symbol_list*) malloc(sizeof(struct symbol_list));
+                                entry = (struct symbol_list *) malloc(sizeof(struct symbol_list));
                                 entry->symbol = q->value;
                                 entry->next = conflicted;
                                 conflicted = entry;
@@ -862,9 +862,9 @@ run_operator_semantics_on(struct agent*        agent,
        got conflicts, then doing this is a bit of a waste of time;
        however, it properly cleans up the |dominated| list. */
     while (dominated) {
-        struct symbol_list* doomed = dominated;
-        struct symbol_list** link = candidates;
-        struct symbol_list* c = *link;
+        struct symbol_list *doomed = dominated;
+        struct symbol_list **link = candidates;
+        struct symbol_list *c = *link;
 
         while (c) {
             if (SYMBOLS_ARE_EQUAL(c->symbol, dominated->symbol)) {
@@ -888,7 +888,7 @@ run_operator_semantics_on(struct agent*        agent,
             agent_operator_conflict(agent, goal, conflicted);
         
         while (conflicted) {
-            struct symbol_list* doomed = conflicted;
+            struct symbol_list *doomed = conflicted;
             conflicted = conflicted->next;
             free(doomed);
         }
@@ -903,13 +903,13 @@ run_operator_semantics_on(struct agent*        agent,
        Conversely, if we have any ``worst'' candidates, cull them out
        as well. */
     if (bests || worsts) {
-        struct symbol_list* worst_candidates = 0;
+        struct symbol_list *worst_candidates = 0;
 
-        struct symbol_list** link;
+        struct symbol_list **link;
         for (link = candidates, candidate = *link; candidate != 0; candidate = *link) {
             bool_t best = 0;
             bool_t worst = 0;
-            struct preference* p;
+            struct preference *p;
             for (p = preferences; p != 0; p = p->next_in_slot) {
                 if (SYMBOLS_ARE_EQUAL(p->value, candidate->symbol)) {
                     if (p->type == preference_type_best)
@@ -942,7 +942,7 @@ run_operator_semantics_on(struct agent*        agent,
                stored any ``worsts'' in the backup list, we can free
                them now. */
             while (worst_candidates) {
-                struct symbol_list* doomed = worst_candidates;
+                struct symbol_list *doomed = worst_candidates;
                 worst_candidates = worst_candidates->next;
                 free(doomed);
             }
@@ -969,7 +969,7 @@ run_operator_semantics_on(struct agent*        agent,
 
     /* Are the remaining candidates all ``indifferent'' to one another? */
     for (candidate = *candidates; candidate != 0; candidate = candidate->next) {
-        struct preference* p;
+        struct preference *p;
         for (p = preferences; p != 0; p = p->next_in_slot) {
             if (p->type == preference_type_unary_indifferent)
                 break;
@@ -979,7 +979,7 @@ run_operator_semantics_on(struct agent*        agent,
             /* We couldn't find a unary-indifferent preference for the
                candidate. Is it binary-indifferent to all the other
                remaining candidates? */
-            struct symbol_list* referent;
+            struct symbol_list *referent;
             for (referent = *candidates; referent != 0; referent = referent->next) {
                 if (candidate == referent)
                     continue;
@@ -1019,13 +1019,13 @@ run_operator_semantics_on(struct agent*        agent,
  * This routine implements the oeprator preference semantics
  */
 static symbol_t
-run_operator_semantics_for(struct agent* agent,
+run_operator_semantics_for(struct agent *agent,
                            symbol_t      goal,
-                           struct slot*  slot,
+                           struct slot  *slot,
                            bool_t        can_make_new_impasse)
 {
-    struct preference* preferences = get_preferences_for_slot(agent, slot);
-    struct symbol_list* candidates = 0;
+    struct preference *preferences = get_preferences_for_slot(agent, slot);
+    struct symbol_list *candidates = 0;
     symbol_t result;
 
     /* Re-collect the candidate operators.
@@ -1037,7 +1037,7 @@ run_operator_semantics_for(struct agent* agent,
     result = run_operator_semantics_on(agent, goal, preferences, &candidates, can_make_new_impasse);
 
     while (candidates) {
-        struct symbol_list* doomed = candidates;
+        struct symbol_list *doomed = candidates;
         candidates = candidates->next;
         free(doomed);
     }
@@ -1046,22 +1046,22 @@ run_operator_semantics_for(struct agent* agent,
 }
 
 static void
-select_operator(struct agent* agent)
+select_operator(struct agent *agent)
 {
     unsigned depth = 0;
-    struct symbol_list* goal;
-    struct symbol_list* bottom;
+    struct symbol_list *goal;
+    struct symbol_list *bottom;
 
     ASSERT(agent->goals != 0, ("empty goal stack"));
 
     for (goal = agent->goals; goal != 0; bottom = goal, goal = goal->next, ++depth) {
         /* Has the previously selected operated been reconsidered? */
-        struct slot* slot =
+        struct slot *slot =
             find_slot(agent, goal->symbol, SYM(OPERATOR_CONSTANT), 0);
 
-        struct wme* wme;
-        struct wme** link;
-        struct preference* pref;
+        struct wme *wme;
+        struct wme **link;
+        struct preference *pref;
 
         /* If there's not even a slot, then there certainly is no
            operator selected for this goal! */
@@ -1079,7 +1079,7 @@ select_operator(struct agent* agent)
 #ifdef DEBUG
         /* Ensure there's only ever one operator selected! */
         if (wme) {
-            struct wme* check;
+            struct wme *check;
             for (check = wme->next; check != 0; check = check->next) {
                 ASSERT(check->type == wme_type_acceptable,
                        ("more than one operator selected"));
@@ -1134,7 +1134,7 @@ select_operator(struct agent* agent)
             /* At least one acceptable operator exists. */
             bool_t can_make_new_impasse = (goal->next == 0);
             symbol_t selected_op = wme->value;
-            struct wme* wme2;
+            struct wme *wme2;
 
             /* Is there more than one? */
             for (wme2 = wme->next; wme2 != 0; wme2 = wme2->next) {
@@ -1153,7 +1153,7 @@ select_operator(struct agent* agent)
 
             if (! SYMBOL_IS_NIL(selected_op)) {
                 /* We've got a single operator. */
-                struct wme* op;
+                struct wme *op;
 
 #ifdef DEBUG
                 /* XXX this should be done in a callback that the
@@ -1166,7 +1166,7 @@ select_operator(struct agent* agent)
                 printf("\n");
 #endif
 
-                op = (struct wme*) malloc(sizeof(struct wme));
+                op = (struct wme *) malloc(sizeof(struct wme));
                 op->slot  = slot;
                 op->value = selected_op;
                 op->type  = wme_type_normal;
@@ -1209,7 +1209,7 @@ select_operator(struct agent* agent)
  * then process new matches if any exist.
  */
 void
-wmem_elaborate(struct agent* agent)
+wmem_elaborate(struct agent *agent)
 {
     decide_slots(agent);
 
@@ -1227,12 +1227,12 @@ wmem_elaborate(struct agent* agent)
  * wmes in the slot, and notifies the rete network.
  */
 static ht_enumerator_result_t
-slot_wme_finalizer(struct ht_entry_header* header, void* closure)
+slot_wme_finalizer(struct ht_entry_header *header, void *closure)
 {
-    struct agent* agent = (struct agent*) closure;
-    struct slot* slot = (struct slot*) HT_ENTRY_DATA(header);
+    struct agent *agent = (struct agent *) closure;
+    struct slot *slot = (struct slot *) HT_ENTRY_DATA(header);
 
-    struct wme* wme = slot->wmes;
+    struct wme *wme = slot->wmes;
 
     while (wme) {
         /* XXX Hrm, kind of a waste, because we'll pile up a ton
@@ -1250,14 +1250,14 @@ slot_wme_finalizer(struct ht_entry_header* header, void* closure)
  * preferences in the slot and clobbers it.
  */
 static ht_enumerator_result_t
-slot_finalizer(struct ht_entry_header* header, void* closure)
+slot_finalizer(struct ht_entry_header *header, void *closure)
 {
-    struct slot* slot = (struct slot*) HT_ENTRY_DATA(header);
-    struct preference* pref = slot->preferences;
-    struct wme* wme = slot->wmes;
+    struct slot *slot = (struct slot *) HT_ENTRY_DATA(header);
+    struct preference *pref = slot->preferences;
+    struct wme *wme = slot->wmes;
 
     while (pref) {
-        struct preference* doomed = pref;
+        struct preference *doomed = pref;
         pref = pref->next_in_slot;
 
         /* Safe at this point, because there should be no
@@ -1266,7 +1266,7 @@ slot_finalizer(struct ht_entry_header* header, void* closure)
     }
 
     while (wme) {
-        struct wme* doomed = wme;
+        struct wme *doomed = wme;
         wme = wme->next;
 
         free(doomed);
@@ -1280,9 +1280,9 @@ slot_finalizer(struct ht_entry_header* header, void* closure)
  * wmes. This will have side effects in the rete network.
  */
 void
-wmem_finish(struct agent* agent)
+wmem_finish(struct agent *agent)
 {
-    struct slot_list* entry;
+    struct slot_list *entry;
 
     /* First, remove *all* wmes. This will clean up the rete network
        properly */
@@ -1305,7 +1305,7 @@ wmem_finish(struct agent* agent)
     /* ...and clean up the (no longer valid) list of modified slots */
     entry = agent->modified_slots;
     while (entry) {
-        struct slot_list* doomed = entry;
+        struct slot_list *doomed = entry;
         entry = entry->next;
         free(doomed);
     }
@@ -1318,7 +1318,7 @@ wmem_finish(struct agent* agent)
  * Initialize working memory
  */
 void
-wmem_init(struct agent* agent)
+wmem_init(struct agent *agent)
 {
     ht_init(&agent->slots, (ht_key_compare_t) compare_slots);
 }
@@ -1328,7 +1328,7 @@ wmem_init(struct agent* agent)
  * Clear working memory.
  */
 void
-wmem_clear(struct agent* agent)
+wmem_clear(struct agent *agent)
 {
     wmem_finish(agent);
     wmem_init(agent);

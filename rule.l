@@ -25,7 +25,7 @@
 #define YY_DECL            \
 int yylex (yylval, parser) \
     YYSTYPE* yylval;       \
-    struct parser* parser;
+    struct parser *parser;
 %}
 
 ID [[:alpha:]]([[:alnum:]]|"-"|"_"|"*")*
@@ -69,17 +69,17 @@ state|impasse yylval->context = yytext; return CONTEXT;
 
 %%
 
-struct production*
-soar_parse_rule(struct symtab* symtab, const char* rule)
+struct production *
+soar_parse_rule(struct symtab *symtab, const char *rule)
 {
-    extern int yyparse(void*);
+    extern int yyparse(void *);
     struct parser parser;
     YY_BUFFER_STATE state;
 
-    struct symbol_list* symbols;
+    struct symbol_list *symbols;
 
-    struct production* result =
-        (struct production*) malloc(sizeof(struct production));
+    struct production *result =
+        (struct production *) malloc(sizeof(struct production));
 
 #if YYDEBUG != 0
     /* Turn on noisy debugging */
@@ -108,14 +108,14 @@ soar_parse_rule(struct symtab* symtab, const char* rule)
 
     symbols = parser.lhs_vars;
     while (symbols) {
-        struct symbol_list* doomed = symbols;
+        struct symbol_list *doomed = symbols;
         symbols = symbols->next;
         free(doomed);
     }
 
     symbols = parser.rhs_unbound_vars;
     while (symbols) {
-        struct symbol_list* doomed = symbols;
+        struct symbol_list *doomed = symbols;
         symbols = symbols->next;
         free(doomed);
     }
@@ -124,7 +124,7 @@ soar_parse_rule(struct symtab* symtab, const char* rule)
 }
 
 void
-yyerror(const char* s)
+yyerror(const char *s)
 {
     fprintf(stderr, "%s\n", s);
 }
