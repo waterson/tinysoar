@@ -214,7 +214,6 @@ test_type_to_string(test_type_t type)
     case test_type_disjunctive:      return "test_type_disjunctive";
     case test_type_conjunctive:      return "test_type_conjunctive";
     case test_type_goal_id:          return "test_type_goal_id";
-    case test_type_impasse_id:       return "test_type_impasse_id";
     }
 
     UNREACHABLE();
@@ -427,7 +426,9 @@ collect_beta_nodes(struct beta_node *node,
     case beta_node_type_positive_join:
     case beta_node_type_memory_positive_join:
     case beta_node_type_negative:
-        collect_beta_tests(node->data.tests, tests, test_id);
+        if (node->data.tests)
+            collect_beta_tests(node->data.tests, tests, test_id);
+
         break;
 
     case beta_node_type_production:
@@ -507,7 +508,11 @@ export_beta_nodes(FILE *            file,
     case beta_node_type_memory_positive_join:
     case beta_node_type_negative:
         /* write test reference */
-        fprintf(file, "&tests[%d]", get_index_map_id(tests, node->data.tests));
+        if (node->data.tests)
+            fprintf(file, "&tests[%d]", get_index_map_id(tests, node->data.tests));
+        else
+            fprintf(file, "0");
+
         break;
 
     case beta_node_type_production:
@@ -583,8 +588,10 @@ export_beta_tests(FILE *file, struct beta_node *node, struct ht *tests)
 {
     if (node->type == beta_node_type_positive_join ||
         node->type == beta_node_type_memory_positive_join ||
-        node->type == beta_node_type_negative)
-        export_beta_test(file, node->data.tests, tests);
+        node->type == beta_node_type_negative) {
+        if (node->data.tests)
+            export_beta_test(file, node->data.tests, tests);
+    }
 
     if (node->siblings)
         export_beta_tests(file, node->siblings, tests);
