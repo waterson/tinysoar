@@ -84,7 +84,7 @@ state|impasse yylval->context = yytext; return CONTEXT;
                  }
               }
 
-[0-9]+        yylval->int_constant = atoi(yytext); return INT_CONSTANT;
+[+-]?[0-9]+   yylval->int_constant = atoi(yytext); return INT_CONSTANT;
 
 "<<"          return LEFT_ANGLE;
 ">>"          return RIGHT_ANGLE;
