@@ -329,7 +329,6 @@ Trying to understand the backtracing algorithm...
 
     |results| = get_results_of(inst);
     foreach |pref| in |results| do
-      /* XXX isn't pref.instantiation always == inst?
       backtrace_through_instantiation(|pref.instantiation|);
     done
 
