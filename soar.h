@@ -621,4 +621,10 @@ agent_reserve_identifiers(struct agent *agent, int count);
 extern symbol_t
 agent_get_identifier(struct agent *agent);
 
+extern int
+agent_get_id_level(struct agent *agent, symbol_t id);
+
+extern void
+agent_set_id_level(struct agent *agent, symbol_t id, int level);
+
 #endif /* soar_h__ */

@@ -69,9 +69,10 @@
 
 #define ID_ENTRY_USED_MASK       (1 << (ID_MAP_ENTRY_BITS - 1))
 #define ID_ENTRY_LEVEL_MASK      ~ID_ENTRY_USED_MASK
+#define ID_ENTRY_MAX_LEVEL       ((unsigned char) ID_ENTRY_LEVEL_MASK)
 
 #define ASSERT_VALID_LEVEL(l) \
-  ASSERT(((l) & ~ID_ENTRY_LEVEL_MASK == 0), ("bad identifier level %d", (l)))
+  ASSERT(((l) & ~ID_ENTRY_LEVEL_MASK) == 0, ("bad identifier level %d", (l)))
 
 #define ID_ENTRY_IS_USED(e)      ((e) & ID_ENTRY_USED_MASK)
 #define MARK_ID_ENTRY_USED(e)    ((e) |= ID_ENTRY_USED_MASK)
@@ -80,6 +81,8 @@
 #define GET_ID_ENTRY_LEVEL(e)    ((e) & ID_ENTRY_LEVEL_MASK)
 #define SET_ID_ENTRY_LEVEL(e, l) \
   (ASSERT_VALID_LEVEL(l), (e) &= ~ID_ENTRY_LEVEL_MASK, (e) |= (l))
+#define INIT_ID_ENTRY(e, u, l)   \
+  (ASSERT_VALID_LEVEL(l), ((e) = ((u) ? ID_ENTRY_USED_MASK : 0) | (l)))
 
 /*
  * Make an `acceptable, architecture-supported' preference.
@@ -107,14 +110,16 @@ push_goal_id(struct agent *agent, symbol_t goal_id)
     struct symbol_list *entry =
         (struct symbol_list *) malloc(sizeof(struct symbol_list));
 
-    struct symbol_list **link = &agent->goals;
+    struct symbol_list **link;
+    int level;
 
     entry->symbol = goal_id;
     entry->next   = 0;
 
-    while (*link)
+    for (link = &agent->goals, level = 1; *link != 0; ++level)
         link = &((*link)->next);
 
+    agent_set_id_level(agent, goal_id, level);
     *link = entry;
 }
 
@@ -349,10 +354,49 @@ agent_get_identifier(struct agent *agent)
 
     /* Mark the entry as in use, and return it. The identifier's value
        is its position in the map, one-indexed. */
-    MARK_ID_ENTRY_USED(*entry);
+    INIT_ID_ENTRY(*entry, 1, 0);
     INIT_SYMBOL(result, symbol_type_identifier, (entry - agent->id_entries) + 1);
 
     return result;
+}
+
+/*
+ * Get the level of an identifier.
+ */
+int
+agent_get_id_level(struct agent *agent, symbol_t id)
+{
+    unsigned char *entry;
+
+    ASSERT(GET_SYMBOL_TYPE(id) == symbol_type_identifier,
+           ("attempt to set id level on non-identifier"));
+
+    entry = agent->id_entries + (GET_SYMBOL_VALUE(id) - 1);
+    ASSERT(entry < agent->id_entries + agent->nid_entries,
+           ("invalid identifier"));
+
+    return GET_ID_ENTRY_LEVEL(*entry);
+}
+
+/*
+ * Set the level of an identifier.
+ */
+void
+agent_set_id_level(struct agent *agent, symbol_t id, int level)
+{
+    unsigned char *entry;
+
+    ASSERT(GET_SYMBOL_TYPE(id) == symbol_type_identifier,
+           ("attempt to set id level on non-identifier"));
+
+    ASSERT(level > 0 && level < ID_ENTRY_MAX_LEVEL,
+           ("invalid level %d", level));
+
+    entry = agent->id_entries + (GET_SYMBOL_VALUE(id) - 1);
+    ASSERT(entry < agent->id_entries + agent->nid_entries,
+           ("invalid identifier"));
+
+    SET_ID_ENTRY_LEVEL(*entry, level);
 }
 
 /*
@@ -477,67 +521,8 @@ agent_operator_tie(struct agent *agent, symbol_t goal, struct symbol_list *opera
 
 struct gc_data {
     struct agent *agent;
-    struct ht     reachable;
-    bool_t        mark_done;
+    int           level;
 };
-
-static bool_t
-compare_symbols(const symbol_t *s1, const symbol_t *s2)
-{
-    return *s1 == *s2;
-}
-
-/*
- * Add the specified symbol to the reachable set.
- */
-static void
-add_reachable_symbol(struct ht               *reachable,
-                     struct ht_entry_header **entryp,
-                     symbol_t                 symbol)
-{
-    struct ht_entry_header *entry =
-        (struct ht_entry_header *)
-        malloc(sizeof(struct ht_entry_header) + sizeof(symbol_t));
-
-    symbol_t *sym = (symbol_t *) HT_ENTRY_DATA(entry);
-    *sym = symbol;
-
-    ht_add(reachable, entryp, symbol, entry);
-}
-
-/*
- * Called once for each slot to compute identifiers that are reachable
- * from the current set.
- */
-static ht_enumerator_result_t
-mark(struct ht_entry_header *header, void *closure)
-{
-    struct slot *slot = (struct slot *) HT_ENTRY_DATA(header);
-    struct gc_data *gc = (struct gc_data *) closure;
-    struct ht_entry_header **entryp =
-        (struct ht_entry_header **)
-        ht_lookup(&gc->reachable, slot->id, &slot->id);
-
-    struct preference *pref;
-
-    if (*entryp) {
-        /* This slot's identifier is reachable. Add identifiers
-           reachable from this slot to the reachability set. */
-        for (pref = slot->preferences; pref != 0; pref = pref->next_in_slot) {
-            entryp =
-                (struct ht_entry_header **)
-                ht_lookup(&gc->reachable, pref->value, &pref->value);
-
-            if (! *entryp) {
-                /* Found an identifier that we hadn't reached yet. */
-                add_reachable_symbol(&gc->reachable, entryp, pref->value);
-                gc->mark_done = 0;
-            }
-        }
-    }
-
-    return ht_enumerator_result_ok;
-}
 
 /*
  * Remove preferences for any unreachable identifiers.
@@ -548,12 +533,7 @@ sweep(struct ht_entry_header *header, void *closure)
     struct slot *slot = (struct slot *) HT_ENTRY_DATA(header);
     struct gc_data *gc = (struct gc_data *) closure;
 
-    struct ht_entry_header **entryp =
-        (struct ht_entry_header **) ht_lookup(&gc->reachable, slot->id, &slot->id);
-
-    if (! *entryp) {
-        /* This identifier wasn't reachable. Nuke the preferences and
-           WMEs that it contains. */
+    if (agent_get_id_level(gc->agent, slot->id) > gc->level) {
         struct preference *pref;
         struct wme *wme;
 
@@ -572,16 +552,42 @@ sweep(struct ht_entry_header *header, void *closure)
 
         slot->wmes = 0;
     }
+#ifdef DEBUG
+    else {
+        /* Sanity check to make sure that nothing that's still alive
+           refers to an identifier from a level that's being gc'd.
+
+           XXX could we make this stronger and assert that nothing
+           refers to a level below the identifier's level? I.e., to
+           ensure that all promotion has been done properly? */
+        struct preference *pref;
+        struct wme *wme;
+
+        for (pref = slot->preferences; pref != 0; pref = pref->next_in_slot) {
+            if (GET_SYMBOL_TYPE(pref->value) == symbol_type_identifier) {
+                ASSERT(agent_get_id_level(gc->agent, pref->value) <= gc->level,
+                       ("preference refers to a value from a gc'd level"));
+            }
+
+            if ((pref->type & preference_type_binary) &&
+                GET_SYMBOL_TYPE(pref->referent) == symbol_type_identifier) {
+                ASSERT(agent_get_id_level(gc->agent, pref->referent) <= gc->level,
+                       ("preference refers to a referent from a gc'd level"));
+            }
+        }
+
+        for (wme = slot->wmes; wme != 0; wme = wme->next) {
+            if (GET_SYMBOL_TYPE(wme->value) == symbol_type_identifier) {
+                ASSERT(agent_get_id_level(gc->agent, wme->value) <= gc->level,
+                       ("wme refers to a value from a gc'd level"));
+            }
+        }
+    }
+#endif
 
     /* XXX Why can't we remove the slot (i.e., return
        ht_enumerator_result_delete) here? */
     return ht_enumerator_result_ok;
-}
-
-static ht_enumerator_result_t
-symbol_set_finalizer(struct ht_entry_header *header, void *closure)
-{
-    return ht_enumerator_result_delete;
 }
 
 /*
@@ -591,40 +597,17 @@ symbol_set_finalizer(struct ht_entry_header *header, void *closure)
 void
 agent_pop_subgoals(struct agent *agent, struct symbol_list *bottom)
 {
-    struct gc_data gc;
     struct symbol_list *goal;
+    struct gc_data gc = { agent, 1 };
 
     ASSERT(bottom != 0, ("no subgoals to pop"));
 
-    /* Gather all the reachable identifiers: the goal stack is our
-       root set. Note that we don't yet truncate the goal stack: we
-       need the goal stack to be intact so that we can unwind
-       retractions in the RETE network. */
-    gc.agent = agent;
-    ht_init(&gc.reachable, (ht_key_compare_t) compare_symbols);
-
-    for (goal = agent->goals; goal != bottom->next; goal = goal->next) {
-        struct ht_entry_header **entryp =
-            (struct ht_entry_header **)
-            ht_lookup(&gc.reachable, goal->symbol, &goal->symbol);
-
-        ASSERT(*entryp == 0, ("circular goal list"));
-
-        add_reachable_symbol(&gc.reachable, entryp, goal->symbol);
-    }
-
-    /* Compute the transitive closure: iterate until no new
-       identifiers are reached. */
-    do {
-        gc.mark_done = 1;
-        ht_enumerate(&agent->slots, mark, &gc);
-    } while (! gc.mark_done);
+    /* Determine the level we're popping. */
+    for (goal = agent->goals; goal != bottom; goal = goal->next)
+        ++gc.level;
 
     /* Remove preferences for the non-reachable identifiers. */
     ht_enumerate(&agent->slots, sweep, &gc);
-
-    /* Clean up. */
-    ht_finish(&gc.reachable, symbol_set_finalizer, 0);
 
     /* Nuke goals beneath the new bottom. */
     goal = bottom->next;

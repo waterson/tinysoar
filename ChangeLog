@@ -1,5 +1,19 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
+Wednesday, May 1, 2002
+
+Added code to properly maintain the goal level of each
+identifier. This simplifies the preference and wme garbage collection
+that takes place when the goal stack is popped: we can now simply use
+the goal levels rather than computing identifier reachability.
+
+
+Saturday, April 20, 2002
+
+Made it so that we garbage collect identifiers. Now we don't run out of 'em anymore.
+
+<http://sourceforge.net/tracker/index.php?func=detail&aid=508521&group_id=42131&atid=432196>
+
 ----------------------------------------------------------------------
 
 Saturday, April 20, 2002

@@ -48,6 +48,11 @@
 #include <stdio.h>
 #endif
 
+struct wme_list {
+    struct wme      *wme;
+    struct wme_list *next;
+};
+
 static bool_t
 compare_slots(const struct slot *s1, const struct slot *s2)
 {
@@ -253,6 +258,7 @@ decide_slots(struct agent *agent)
 {
     struct slot_list *slots;
     struct slot_list *next;
+    struct wme_list *new_wmes = 0;
 
     for (slots = agent->modified_slots; slots != 0; slots = next) {
         struct preference *pref = slots->slot->preferences;
@@ -280,6 +286,8 @@ decide_slots(struct agent *agent)
                         /* Make a new wme. Note that wme's that go
                            into a operator slot are `acceptable', not
                            `normal'. */
+                        struct wme_list *entry;
+
                         wme = (struct wme *) malloc(sizeof(struct wme));
                         wme->slot  = slots->slot;
                         wme->value = candidate->symbol;
@@ -288,6 +296,31 @@ decide_slots(struct agent *agent)
                         slots->slot->wmes = wme;
 
                         rete_operate_wme(agent, wme, wme_operation_add);
+
+                        /* If the value is an identifier, try to
+                           assign an appropriate goal level to it,
+                           unless it already has one. */
+                        if (GET_SYMBOL_TYPE(wme->value) == symbol_type_identifier) {
+                            int id_level = agent_get_id_level(agent, wme->slot->id);
+                            if (! id_level) {
+                                /* The identifier doesn't have a level
+                                   assigned to it; we'll have to assign
+                                   one in a second pass. */
+                                entry = (struct wme_list *) malloc(sizeof(struct wme_list));
+                                entry->wme = wme;
+                                entry->next = new_wmes;
+                                new_wmes = entry;
+                            }
+                            else {
+                                /* If the value doesn't yet have a
+                                   level, or the identifier's level is
+                                   higher than the value's, promote
+                                   the value. */
+                                int value_level = agent_get_id_level(agent, wme->value);
+                                if (!value_level || id_level < value_level)
+                                    agent_set_id_level(agent, wme->value, id_level);
+                            }
+                        }
                     }
                 }
             }
@@ -341,6 +374,39 @@ decide_slots(struct agent *agent)
     }
 
     agent->modified_slots = 0;
+
+    /* If we couldn't assign a goal level to any of the new wme's
+       values, do so now. Iterate through the list until we've
+       assigned goal levels to all values; since all of the values
+       must be reachable from a goal, we know this will terminate. (Of
+       course, if some loser has written a rule that creates WMEs
+       _not_ connected to a goal, we'll hang: we should make the
+       parser enforce that, though.) */
+    if (new_wmes) {
+        do {
+            struct wme_list *entry, **link = &new_wmes;
+            while ((entry = *link) != 0) {
+                struct wme_list *doomed;
+                int id_level = agent_get_id_level(agent, entry->wme->slot->id);
+                int value_level;
+
+                if (! id_level) {
+                    /* We still haven't found a level for the
+                       identifier. Leave it in the list. */
+                    link = &entry->next;
+                    continue;
+                }
+
+                value_level = agent_get_id_level(agent, entry->wme->value);
+                if (!value_level || id_level < value_level)
+                    agent_set_id_level(agent, entry->wme->value, id_level);
+
+                doomed = entry;
+                *link = entry->next;
+                free(doomed);
+            }
+        } while (new_wmes);
+    }
 }
 
 /*
@@ -530,14 +596,13 @@ create_instantiation(struct agent       *agent,
                      struct token       *token,
                      struct preference **o_rejects)
 {
-    struct instantiation *inst =
-        (struct instantiation *) malloc(sizeof(struct instantiation));
-
+    struct instantiation *inst;
     struct symbol_list *unbound_vars = 0;
     struct action *action;
     int count;
 
     /* Initialize the instantiation. */
+    inst = (struct instantiation *) malloc(sizeof(struct instantiation));
     inst->production   = production;
     inst->token        = token;
     inst->next         = production->instantiations;
@@ -1240,6 +1305,18 @@ select_operator(struct agent *agent)
                 slot->wmes = op;
 
                 rete_operate_wme(agent, op, wme_operation_add);
+
+                /* N.B. that there is no need to worry about assigning
+                   a goal level to the operator's identifier: it will
+                   have one already by virtue of its proposal creating
+                   an acceptable preference. */
+#ifdef DEBUG
+                {
+                    int level = agent_get_id_level(agent, op->value);
+                    ASSERT(level != 0 && level <= (depth + 1),
+                           ("operator has a bad level %d", level));
+                }
+#endif
 
                 if (goal->next) {
                     /* We just resolved an impasse, so now we need to

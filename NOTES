@@ -798,3 +798,28 @@ why an o-supported preference got instantiated. I should probably
 figure out how I'd do the simple case (i.e., pref returned whose
 dependencies still exist as proper tokens) first, anyway...
 
+---
+
+This is bizarre. These productions:
+
+sp {elaborate*foo
+    (state <s>)
+    -->
+    (<s> ^foo bar)}
+
+sp {chunky*chunker
+    (state <s> ^superstate <ss>)
+    (<ss> ^foo bar ^superstate <sss>)
+    (<sss> ^foo bar)
+    -->
+    (<ss> ^blah blaz)
+    (<sss> ^blar blot)}
+
+Lead to this chunk:
+
+sp {chunk-1*d2*snochange*1
+    :chunk
+    (state <s1> ^foo bar)
+    -->
+    (<s1> ^blar blot +)
+}
