@@ -468,7 +468,7 @@ export_beta_nodes(FILE *            file,
     else
         fprintf(file, "0, ");
 
-    fprintf(file, "0, ");
+    fprintf(file, "0, { ");
 
     switch (node->type) {
     case beta_node_type_positive_join:
@@ -490,7 +490,7 @@ export_beta_nodes(FILE *            file,
         break;
     }
 
-    fprintf(file, " },\n");
+    fprintf(file, " } },\n");
 
     if (node->siblings)
         export_beta_nodes(file, node->siblings, alphas, betas, tests, productions);
@@ -512,7 +512,7 @@ export_beta_test(FILE *file, struct beta_test *test, struct ht *tests)
             relational_type_to_string(test->relational_type),
             field_to_string(test->field));
 
-    fprintf(file, "    ");
+    fprintf(file, "    { ");
 
     if (test->type != test_type_disjunctive) {
         if (test->relational_type == relational_type_constant) {
@@ -527,7 +527,8 @@ export_beta_test(FILE *file, struct beta_test *test, struct ht *tests)
                 get_index_map_id(tests, test->data.disjuncts));
     }
 
-    fprintf(file, " },\n");
+    /* XXX ought we be emitting something for the `next' field? */
+    fprintf(file, " }, 0 },\n");
 
     if (test->type == test_type_disjunctive) {
         struct beta_test *disjuncts = test->data.disjuncts;
@@ -566,7 +567,7 @@ export_beta_tests(FILE *file, struct beta_node *node, struct ht *tests)
 static void
 rhs_value(FILE *file, struct rhs_value *value)
 {
-    fprintf(file, "{ %s, ", rhs_value_type_to_string(value->type));
+    fprintf(file, "{ %s, { ", rhs_value_type_to_string(value->type));
 
     switch (value->type) {
     case rhs_value_type_symbol:
@@ -585,7 +586,7 @@ rhs_value(FILE *file, struct rhs_value *value)
         UNREACHABLE();
     }
 
-    fprintf(file, " }");
+    fprintf(file, " } }");
 }
 
 /*
@@ -613,7 +614,7 @@ export_action(FILE *file, struct action *action, struct ht *actions)
     if (action->preference_type & preference_type_binary)
         rhs_value(file, &action->referent);
     else
-        fprintf(file, "{ 0, 0 }");
+        fprintf(file, "{ 0, { 0 } }");
 
     fprintf(file, " },\n");
 
