@@ -1,5 +1,18 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
+Friday, December 14, 2001
+
+Tracked the remaining problems with the RCX: turns out the
+h8300-hitachi-hms version of gcc orders bitfields in strucutres
+differently than the x86 version does. So, the code I have that tries
+to treat word-wide structures as unsigned values got the bitfield
+stuff backwards. Gonna have to do those by hand.
+
+Also cleaned up a bunch of the macros that are used to specify
+symbols: the parameters to these things were randomly ordered as far
+as I could tell.
+
+
 Sunday, December 9, 2001
 
 Implemented a brain-dead, slow as molasses, first-fit allocator to run
