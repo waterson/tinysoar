@@ -34,10 +34,8 @@
  */
 
 /*
-
-  Flex lexer for Soar productions
-
-*/
+ * Flex lexer for Soar productions
+ */
 
 /*
  * We don't need and don't have yywrap()

@@ -173,12 +173,9 @@ LEGO_OBJS = \
 lego: $(LEGO_OBJS) $(RUNTIME_LIBNAME) $(BASE_LIBNAME)
 	$(CC) $(LEGO_OBJS) -nostdlib -Wl,-Map -Wl,lego.map -Wl,-T$(srcdir)/h8300.lds -o $@ -L. -l$(RUNTIME) -l$(BASE) -lgcc
 
-LEGO_SIM_OBJS = \
-	lego-sim.o \
-	alloc.o \
-	$(NULL)
-
-lego-sim: $(LEGO_SIM_OBJS) $(RUNTIME_LIBNAME) $(BASE_LIBNAME)
-	$(CC) $(LEGO_SIM_OBJS) -o $@ -L. -l$(RUNTIME) -l$(BASE)
+# ----------------------------------------------------------------------
+#
+# A test harness for the memory allocator.
+#
 
 test-alloc: test-alloc.c alloc.o debug.o

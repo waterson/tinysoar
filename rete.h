@@ -33,9 +33,20 @@
  *
  */
 
+/*
+ * RETE runtime routines that are used from the RETE creation code.
+ *
+ * The RETE creation code (in prod.c) requires access to some of the
+ * routines in the runtime code (in rete.c). This header exposes that
+ * functionality.
+ */
+
 #ifndef rete_h__
 #define rete_h__
 
+/*
+ * A list of variable bindings.
+ */
 struct variable_binding_list {
     symbol_t                      variable;
     variable_binding_t            binding;
@@ -72,17 +83,26 @@ wme_matches_alpha_node(const struct wme *wme, const struct alpha_node *node)
          SYMBOLS_ARE_EQUAL(node->value, wme->value));
 }
 
+/*
+ * Add a working memory element to an alpha node.
+ */
 extern void
 add_wme_to_alpha_node(struct agent      *agent,
                       struct alpha_node *node,
                       struct wme        *wme);
 
+/*
+ * Do a left-addition to a beta node.
+ */
 void
 do_left_addition(struct agent     *agent,
                  struct beta_node *node,
                  struct token     *token,
                  struct wme       *wme);
 
+/*
+ * Do a right-memory addition to a beta node.
+ */
 void
 do_right_addition(struct agent     *agent,
                   struct beta_node *node,

@@ -34,16 +34,16 @@
  */
 
 /*
-
-  The Rete Network
-
-
-  TO DO
-  -----
-
-  . Implement conjunctive negative conditions
-
-*/
+ * Runtime support for the RETE network that filters the addition
+ * and removal of working memory elements through the RETE network.
+ *
+ * This code is based on code from Soar8.2,
+ *
+ *   <http://ai.eecs.umich.edu/soar/>
+ *
+ * and includes some cross-references to similar routines in that
+ * codebase.
+ */
 
 #include "soar.h"
 #include "rete.h"

@@ -33,12 +33,26 @@
  *
  */
 
+/*
+ * Routines used to build the RETE network from the raw Soar8
+ * productions. This code is not part of the runtime (although some of
+ * it may need to become part of the runtime when chunking is
+ * implemented).
+ *
+ * This code is based on code from Soar8.2,
+ *
+ *   <http://ai.eecs.umich.edu/soar/>
+ *
+ * and includes some cross-references to similar routines in that
+ * codebase.
+ */
+
 #include "soar.h"
 #include "rete.h"
 #include "alloc.h"
 
 /*
- * Free a list of beta tests
+ * Free a list of beta tests.
  */
 static void
 free_beta_tests(struct agent *agent, struct beta_test *tests)
@@ -138,6 +152,9 @@ find_alpha_node(struct agent *agent,
     return 0;
 }
 
+/*
+ * Add existing WMEs to the alpha node when a new alpha node is created.
+ */
 static void
 add_matching_wmes(struct agent *agent, struct wme *wme, void *closure)
 {
@@ -298,7 +315,9 @@ create_positive_join_node(struct agent      *agent,
     return result;
 }
 
-
+/*
+ * Create a negative node with the specified parent.
+ */
 static struct beta_node *
 create_negative_node(struct agent      *agent,
                      struct beta_node  *parent,
@@ -612,8 +631,6 @@ ensure_positive_condition_node(struct agent                  *agent,
 
     return create_positive_join_node(agent, memory_node, alpha_node, tests);
 }
-
-
 
 /*
  * Find or create a beta node for the given single condition `cond',
@@ -971,6 +988,9 @@ rete_add_production(struct agent *agent, struct production *p)
     }
 }
 
+/*
+ * Remove a production from the RETE network.
+ */
 void
 rete_remove_production()
 {

@@ -34,37 +34,36 @@
  */
 
 /*
-
-  Bison grammar for Soar productions
-
-  TO DO
-  -----
-
-  . Need to mark preferences with proper support (either o- or
-    i-support).
-
-  . Handle acceptable preference testing (needs work in the rete
-    network and elsewhere first).
-
-  . Implement `negated conjunctive conditions'. Properly detect when
-    we need to return a simple condition vs. an NCC.
-
-  . Clean up condition and condition_list stuff. I think the RHS stuff
-    worked out much more cleanly. Better yet, construct the RETE
-    network directly instead of creating a bunch of intermediate data
-    structures (unless it turns out we need these for chunking?)
-
-  . Implement `dot attribute' for conditions.
-
-  . Implement semantic verification (e.g., Are there dangling
-    variables in the LHS? Does the RHS try to create disconnected
-    structure?).
-
-  . Error recovery and reporting.
-
-  . Fix O(n^2) list walking that's all over the place.
-
-*/
+ * Bison grammar for Soar productions.
+ *
+ * TO DO
+ * -----
+ *
+ * . Need to mark preferences with proper support (either o- or
+ *   i-support).
+ *
+ * . Handle acceptable preference testing (needs work in the rete
+ *   network and elsewhere first).
+ *
+ * . Implement `negated conjunctive conditions'. Properly detect when
+ *   we need to return a simple condition vs. an NCC.
+ *
+ * . Clean up condition and condition_list stuff. I think the RHS stuff
+ *   worked out much more cleanly. Better yet, construct the RETE
+ *   network directly instead of creating a bunch of intermediate data
+ *   structures (unless it turns out we need these for chunking?)
+ *
+ * . Implement `dot attribute' for conditions.
+ *
+ * . Implement semantic verification (e.g., Are there dangling
+ *   variables in the LHS? Does the RHS try to create disconnected
+ *   structure?).
+ *
+ * . Error recovery and reporting.
+ *
+ * . Fix O(n^2) list walking that's all over the place.
+ *
+ */
 
 #include "soar.h"
 #include "parser.h"

@@ -33,6 +33,14 @@
  *
  */
 
+/*
+ * An embedding harness for TinySoar that runs on the Lego Mindstorms
+ * RCX. Much of the code here was cribbed from LegOS
+ *
+ *   <http://legos.sourceforge.net/>
+ *
+ * with minor adaptations.
+ */
 #include "alloc.h"
 #include "soar.h"
 #include "rcx.h"

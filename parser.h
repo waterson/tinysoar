@@ -33,6 +33,9 @@
  *
  */
 
+/*
+ * A parser for the Soar8 rule syntax.
+ */
 #ifndef parser_h__
 #define parser_h__
 
