@@ -1,0 +1,23 @@
+# Test basic `better' preference.
+
+package require TinySoar;
+set cycles 4
+
+sp {propose*one*two
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^operator <o1> + ^operator <o2> +)
+    (<o1> ^name one)
+    (<o2> ^name two)}
+
+sp {propose*one*better*two
+    (state <s> ^operator <o1> + ^operator <o2> +)
+    (<o1> ^name one)
+    (<o2> ^name two)
+    -->
+    (<s> ^operator <o1> > <o2>)}
+
+sp {implement*one
+    (state <s> ^operator.name one ^io.output-link <out>)
+    -->
+    (<out> ^success t)}

@@ -1,0 +1,28 @@
+# Test basic unary indifference.
+
+package require TinySoar;
+set cycles 3
+
+sp {propose*one*two*three
+    (state <s> ^superstate nil)
+    -->
+    (<s> ^operator <o1> + = ^operator <o2> + = ^operator <o3> + =)
+    (<o1> ^name one)
+    (<o2> ^name two)
+    (<o3> ^name three)}
+
+sp {implement*one
+    (state <s> ^operator.name one ^io.output-link <out>)
+    -->
+    (<out> ^success t)}
+
+sp {implement*two
+    (state <s> ^operator.name two ^io.output-link <out>)
+    -->
+    (<out> ^success t)}
+
+sp {implement*three
+    (state <s> ^operator.name three ^io.output-link <out>)
+    -->
+    (<out> ^success t)}
+
