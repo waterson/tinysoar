@@ -33,6 +33,15 @@
  *
  */
 
+/*
+ * TODO
+ *
+ * . Handle justifications; they're currently variablized, which makes
+ *   them over-general.
+ *
+ * . Optimize network creation.
+ */
+
 #include "soar.h"
 #include "rete.h"
 #include "alloc.h"
@@ -62,6 +71,7 @@ struct chunk {
     struct token_list         *nots;
     struct instantiation_list *visited;
     int                        level;
+    bool_t                     justification;
 };
 
 /*
@@ -313,13 +323,17 @@ make_rhs_value(struct rhs_value              *value,
     }
 }
 
+/*
+ * Build the right-hand side of the production.
+ */
 static void
 make_rhs(struct agent                 *agent,
          struct beta_node             *parent,
          int                           depth,
          struct variable_binding_list *bindings,
          struct preference_list       *results,
-         support_type_t                support)
+         support_type_t                support,
+         bool_t                        justification)
 {
     struct production *production;
     struct beta_node *node;
@@ -327,9 +341,10 @@ make_rhs(struct agent                 *agent,
 
     /* Create a production structure. */
     production = (struct production *) malloc(sizeof(struct production));
-    production->support        = support_type_isupport;
+    production->support        = support;
     production->instantiations = 0;
     production->actions        = 0;
+    production->justification  = justification;
 
     /* Turn the chunk's results into the production's actions. */
     unbound_vars = 0;
@@ -523,10 +538,7 @@ make_production(struct agent           *agent,
     bool_t tested_goal = 0;
     support_type_t support = support_type_isupport;
 
-    /* Create beta nodes for each token.
-
-       XXX this entire swath of code is atrocious, and needs to be
-       re-written once I figure out what I'm doing. */
+    /* Create beta nodes for each token. */
     for (tokens = chunk->grounds; tokens != 0; ) {
         struct token_list *doomed;
         struct beta_node *memory = 0;
@@ -613,7 +625,9 @@ make_production(struct agent           *agent,
             /* Compute o-support: if we test the `^operator' attribute
                of a wme in the grounds, we'll call it o-supported. */
             if ((support == support_type_isupport)
-                && SYMBOLS_ARE_EQUAL(tokens->token->wme->slot->attr, OPERATOR_CONSTANT)
+                && SYMBOLS_ARE_EQUAL(tokens->token->wme->slot->attr,
+                                     DECLARE_SYMBOL(symbol_type_symbolic_constant,
+                                                    OPERATOR_CONSTANT))
                 && (tokens->token->wme->type == wme_type_normal)
                 && agent_is_goal(agent, tokens->token->wme->slot->id)) {
                 support = support_type_osupport;
@@ -671,7 +685,7 @@ make_production(struct agent           *agent,
     }
 
     /* Make the chunk's right-hand side. */
-    make_rhs(agent, parent, --depth, bindings, results, support);
+    make_rhs(agent, parent, --depth, bindings, results, support, chunk->justification);
 
     /* Clean up the variable binding list. */
     while (bindings) {
@@ -830,43 +844,57 @@ backtrace(struct agent *agent, struct chunk *chunk)
     struct token_list *potential;
 
     while ((potential = chunk->potentials) != 0) {
-        struct wme *wme;
+        struct wme *wme = potential->token->wme;
         struct preference *pref;
 
         chunk->potentials = potential->next;
 
-        /* Look for a preference at the current goal level that
-           supports this wme. If we find one, then we've got a new
-           instantiation to collect tokens from. If not, then this
-           potential is a dead end. */
-        wme = potential->token->wme;
-        for (pref = wme->slot->preferences;
-             pref != 0;
-             pref = pref->next_in_slot) {
-            if (pref->type == preference_type_acceptable
-                && SYMBOLS_ARE_EQUAL(pref->value, wme->value)
-                && pref->instantiation
-                && !instantiation_list_contains(chunk->visited, pref->instantiation)
-                && rete_get_instantiation_level(agent, pref->instantiation) == chunk->level) {
+        /* See if we've tested `^quiescence t' at the bottom-most
+           level. If so, then this will be a justification, not a
+           chunk. */
+        if (SYMBOLS_ARE_EQUAL(wme->slot->attr,
+                              DECLARE_SYMBOL(symbol_type_symbolic_constant,
+                                             QUIESCENCE_CONSTANT))
+            && SYMBOLS_ARE_EQUAL(wme->value,
+                                 DECLARE_SYMBOL(symbol_type_symbolic_constant,
+                                                T_CONSTANT))
+            && (agent_get_id_level(agent, wme->slot->id) == chunk->level)) {
+            chunk->justification = 1;
+        }
+        else {
+            /* Look for a preference at the current goal level that
+               supports this wme. If we find one, then we've got a new
+               instantiation to collect tokens from. If not, then this
+               potential is a dead end. */
+            for (pref = wme->slot->preferences;
+                 pref != 0;
+                 pref = pref->next_in_slot) {
+                if (pref->type == preference_type_acceptable
+                    && SYMBOLS_ARE_EQUAL(pref->value, wme->value)
+                    && pref->instantiation
+                    && !instantiation_list_contains(chunk->visited,
+                                                    pref->instantiation)
+                    && (rete_get_instantiation_level(agent, pref->instantiation)
+                        == chunk->level)) {
 
 #ifdef DEBUG_CHUNKING
-                printf("backtracing ");
-                debug_dump_wme(&symtab, wme);
-                printf(" through ");
-                debug_dump_preference(&symtab, pref);
-                printf("\n");
+                    printf("backtracing ");
+                    debug_dump_wme(&symtab, wme);
+                    printf(" through ");
+                    debug_dump_preference(&symtab, pref);
+                    printf("\n");
 #endif
 
-                break;
+                    /* This will push any new potentials to the start
+                       of the queue, leading to a depth-first
+                       traversal through the potential set. */
+                    collect(agent, chunk, pref->instantiation);
+                    break;
+                }
             }
         }
 
-        /* XXX may never terminate because we don't keep trace of
-           which instantiations we've visited. */
-        if (pref)
-            collect(agent, chunk, pref->instantiation);
-        else
-            free(potential);
+        free(potential);
     }
 }
 
@@ -882,11 +910,12 @@ chunk(struct agent           *agent,
 {
     struct chunk chunk;
 
-    chunk.grounds    = 0;
-    chunk.potentials = 0;
-    chunk.nots       = 0;
-    chunk.visited    = 0;
-    chunk.level      = level;
+    chunk.grounds       = 0;
+    chunk.potentials    = 0;
+    chunk.nots          = 0;
+    chunk.visited       = 0;
+    chunk.level         = level;
+    chunk.justification = 0;
 
     /* Collect the initial set of grounds for this instantiation. */
     collect(agent, &chunk, inst);
@@ -913,7 +942,7 @@ chunk(struct agent           *agent,
             for (j = i->next; j != 0; j = j->next) {
                 struct token *token;
                 for (token = i->token; token != 0; token = token->parent) {
-                    if (token->wme->value == j->token->wme->slot->id) {
+                    if (token->wme && token->wme->value == j->token->wme->slot->id) {
                         token = j->token;
                         j->token = i->token;
                         i->token = token;

@@ -347,6 +347,7 @@ struct production {
     struct instantiation *instantiations;
     int                   num_unbound_vars;
     support_type_t        support;
+    bool_t                justification;
 };
 
 /*----------------------------------------------------------------------*/
