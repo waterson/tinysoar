@@ -12,7 +12,7 @@
 # match the same element), but it's probably a pretty good test for
 # tracing across operators.
 
-package require Soar;
+package require TinySoar;
 
 sp {elaborate*top-state
     (state <s> ^superstate nil)
@@ -22,15 +22,31 @@ sp {elaborate*top-state
 sp {elaborate*snc
     (state <s> ^impasse no-change ^attribute state)
     -->
-    (<s> ^count 0)}
+    (<s> ^count zero)}
 
-sp {propose*count
-    (state <s> ^superstate <ss> ^count <c>)
+sp {propose*count*one
+    (state <s> ^superstate <ss> ^count zero)
     (<ss> ^ball <b>)
    -(<s> ^counted <b>)
     -->
     (<s> ^operator <o> + =)
-    (<o> ^name count ^object <b> ^value (+ <c> 1))}
+    (<o> ^name count ^object <b> ^value one)}
+
+sp {propose*count*two
+    (state <s> ^superstate <ss> ^count one)
+    (<ss> ^ball <b>)
+   -(<s> ^counted <b>)
+    -->
+    (<s> ^operator <o> + =)
+    (<o> ^name count ^object <b> ^value two)}
+
+sp {propose*count*three
+    (state <s> ^superstate <ss> ^count two)
+    (<ss> ^ball <b>)
+   -(<s> ^counted <b>)
+    -->
+    (<s> ^operator <o> + =)
+    (<o> ^name count ^object <b> ^value three)}
 
 sp {implement*count*mark-counted
     (state <s> ^operator <o>)
