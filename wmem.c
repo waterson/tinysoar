@@ -202,21 +202,6 @@ collect_candidates(struct preference   *preferences,
     }
 }
 
-static struct preference *
-get_preferences_for_slot(struct agent *agent, struct slot *slot)
-{
-    unsigned hash = hash_slot(slot->id, slot->attr);
-    struct ht_entry_header **entryp
-        = ht_lookup(&agent->slots, hash, slot);
-
-    if (*entryp) {
-        struct slot *slot = (struct slot *) HT_ENTRY_DATA(*entryp);
-        return slot->preferences;
-    }
-
-    return 0;
-}
-
 struct preference *
 wmem_get_preferences(struct agent *agent, symbol_t id, symbol_t attr)
 {
@@ -782,7 +767,6 @@ wmem_remove_instantiation(struct agent         *agent,
                           struct instantiation *inst,
                           bool_t                final)
 {
-    int level;
     bool_t save;
 
 #ifdef CONF_SOAR_CHUNKING
@@ -855,6 +839,7 @@ wmem_remove_instantiation(struct agent         *agent,
         /* Transfer ownership of the instantiation to the goal
            stack. The instantiation, its tokens, and its preferences
            will be removed when the goal is popped. */
+        int level = rete_get_instantiation_level(agent, inst);
         struct goal_stack *goal = agent->goals;
         while (--level)
             goal = goal->next;
@@ -1256,7 +1241,7 @@ run_operator_semantics_for(struct agent *agent,
                            struct slot  *slot,
                            bool_t        can_make_new_impasse)
 {
-    struct preference *preferences = get_preferences_for_slot(agent, slot);
+    struct preference *preferences = slot->preferences;
     struct symbol_list *candidates = 0;
     symbol_t result;
 
