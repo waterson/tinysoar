@@ -48,11 +48,13 @@
 struct agent agent;
 struct symtab symtab;
 
+#ifndef max
 static inline size_t
 max(size_t a, size_t b)
 {
     return (a > b) ? a : b;
 }
+#endif
 
 /*
  * Varargs-style malloc-ing formatted concatenation.
