@@ -481,7 +481,7 @@ instantiate_rhs_value(struct rhs_value* value,
            instantiated unbound variables to find an identifier. */
         {
             int index = (int) value->val.unbound_variable;
-            while (--index > 0)
+            while (--index >= 0)
                 unbound_vars = unbound_vars->next;
 
             result = unbound_vars->symbol;
@@ -514,14 +514,13 @@ create_instantiation(struct agent* agent,
     /* initialize the instantiation */
     inst->production   = production;
     inst->token        = token;
+    inst->next         = production->instantiations;
+
+    production->instantiations = inst;
 
     inst->preferences.next_in_instantiation =
         inst->preferences.prev_in_instantiation = 
         &inst->preferences;
-
-    inst->next         = production->instantiations;
-
-    production->instantiations = inst;
 
     /* generate identifiers for the unbound variables */
     for (count = (int) production->num_unbound_vars - 1; count >= 0; --count) {
