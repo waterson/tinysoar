@@ -71,7 +71,7 @@ sp {detect*success
     -->
     (<out> ^success t)}
 
-set post {string compare [print chunk-1]
+set post {string compare [print chunk-1] \
 "chunk-1
 (state <v1> ^ball <v2>)
 (<v1> ^ball <v3>)
