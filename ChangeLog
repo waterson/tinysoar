@@ -1,3 +1,29 @@
+Sunday, February 4, 2001
+
+Spent some time debugging the mysterious crash on Win32. Added the
+`/MDd' option and debugged a place where I was allocating a block that
+was too small. At least now I can reproduce the crash on Windows!
+
+It looks like the problem has to do with updating the preference's
+`next_in_instantiation' pointer when we remove a preference from the
+linked list of preferences. It's left dangling, pointing at
+garbage. (Search on `XXX safe?' in wmem_remove_preference().)
+
+If I can't figure this out, I might need to make a doubly-linked list
+of preferences that are owned by each instantiation so I can yank it
+there. Hrm, need to think about this a bit more...
+
+                        *       *       *
+
+Maybe I don't need to remember what preferences are owned by an
+instantiation at all. Instead, I could just re-process the RHS using
+the instantiation that's about to get nuked.
+
+Okay, I think I see the problem with that idea: the instantiation
+doesn't remember any identifiers that get generated for unbound
+variables. So we won't know how to remove those. Grr.
+
+
 Sunday, January 21, 2001
 
 I've got some weird corruption crasher going on, Linux only, after
