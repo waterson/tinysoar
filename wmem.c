@@ -873,7 +873,7 @@ run_operator_semantics_on(struct agent*        agent,
     }
 
     /* Are all the candidates we've got left indifferent? */
-    ASSERT(candidates != 0, ("culled too many candidates"));
+    ASSERT(*candidates != 0, ("culled too many candidates"));
 
     for (candidate = *candidates; candidate != 0; candidate = candidate->next) {
         struct preference* p;
