@@ -1230,7 +1230,7 @@ symbol_t
 rete_get_variable_binding(variable_binding_t binding, struct token* token)
 {
     int depth = (int) binding.depth;
-    while (--depth > 0)
+    while (--depth >= 0)
         token = token->parent;
 
     return get_field_from_wme(token->wme, binding.field);
