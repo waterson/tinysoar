@@ -14,7 +14,8 @@
  *
  * The Initial Developer of this code under the MPL is Christopher
  * R. Waterson. Portions created by Christopher R. Waterson are
- * Copyright (C) 2000 Christopher R. Waterson. All Rights Reserved.
+ * Copyright (C) 2000, 2001, 2002 Christopher R. Waterson. All Rights
+ * Reserved.
  *
  * Contributor(s):
  *   Christopher R. Waterson <waterson@maubi.net>
