@@ -11,32 +11,6 @@ struct variable_binding_list {
     struct variable_binding_list* next;
 };
 
-/*
- * Initialize the rete network.
- */
-void
-rete_init(struct rete* net)
-{
-    int i;
-
-    net->root_node.type = beta_node_type_root;
-
-    net->root_token.parent = 0;
-    net->root_token.node   = &net->root_node;
-    net->root_token.wme    = 0;
-
-    pool_init(&net->alpha_node_pool, sizeof(struct alpha_node), 8);
-    pool_init(&net->beta_node_pool, sizeof(struct beta_node), 8);
-    pool_init(&net->beta_test_pool, sizeof(struct beta_test), 8);
-    pool_init(&net->variable_binding_list_pool, sizeof(struct variable_binding_list), 8);
-    pool_init(&net->token_pool, sizeof(struct token), 8);
-    pool_init(&net->goal_impasse_pool, sizeof(struct symbol_list), 8);
-
-    for (i = 0; i < (sizeof(net->alpha_nodes) / sizeof(struct alpha_node *)); ++i)
-        net->alpha_nodes[i] = 0;
-
-    net->goals = net->impasses = 0;
-}
 
 static inline struct beta_node*
 create_beta_node(struct rete* net)
@@ -176,6 +150,29 @@ get_field_from_wme(struct wme* wme, field_t field)
 }
 
 /*
+ * Determine if a working memory element matches an alpha node
+ */
+static inline bool_t
+wme_matches_alpha_node(const struct wme* wme, const struct alpha_node* node)
+{
+    return (SYMBOL_IS_NIL(node->id) || SYMBOLS_ARE_EQUAL(node->id, wme->id)) &&
+        (SYMBOL_IS_NIL(node->attr) || SYMBOLS_ARE_EQUAL(node->attr, wme->attr)) &&
+        (SYMBOL_IS_NIL(node->value) || SYMBOLS_ARE_EQUAL(node->value, wme->value));
+}
+
+/*
+ * Add a wme to the specfieid alpha node's right memory
+ */
+static void
+add_wme_to_alpha_node(struct rete* net, struct alpha_node* node, struct wme* wme)
+{
+    struct right_memory* rm = (struct right_memory*) pool_alloc(&net->right_memory_pool);
+    rm->wme = wme;
+    rm->next_in_alpha_node = node->right_memories;
+    node->right_memories = rm;
+}
+
+/*
  * Find an existing alpha node that is appropriate for testing the
  * specified fields.
  *
@@ -207,6 +204,9 @@ ensure_alpha_node(struct rete* net, symbol_t id, symbol_t attr, symbol_t value, 
 
     if (! (result = find_alpha_node(net, id, attr, value, type))) {
         struct alpha_node** head = &net->alpha_nodes[get_alpha_test_index(id, attr, value, type)];
+        struct alpha_node* more_general_node;
+        symbol_t nil;
+
         result = (struct alpha_node*) pool_alloc(&net->alpha_node_pool);
         result->id    = id;
         result->attr  = attr;
@@ -215,6 +215,34 @@ ensure_alpha_node(struct rete* net, symbol_t id, symbol_t attr, symbol_t value, 
         result->children = 0;
         result->right_memories = 0;
         *head = result;
+
+        /* Fill in the new memory with any matching wmes */
+        more_general_node = 0;
+        CLEAR_SYMBOL(nil);
+
+        if (! SYMBOL_IS_NIL(id))
+            more_general_node = find_alpha_node(net, nil, attr, value, type);
+
+        if (! more_general_node && ! SYMBOL_IS_NIL(value))
+            more_general_node = find_alpha_node(net, nil, attr, nil, type);
+
+        if (more_general_node) {
+            /* Found a more general working memory; use it to fill in
+               our right memory */
+            struct right_memory* rm;
+            for (rm = more_general_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
+                if (wme_matches_alpha_node(rm->wme, result))
+                    add_wme_to_alpha_node(net, result, rm->wme);
+            }
+        }
+        else {
+            /* Troll through *all* the wmes */
+            struct wme* wme;
+            for (wme = net->wmem->wmes; wme != 0; wme = wme->next) {
+                if (wme_matches_alpha_node(wme, result))
+                    add_wme_to_alpha_node(net, result, wme);
+            }
+        }
     }
 
     return result;
@@ -224,7 +252,7 @@ ensure_alpha_node(struct rete* net, symbol_t id, symbol_t attr, symbol_t value, 
  * Look through a variable binding list to find the binding for the
  * specified variable.
  */
-static const variable_binding_t*
+static inline const variable_binding_t*
 find_bound_variable(const struct variable_binding_list* bindings, const symbol_t variable)
 {
     while (bindings) {
@@ -344,135 +372,147 @@ process_test(struct rete* net,
 }
 
 /*
- * Check a list of beta tests
+ * Check a single beta test
  */
 static bool_t
+check_beta_test(struct rete* net, struct beta_test* test, struct token* token, struct wme* wme)
+{
+    switch (test->type) {
+    case test_type_equality:
+    case test_type_not_equal:
+    case test_type_less:
+    case test_type_greater:
+    case test_type_less_or_equal:
+    case test_type_greater_or_equal:
+    case test_type_same_type:
+        {
+            /* It's a relational test */
+            symbol_t right = get_field_from_wme(wme, test->field);
+            symbol_t left;
+
+            if (test->relational_type == relational_type_constant) {
+                left = test->data.constant_referent;
+            }
+            else {
+                struct token* t = token;
+                unsigned depth = test->data.variable_referent.depth;
+                while (depth--)
+                    t = t->parent;
+
+                left = get_field_from_wme(t->wme, test->data.variable_referent.field);
+            }
+
+            switch (test->type) {
+            case test_type_equality:
+                if (SYMBOLS_ARE_EQUAL(left, right))
+                    return 1;
+
+                break;
+
+            case test_type_not_equal:
+                if (! SYMBOLS_ARE_EQUAL(left, right))
+                    return 1;
+
+                break;
+
+            case test_type_less:
+            case test_type_greater:
+            case test_type_less_or_equal:
+            case test_type_greater_or_equal:
+            case test_type_same_type:
+                /* If the types differ, any of these tests would fail */
+                if (GET_SYMBOL_TYPE(left) != GET_SYMBOL_TYPE(right))
+                    return 0;
+
+                /* We're done if all we were testing was `same type' */
+                if (test->type == test_type_same_type)
+                    return 1;
+
+                /* If we're doing relational tests, then they'll
+                   only work on integer constants */
+                if (GET_SYMBOL_TYPE(left) == symbol_type_integer_constant) {
+                    int result = GET_SYMBOL_VALUE(right) - GET_SYMBOL_VALUE(left);
+                    switch (test->type) {
+                    case test_type_less:
+                        if (result < 0) return 1;
+                        break;
+
+                    case test_type_greater:
+                        if (result > 0) return 1;
+                        break;
+
+                    case test_type_less_or_equal:
+                        if (result <= 0) return 1;
+                        break;
+
+                    case test_type_greater_or_equal:
+                        if (result >= 0) return 1;
+                        break;
+
+                    default:
+                        assert(0); /* never reached */
+                    }
+                }
+
+                break;
+
+            default:
+                assert(0); /* never reached */
+            }
+        }
+        break;
+
+    case test_type_goal_id:
+        {
+            struct symbol_list* goal;
+            for (goal = net->goals; goal != 0; goal = goal->next) {
+                if (SYMBOLS_ARE_EQUAL(goal->symbol, wme->id))
+                    return 1;
+            }
+        }
+        break;
+
+    case test_type_impasse_id:
+        {
+            struct symbol_list* impasse;
+            for (impasse = net->impasses; impasse != 0; impasse = impasse->next) {
+                if (SYMBOLS_ARE_EQUAL(impasse->symbol, wme->id))
+                    return 1;
+            }
+        }
+        break;
+
+    case test_type_disjunctive:
+        {
+            struct beta_test* disjunct;
+            for (disjunct = test->data.disjuncts; disjunct != 0; disjunct = disjunct->next) {
+                if (check_beta_test(net, disjunct, token, wme))
+                    return 1;
+            }
+        }
+        break;
+
+    case test_type_conjunctive:
+    case test_type_blank:
+        /* shouldn't ever hit this; conjunctive tests are
+           converted into a list of single tests. */
+        assert(0);
+        break;
+    }
+
+    /* If we get here, the test failed */
+    return 0;
+}
+
+/*
+ * Check a list of beta tests
+ */
+static inline bool_t
 check_beta_tests(struct rete* net, struct beta_test* test, struct token* token, struct wme* wme)
 {
     for ( ; test != 0; test = test->next) {
-        switch (test->type) {
-        case test_type_equality:
-        case test_type_not_equal:
-        case test_type_less:
-        case test_type_greater:
-        case test_type_less_or_equal:
-        case test_type_greater_or_equal:
-        case test_type_same_type:
-            {
-                /* It's a relational test */
-                symbol_t right = get_field_from_wme(wme, test->field);
-                symbol_t left;
-
-                if (test->relational_type == relational_type_constant) {
-                    left = test->data.constant_referent;
-                }
-                else {
-                    struct token* t = token;
-                    unsigned depth = test->data.variable_referent.depth;
-                    while (depth--)
-                        t = t->parent;
-
-                    left = get_field_from_wme(t->wme, test->data.variable_referent.field);
-                }
-
-                switch (test->type) {
-                case test_type_equality:
-                    if (SYMBOLS_ARE_EQUAL(left, right))
-                        goto passed;
-
-                    break;
-
-                case test_type_not_equal:
-                    if (! SYMBOLS_ARE_EQUAL(left, right))
-                        goto passed;
-
-                    break;
-
-                case test_type_less:
-                case test_type_greater:
-                case test_type_less_or_equal:
-                case test_type_greater_or_equal:
-                case test_type_same_type:
-                    /* If the types differ, any of these tests would fail */
-                    if (GET_SYMBOL_TYPE(left) != GET_SYMBOL_TYPE(right))
-                        return 0;
-
-                    /* We're done if all we were testing was `same type' */
-                    if (test->type == test_type_same_type)
-                        goto passed;
-
-                    /* If we're doing relational tests, then they'll
-                       only work on integer constants */
-                    if (GET_SYMBOL_TYPE(left) == symbol_type_integer_constant) {
-                        int result = GET_SYMBOL_VALUE(right) - GET_SYMBOL_VALUE(left);
-                        switch (test->type) {
-                        case test_type_less:
-                            if (result < 0) goto passed;
-                            break;
-
-                        case test_type_greater:
-                            if (result > 0) goto passed;
-                            break;
-
-                        case test_type_less_or_equal:
-                            if (result <= 0) goto passed;
-                            break;
-
-                        case test_type_greater_or_equal:
-                            if (result >= 0) goto passed;
-                            break;
-
-                        default:
-                            assert(0); /* never reached */
-                        }
-                    }
-
-                    break;
-
-                default:
-                    assert(0); /* never reached */
-                }
-
-                /* If we get here, the test failed */
-                return 0;
-            }
-            break;
-
-        case test_type_goal_id:
-            {
-                struct symbol_list* goal;
-                for (goal = net->goals; goal != 0; goal = goal->next) {
-                    if (SYMBOLS_ARE_EQUAL(goal->symbol, wme->id))
-                        goto passed;
-                }
-                return 0;
-            }
-            break;
-
-        case test_type_impasse_id:
-            {
-                struct symbol_list* impasse;
-                for (impasse = net->impasses; impasse != 0; impasse = impasse->next) {
-                    if (SYMBOLS_ARE_EQUAL(impasse->symbol, wme->id))
-                        goto passed;
-                }
-                return 0;
-            }
-            break;
-
-        case test_type_disjunctive:
-            assert(0); /* XXX write me! */
-            break;
-
-        case test_type_conjunctive:
-        case test_type_blank:
-            /* shouldn't ever hit this; conjunctive tests are
-               converted into a list of single tests. */
-            assert(0);
-            break;
-        }
-
-    passed:
+        if (! check_beta_test(net, test, token, wme))
+            return 0;
     }
 
     /* If we get here, all the tests passed. */
@@ -681,6 +721,36 @@ do_left_addition(struct rete* net, struct beta_node* node, struct token* token, 
  * RETE API Routines
  *
  * ---------------------------------------------------------------------- */
+
+/*
+ * Initialize the rete network.
+ */
+void
+rete_init(struct rete* net, struct working_memory* wmem)
+{
+    int i;
+
+    net->root_node.type = beta_node_type_root;
+
+    net->root_token.parent = 0;
+    net->root_token.node   = &net->root_node;
+    net->root_token.wme    = 0;
+
+    pool_init(&net->alpha_node_pool, sizeof(struct alpha_node), 8);
+    pool_init(&net->right_memory_pool, sizeof(struct right_memory), 8);
+    pool_init(&net->beta_node_pool, sizeof(struct beta_node), 8);
+    pool_init(&net->beta_test_pool, sizeof(struct beta_test), 8);
+    pool_init(&net->variable_binding_list_pool, sizeof(struct variable_binding_list), 8);
+    pool_init(&net->token_pool, sizeof(struct token), 8);
+    pool_init(&net->goal_impasse_pool, sizeof(struct symbol_list), 8);
+
+    for (i = 0; i < (sizeof(net->alpha_nodes) / sizeof(struct alpha_node *)); ++i)
+        net->alpha_nodes[i] = 0;
+
+    net->wmem = wmem;
+    net->goals = net->impasses = 0;
+}
+
 
 void
 rete_add_production(struct rete* net, const struct production* p)

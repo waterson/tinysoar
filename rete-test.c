@@ -1,3 +1,4 @@
+#include "wmem.h"
 #include "rete.h"
 
 struct test_list complex_tests[] = {
@@ -38,8 +39,10 @@ add_productions(struct rete* net)
 int
 main(int argc, char* argv[])
 {
+    struct working_memory wmem;
     struct rete net;
-    rete_init(&net);
+    working_memory_init(&wmem);
+    rete_init(&net, &wmem);
     add_productions(&net);
     return 0;
 }

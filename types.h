@@ -44,6 +44,8 @@ typedef struct symbol {
 
 #define SYMBOLS_ARE_EQUAL(l, r) (*((unsigned*) &(l)) == *((unsigned*) &(r)))
 
+#define SYMBOL_IS_NIL(s)        (*((unsigned*) &(s)) == 0)
+
 struct symbol_list {
     symbol_t symbol;
     struct symbol_list* next;

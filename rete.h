@@ -3,6 +3,7 @@
 
 #include "types.h"
 #include "pool.h"
+#include "wmem.h"
 
 /*----------------------------------------------------------------------*/
 
@@ -232,12 +233,14 @@ struct rete {
     struct beta_node   root_node;
     struct token       root_token;
     struct pool        alpha_node_pool;
+    struct pool        right_memory_pool;
     struct pool        beta_node_pool;
     struct pool        beta_test_pool;
     struct pool        variable_binding_list_pool;
     struct pool        token_pool;
     struct pool        goal_impasse_pool;
-    struct alpha_node* alpha_nodes[16];
+    struct working_memory* wmem;
+    struct alpha_node*  alpha_nodes[16];
     struct symbol_list* goals;
     struct symbol_list* impasses;
 };
@@ -249,7 +252,7 @@ struct rete {
  * Initialize the network
  */
 extern void
-rete_init(struct rete* net);
+rete_init(struct rete* net, struct working_memory* wmem);
 
 /*
  * Add a production to the network
