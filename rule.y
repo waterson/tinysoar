@@ -79,7 +79,7 @@ extern int yylex(); /* Can't give it types, because we don't have
  */
 %union {
     char*               name;
-    char                context;
+    char*               context;
     struct test         test;
     test_type_t         test_type;
     struct test_list*   test_list;
@@ -280,13 +280,13 @@ conds_for_one_id: '(' id_test attr_value_test_list ')'
                     if (id_test_conjunct->test.type == test_type_conjunctive ||
                         id_test_conjunct->test.type == test_type_disjunctive) {
                         ERROR(("can't handle conjunctive/disjunctive id test with `%s'",
-                               (($2 == 's') ? "state" : "impasse")));
+                               (($2[0] == 's') ? "state" : "impasse")));
                     }
 
                     context_conjunct =
                         (struct test_list*) malloc(sizeof(struct test_list));
 
-                    context_conjunct->test.type = ($2 == 's')
+                    context_conjunct->test.type = ($2[0] == 's')
                         ? test_type_goal_id
                         : test_type_impasse_id;
 
@@ -665,11 +665,11 @@ preference_specifier: '+'
                     | '<' rhs_value
                     { $$.preference_type = preference_type_worse; $$.referent = $2; }
                     | '>' 
-                    { $$.preference_type = preference_type_best; } %prec
+                    { $$.preference_type = preference_type_best; }
                     | '='
-                    { $$.preference_type = preference_type_unary_indifferent; } %prec
+                    { $$.preference_type = preference_type_unary_indifferent; }
                     | '<'
-                    { $$.preference_type = preference_type_worst; } %prec
+                    { $$.preference_type = preference_type_worst; }
                     ;
 
 rhs_value: rhs_variable
@@ -766,6 +766,13 @@ constants: /* empty */
 constant: SYM_CONSTANT
         | INT_CONSTANT
         { MAKE_SYMBOL($$, symbol_type_integer_constant, $1); }
+        | CONTEXT /* hack to pull `state' and `impasse' through as constants */
+        {
+            struct parser* parser = (struct parser*) yyparse_param;
+            $$ = symtab_lookup(parser->symtab,
+                               symbol_type_symbolic_constant,
+                               $1, 1);
+        }
         ;
 
 

@@ -32,7 +32,7 @@ ID [[:alpha:]]([[:alnum:]]|"-"|"_"|"*")*
 
 %%
 
-state|impasse yylval->context = yytext[0]; return CONTEXT;
+state|impasse yylval->context = yytext; return CONTEXT;
 
 "<"{ID}">"    { yylval->symbol =
                   symtab_lookup(parser->symtab,
