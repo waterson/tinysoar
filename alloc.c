@@ -238,6 +238,32 @@ free(void *ptr)
     MARK_PREV_FREE(*next);
 }
 
+#if 0
+/*
+ * Return the amount of free space in the heap.
+ */
+int
+heap_free()
+{
+    int nfree = 0;
+    block_header_t *header, *next;
+
+    for (header = (block_header_t *) heap_start;
+         (char *) header < heap_end;
+         header = next) {
+        next = (block_header_t *)
+            ((char *) header
+             + sizeof(block_header_t)
+             + GET_BLOCK_SIZE(*header));
+
+        if (GET_PREV_FREE(*next))
+            nfree += GET_BLOCK_SIZE(*header);
+    }
+
+    return nfree;
+}
+#endif
+
 #if defined(DEBUG) && defined(HAVE_PRINTF)
 #include <stdio.h>
 
