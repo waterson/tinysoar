@@ -1,3 +1,64 @@
+/* -*- Mode: Text; indent-tabs-mode: nil -*- */
+
+Saturday, Feburary 10, 2001
+
+Found a couple bone headed mistakes in my hand-rolled linked list
+code. That fixed the problem with `init-soar'. Moved the `id' and
+`attr' fields out of the `preferences' struct. Replaced them with a
+back-pointer to the slot.
+
+Fixed `wmem_remove_preference()' to take a preference pointer (instead
+of the same parameter list that `wmem_add_preference()' takes). I did
+this because I realized that it should be legal to have >1 identical
+preferences in a slot. For example, two different productions assert
+the same preference. When one of the instantiations dies, you want to
+be sure you yank the right preference. (So that when the other dies,
+it'll find /its/ preference.)
+
+I expanded p2.soar, adding a production to set `^found-line t' on the
+top-state. It uncovered several bugs:
+
+1. Conditions that compare integer values are broken. (I'm not even
+   sure I ever implemented them.)
+
+2. Negative conditions are broken.
+
+   - The don't match properly; e.g., doing
+
+     % pref -a 3 ^sensor-a 75 +
+
+     will properly create a condition that matches
+    `implement*find-line*detect-line'; however, creating the
+    `^fount-line t' attribute won't retract `propose*find-line'.
+
+   - When we do `init-soar', we're
+
+3. `init-soar' is still crashing. This happens because we weren't
+   checking the retraction queue before adding a new instantiation, and
+   we ended up with duplicates in the queue.
+
+4. Fixing (3) makes it so that we now don't (appear to) properly
+   retract `implement*find-line*move-forward' when a new operator gets
+   selected.
+
+On another tangent, it might make sense to have two kinds of
+preference structures: one that takes a reference, and one that
+doesn't. Save a bit of space, anyway: I bet most preferences are
+unary.
+
+
+Wednesday, Feburary 7, 2001
+
+Went ahead and hacked preferences to be threaded by
+instantiation. This probably makes it even more important to move the
+`id' and `attr' fields out of the `preference' struct, and just re-use
+the values from the slot. (Ideally, we wouldn't even need a
+back-pointer to the slot...)
+
+There still are some problems with `init-soar' that I need to track
+down. Also, `p2.soar' is acting weird. Need to look at that.
+
+
 Monday, February 5, 2001
 
 Tinkered with making it so that an instantiation remembers the list of

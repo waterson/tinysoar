@@ -8,17 +8,11 @@
   TO DO
   -----
 
-  . Figure out why `clearing' working memory (e.g., `init-soar')
-    causes corruption and death.
-
-    - I think that this might be happening on p1.soar because of
-      reconsider has several instantiations for the same
-      operator. Specifically, we should see `reconsider*wait' retract
-      as well as fire for each instantiation, I think.
-
   . Implement operator preference semantics (better, best, etc.)
 
   . Implement o-support
+
+  . wmem_add_preference needs to take a referent!
 
 */
 
@@ -335,12 +329,13 @@ decide_slots(struct agent* agent)
  * Add the preference to the appropriate slot
  */
 static void
-hash_preference(struct agent* agent, struct preference* pref)
+hash_preference(struct agent* agent, symbol_t id, symbol_t attr, struct preference* pref)
 {
-    struct slot* slot = find_slot(agent, pref->id, pref->attr, 1);
+    struct slot* slot = find_slot(agent, id, attr, 1);
 
     ASSERT(slot != 0, ("couldn't find a slot"));
 
+    pref->slot         = slot;
     pref->next_in_slot = slot->preferences;
     slot->preferences  = pref;
 
@@ -352,7 +347,7 @@ hash_preference(struct agent* agent, struct preference* pref)
 /*
  * Add a new preference to working memory
  */
-void
+struct preference*
 wmem_add_preference(struct agent* agent,
                     symbol_t id, symbol_t attr, symbol_t value,
                     preference_type_t type,
@@ -361,14 +356,17 @@ wmem_add_preference(struct agent* agent,
     struct preference* pref =
         (struct preference*) malloc(sizeof(struct preference));
 
-    pref->next_in_instantiation = 0;
+    /* pref->next_in_slot will be initialized by hash_preference */
+    pref->next_in_instantiation =
+        pref->prev_in_instantiation =
+        pref;
+
     pref->type    = type;
     pref->support = support;
-    pref->id      = id;
-    pref->attr    = attr;
     pref->value   = value;
 
-    hash_preference(agent, pref);
+    hash_preference(agent, id, attr, pref);
+    return pref;
 }
 
 
@@ -376,28 +374,33 @@ wmem_add_preference(struct agent* agent,
  * Remove a preference from working memory
  */
 void
-wmem_remove_preference(struct agent* agent,
-                       symbol_t id, symbol_t attr, symbol_t value,
-                       preference_type_t type)
+wmem_remove_preference(struct agent* agent, struct preference* doomed)
 {
-    struct slot* slot = find_slot(agent, id, attr, 0);
+    struct slot* slot = doomed->slot;
+    struct preference* pref;
+    struct preference** link;
 
-    if (slot) {
-        struct preference* doomed;
-        struct preference** link;
+    ASSERT(slot != 0, ("no slot"));
 
-        for (doomed = slot->preferences, link = &slot->preferences;
-             doomed != 0;
-             link = &doomed->next_in_slot, doomed = doomed->next_in_slot) {
-            if (SYMBOLS_ARE_EQUAL(doomed->value, value) &&
-                (doomed->type == type)) {
-                *link = doomed->next_in_slot;
-                free(doomed); /* XXX safe? */
+    for (pref = slot->preferences, link = &slot->preferences;
+         pref != 0;
+         link = &pref->next_in_slot, pref = pref->next_in_slot) {
+        if (pref == doomed) {
+            /* Splice out of instantiation list */
+            pref->prev_in_instantiation->next_in_instantiation
+                = pref->next_in_instantiation;
 
-                /* Add to the list of slots that have changed */
-                mark_slot_modified(agent, slot);
-                break;
-            }
+            pref->next_in_instantiation->prev_in_instantiation
+                = pref->prev_in_instantiation;
+
+            /* Splice out of slot's preferences */
+            *link = pref->next_in_slot;
+
+            free(pref);
+
+            /* Add to the list of slots that have changed */
+            mark_slot_modified(agent, slot);
+            break;
         }
     }
 }
@@ -499,7 +502,7 @@ static void
 create_instantiation(struct agent* agent,
                      struct production* production,
                      struct token* token,
-                     struct instantiation** instantiations)
+                     struct preference** o_rejects)
 {
     struct instantiation* inst =
         (struct instantiation*) malloc(sizeof(struct instantiation));
@@ -507,6 +510,18 @@ create_instantiation(struct agent* agent,
     struct symbol_list* unbound_vars = 0;
     struct action* action;
     int count;
+
+    /* initialize the instantiation */
+    inst->production   = production;
+    inst->token        = token;
+
+    inst->preferences.next_in_instantiation =
+        inst->preferences.prev_in_instantiation = 
+        &inst->preferences;
+
+    inst->next         = production->instantiations;
+
+    production->instantiations = inst;
 
     /* generate identifiers for the unbound variables */
     for (count = (int) production->num_unbound_vars - 1; count >= 0; --count) {
@@ -518,36 +533,55 @@ create_instantiation(struct agent* agent,
         unbound_vars  = entry;
     }
 
-    /* initialize the instantiation */
-    inst->next        = *instantiations;
-    inst->production  = production;
-    inst->token       = token;
-    inst->preferences = 0;
-
-    *instantiations = inst;
-
     /* process the right-hand side of the production */
     for (action = production->actions; action != 0; action = action->next) {
         struct preference* pref =
             (struct preference*) malloc(sizeof(struct preference));
 
-        pref->next_in_slot = 0;
+        symbol_t id, attr;
 
-        pref->next_in_instantiation = inst->preferences;
-        inst->preferences = pref;
+        pref->next_in_slot = 0;
 
         pref->support = 0; /*XXX*/
         pref->type    = action->preference_type;
 
-        pref->id    = instantiate_rhs_value(&action->id, token, unbound_vars);
-        pref->attr  = instantiate_rhs_value(&action->attr, token, unbound_vars);
+        id          = instantiate_rhs_value(&action->id,    token, unbound_vars);
+        attr        = instantiate_rhs_value(&action->attr,  token, unbound_vars);
         pref->value = instantiate_rhs_value(&action->value, token, unbound_vars);
 
         if (action->preference_type & preference_type_binary) {
-            ASSERT(SYMBOLS_ARE_EQUAL(pref->attr, SYM(OPERATOR_CONSTANT)),
+            ASSERT(SYMBOLS_ARE_EQUAL(attr, SYM(OPERATOR_CONSTANT)),
                    ("binary preference on non-operator"));
 
             pref->referent = instantiate_rhs_value(&action->referent, token, unbound_vars);
+        }
+
+        if ((pref->type == preference_type_reject) &&
+            (pref->support == support_type_osupport)) {
+            /* Oooh, an o-supported reject preference! These are
+               special, and we'll process them later. We bastardize
+               the preferences structure to get the work done: we'll
+               fill in the slot `by hand' (n.b., we might not find a
+               slot with the specified `id' and `attr')... */
+            pref->slot = find_slot(agent, id, attr, 0);
+
+            /* ...and since we'll not be needing that `next' field
+               anymore, use it to thread the list of o-supported
+               rejects */
+            pref->next_in_slot = *o_rejects;
+            *o_rejects = pref;
+        }
+        else {
+            /* hash the preference into the slots table */
+            hash_preference(agent, id, attr, pref);
+
+            /* insert at the tail of the instantiation's list of
+               preferences */
+            pref->next_in_instantiation = &inst->preferences;
+            pref->prev_in_instantiation = inst->preferences.prev_in_instantiation;
+
+            inst->preferences.prev_in_instantiation->next_in_instantiation = pref;
+            inst->preferences.prev_in_instantiation = pref;
         }
     }
 
@@ -559,6 +593,47 @@ create_instantiation(struct agent* agent,
     }
 }
 
+
+/*
+ * ``Un-instantiate'' a production.
+ */
+static void
+remove_instantiation(struct agent* agent,
+                     struct instantiation* inst)
+{
+    /* Yank the instantiation from the production */
+    {
+        struct instantiation** link =
+            &inst->production->instantiations;
+
+        struct instantiation* scan = *link;
+
+        while (scan) {
+            if (scan == inst) {
+                *link = inst->next;
+                break;
+            }
+
+            link = &scan->next;
+            scan = scan->next;
+        }
+
+        ASSERT(scan != 0, ("couldn't find instantiation"));
+    }
+
+    /* Remove all the preferences associated with the instantiation */
+    {
+        struct preference* pref = inst->preferences.next_in_instantiation;
+        while (pref != &inst->preferences) {
+            struct preference* next = pref->next_in_instantiation;
+            wmem_remove_preference(agent, pref);
+            pref = next;
+        }
+    }
+
+    free(inst);
+}
+
 /*
  * Process new matches, adding instantiations for `assertions', and
  * retracting them for `retractions'.
@@ -567,7 +642,6 @@ static void
 process_matches(struct agent* agent)
 {
     struct preference* o_rejects = 0;
-    struct instantiation* inst = 0;
     struct match* match;
     struct match* doomed;
 
@@ -581,7 +655,7 @@ process_matches(struct agent* agent)
 #ifdef DEBUG
         printf("  %s\n", match->production->name);
 #endif
-        create_instantiation(agent, match->production, match->data.token, &inst);
+        create_instantiation(agent, match->production, match->data.token, &o_rejects);
 
         doomed = match;
         match = match->next;
@@ -590,44 +664,6 @@ process_matches(struct agent* agent)
 
     /* The assertions have now been processed */
     agent->assertions = 0;
-
-    /* Process each instantiation */
-    while (inst) {
-        struct instantiation* next = inst->next;
-        struct preference* pref;
-        struct preference** link;
-
-        /* Transfer instantiation to the production that `owns' it */
-        inst->next = inst->production->instantiations;
-        inst->production->instantiations = inst;
-
-        /* Install each preference in working memory (which is what
-           Soar8 calls `temporary memory', but we've sorta folded
-           together with wmem) */
-        for (pref = inst->preferences, link = &inst->preferences;
-             pref != 0;
-             link = &pref->next_in_instantiation, pref = pref->next_in_instantiation) {
-            if ((pref->type == preference_type_reject) &&
-                (pref->support == support_type_osupport)) {
-                /* Oooh, an o-supported reject preference! These are
-                   special, and we'll process them later. Also, we'll
-                   splice it out of the list of preferences that this
-                   instantiation created, because o-rejects `don't
-                   exist'. */
-                *link = pref->next_in_instantiation;
-
-                /* Slop! Since we'll not be needing that
-                   `next_in_instantiation' field anymore, use it to
-                   thread the list of o-supported rejects */
-                pref->next_in_instantiation = o_rejects;
-                o_rejects = pref;
-            }
-            else hash_preference(agent, pref);
-        }
-
-        /* on to the next one */
-        inst = next;
-    }
 
 #ifdef DEBUG
     printf("Retracting:\n");
@@ -640,35 +676,7 @@ process_matches(struct agent* agent)
 #endif
 
         /* Remove the preferences involved with this instantiation */
-        {
-            struct preference* pref = match->data.instantiation->preferences;
-            struct preference* next;
-
-            while (pref) {
-                next = pref->next_in_instantiation;
-                wmem_remove_preference(agent, pref->id, pref->attr, pref->value, pref->type);
-                pref = next;
-            }
-        }
-
-        /* Yank the instantiation from the production */
-        {
-            struct instantiation** link =
-                &match->data.instantiation->production->instantiations;
-
-            struct instantiation* inst = *link;
-
-            while (inst) {
-                if (inst == match->data.instantiation) {
-                    *link = inst->next;
-                    free(inst);
-                    break;
-                }
-
-                link = &inst->next;
-                inst = inst->next;
-            }
-        }
+        remove_instantiation(agent, match->data.instantiation);
 
         doomed = match;
         match = match->next;
@@ -683,32 +691,27 @@ process_matches(struct agent* agent)
        the same value. */
     while (o_rejects) {
         struct preference* rejector = o_rejects;
-        struct slot* slot = find_slot(agent, rejector->id, rejector->attr, 0);
-        struct preference* pref = slot->preferences;
-        struct preference** link = &slot->preferences;
+        struct slot* slot = find_slot(agent, rejector->slot->id, rejector->slot->attr, 0);
 
-        while (pref) {
-            struct preference* next = pref->next_in_slot;
+        if (slot) {
+            struct preference* pref = slot->preferences;
 
-            /* Nuke the pref if it has the same value, and it's not
-               architecturally supported. */
-            if (SYMBOLS_ARE_EQUAL(pref->value, rejector->value) &&
-                (pref->support != support_type_architecture)) {
-                *link = next;
+            while (pref) {
+                struct preference* next = pref->next_in_slot;
 
-#if 0 /* XXX leak! */
-                free(pref); /* XXX ooh, not safe! need to unlink from
-                                 instantiation, too. */
-#endif
+                /* Nuke the pref if it has the same value, and it's not
+                   architecturally supported. */
+                if (SYMBOLS_ARE_EQUAL(pref->value, rejector->value) &&
+                    (pref->support != support_type_architecture))
+                    wmem_remove_preference(agent, pref);
+
+                pref = next;
             }
-            else link = &pref->next_in_slot;
-
-            pref = next;
         }
 
         mark_slot_modified(agent, slot);
 
-        o_rejects = o_rejects->next_in_instantiation;
+        o_rejects = o_rejects->next_in_slot;
         free(rejector);
     }
 }
@@ -901,17 +904,12 @@ slot_wme_finalizer(struct ht_entry_header* header, void* closure)
     struct wme* wme = slot->wmes;
 
     while (wme) {
-        struct wme* doomed = wme;
-        wme = wme->next;
-
         /* XXX Hrm, kind of a waste, because we'll pile up a ton
            of retractions. Maybe we should just have a
            `rete_clear()' function? */
-        rete_operate_wme(agent, doomed, wme_operation_remove);
-        free(wme);
+        rete_operate_wme(agent, wme, wme_operation_remove);
+        wme = wme->next;
     }
-
-    slot->wmes = 0;
 
     return ht_enumerator_result_ok;
 }
@@ -925,8 +923,7 @@ slot_finalizer(struct ht_entry_header* header, void* closure)
 {
     struct slot* slot = (struct slot*) HT_ENTRY_DATA(header);
     struct preference* pref = slot->preferences;
-
-    ASSERT(slot->wmes == 0, ("uh oh, somebody created a wme!"));
+    struct wme* wme = slot->wmes;
 
     while (pref) {
         struct preference* doomed = pref;
@@ -934,6 +931,13 @@ slot_finalizer(struct ht_entry_header* header, void* closure)
 
         /* Safe at this point, because there should be no
            instantiations to speak of. */
+        free(doomed);
+    }
+
+    while (wme) {
+        struct wme* doomed = wme;
+        wme = wme->next;
+
         free(doomed);
     }
 
