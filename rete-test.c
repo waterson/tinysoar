@@ -131,6 +131,7 @@ main(int argc, char* argv[])
     rete_add_wme(&agent, wme);
 
     pref_process_matches(&agent);
+    wmem_decide(&agent);
 
     return 0;
 }

@@ -515,4 +515,7 @@ tmem_add_preference(struct agent* agent, struct preference* pref);
 extern struct preference_list*
 tmem_get_preferences_for_slot(struct agent* agent, struct slot* slot);
 
+extern void
+wmem_decide(struct agent* agent);
+
 #endif /* soar_h__ */
