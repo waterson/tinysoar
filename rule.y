@@ -17,7 +17,9 @@
     we need to return a simple condition vs. an NCC.
 
   . Clean up condition and condition_list stuff. I think the RHS stuff
-    worked out much more cleanly.
+    worked out much more cleanly. Better yet, construct the RETE
+    network directly instead of creating a bunch of intermediate data
+    structures (unless it turns out we need these for chunking?)
 
   . Implement `dot attribute' for conditions.
 

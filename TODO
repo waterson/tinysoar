@@ -21,4 +21,9 @@
 
 (6) Implement operator no-change.
 
-(7) Implement conjunctive negative conditions.
+(7) Implement ``dot attribute'' notation for conditions in rule.y.
+
+(8) Implement conjunctive negative conditions.
+
+(9) Implement semantic verification in rule.y.
+

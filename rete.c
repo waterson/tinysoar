@@ -8,8 +8,6 @@
   TO DO
   -----
 
-  . Debug simple negative conditions
-
   . Implement o-support
 
   . Implement conjunctive negative conditions
