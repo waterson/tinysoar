@@ -209,7 +209,7 @@ preferences -r <pref>";
 
         /* XXX It'd be nice to make sure there is a really a pref with
            said address before whacking it. */
-        wmem_remove_preference(&agent, pref);
+        wmem_remove_preference(&agent, pref, 0);
         return TCL_OK;
     }
 

@@ -91,27 +91,10 @@ add_wme_to_alpha_node(struct agent      *agent,
                       struct alpha_node *node,
                       struct wme        *wme);
 
-/*
- * Do a left-addition to a beta node.
- */
-void
-do_left_addition(struct agent     *agent,
-                 struct beta_node *node,
-                 struct token     *token,
-                 struct wme       *wme);
-
-/*
- * Do a right-memory addition to a beta node.
- */
-void
-do_right_addition(struct agent     *agent,
-                  struct beta_node *node,
-                  struct wme       *wme);
-
-void
-initialize_matches(struct agent     *agent,
-                   struct beta_node *parent,
-                   struct beta_node *child);
+extern void
+rete_initialize_matches(struct agent     *agent,
+                        struct beta_node *parent,
+                        struct beta_node *child);
 
 #endif /* rete_h__ */
 

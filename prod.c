@@ -152,7 +152,8 @@ find_alpha_node(struct agent *agent,
 }
 
 /*
- * Add existing WMEs to the alpha node when a new alpha node is created.
+ * Add existing WMEs to the alpha node when a new alpha node is
+ * created.
  */
 static void
 add_matching_wmes(struct agent *agent, struct wme *wme, void *closure)
@@ -239,7 +240,7 @@ create_memory_node(struct agent *agent, struct beta_node *parent)
     result->next_with_same_alpha_node = 0;
     result->tokens     = 0;
 
-    initialize_matches(agent, result, parent);
+    rete_initialize_matches(agent, result, parent);
 
     return result;
 }
@@ -300,7 +301,7 @@ create_negative_node(struct agent      *agent,
 
     result->data.tests = tests;
 
-    initialize_matches(agent, result, parent);
+    rete_initialize_matches(agent, result, parent);
 
     return result;
 }
@@ -327,7 +328,7 @@ create_production_node(struct agent      *agent,
     result->data.production = production;
 
     /* XXX why not? */
-    /* initialize_matches(agent, result, parent); */
+    /* rete_initialize_matches(agent, result, parent); */
 
     return result;
 }
@@ -687,7 +688,7 @@ process_rhs_value(struct rhs_value             *value,
         const variable_binding_t *binding =
             find_bound_variable(bindings, value->val.symbol);
 
-        ASSERT(binding != 0, ("null ptr"));
+        ASSERT(binding != 0, ("expected variable to be bound by now"));
 
         /* Replace the symbol with an the variable binding */
         value->type = rhs_value_type_variable_binding;
@@ -958,7 +959,7 @@ rete_add_production(struct agent *agent, struct production *p)
                 process_rhs_value(&action->referent, bindings, depth);
         }
 
-        initialize_matches(agent, production_node, parent);
+        rete_initialize_matches(agent, production_node, parent);
     }
 
     while (bindings) {

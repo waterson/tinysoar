@@ -1,23 +1,21 @@
 /* -*- Mode: Text; indent-tabs-mode: nil -*- */
 
-. Figure out how to do chunking and/or justification. (3)
+. Depending on implementing chunking, get rid of intermediate data
+  production data structures, and have rule.y generate the RETE
+  network data structures directly. (Don't want to burn the space on
+  the RCX if we don't need to for chunking or some other reason. Plus,
+  this would get a fair bit of code _out_ of rete.c) Not sure how
+  applicable this is anymore...
 
-. Depending on (3), get rid of intermediate data production data
-  structures, and have rule.y generate the RETE network data
-  structures directly. (Don't want to burn the space on the RCX if we
-  don't need to for chunking or some other reason. Plus, this would
-  get a fair bit of code _out_ of rete.c)
+. Chunking:
+
+  - figure out how to attach to a goal test
+  - deal with chunking of negative conditions
+  - figure out how to do bottom-up chunking (instead of all-goals)
 
 . Implement conjunctive negative conditions.
 
 . Implement semantic verification in rule.y.
-
-. Fix architecture s.t. operator tie (and operator conflict, and
-  operator no-change) doesn't repeatedly fire in the top-state.
-
-. Deal with resolution of impasses. Depends on (3), above.
-
-. Deal with ``simple'' negation; e.g., `-(<foo> ^bar baz)'
 
 . Implement some sort of timer mechanism. Could do this by exposing
   the system timer directly as a WME, and implementing RHS

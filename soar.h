@@ -197,7 +197,7 @@ struct instantiation {
 /* ---------------------------------------------------------------------- */
 
 /*
- * Working Memory
+ * Working Memory.
  */
 
 struct slot {
@@ -212,10 +212,16 @@ typedef enum wme_type {
     wme_type_acceptable
 } wme_type_t;
 
+typedef enum wme_state {
+    wme_state_live,
+    wme_state_zombie
+} wme_state_t;
+
 struct wme {
     struct slot *slot;
     symbol_t     value;
-    wme_type_t   type;
+    wme_type_t   type : 1;
+    wme_state_t  state : 1;
     struct wme  *next;
 };
 
@@ -533,6 +539,10 @@ extern void
 rete_create(struct agent *agent);
 #endif
 
+extern int
+rete_get_instantiation_level(struct agent         *agent,
+                             struct instantiation *inst);
+
 extern void
 rete_finish(struct agent *agent);
 
@@ -611,7 +621,7 @@ wmem_add_preference(struct agent *agent,
                     support_type_t support);
 
 extern void
-wmem_remove_preference(struct agent *agent, struct preference *pref);
+wmem_remove_preference(struct agent *agent, struct preference *pref, bool_t save);
 
 extern struct preference *
 wmem_get_preferences(struct agent *agent, symbol_t id, symbol_t attr);
@@ -626,6 +636,9 @@ typedef void (*wme_enumerator_t)(struct agent *agent, struct wme *wme, void *clo
 
 extern void
 wmem_enumerate_wmes(struct agent *agent, wme_enumerator_t enumerator, void *closure);
+
+extern void
+wmem_remove_instantiation(struct agent *agent, struct instantiation *inst, bool_t final);
 
 extern void
 agent_reserve_identifiers(struct agent *agent, int count);

@@ -127,8 +127,11 @@ make_item_pref(struct agent      *agent,
     for (wme = wmem_get_wmes(agent, superstate, SYM(OPERATOR_CONSTANT));
          wme != 0;
          wme = wme->next) {
-        if ((wme->type == wme_type_acceptable) && (wme->value == operator))
+        if ((wme->state == wme_state_live) &&
+            (wme->type == wme_type_acceptable) &&
+            (wme->value == operator)) {
             break;
+        }
     }
 
     ASSERT(wme != 0,
@@ -613,13 +616,16 @@ sweep(struct ht_entry_header *header, void *closure)
         for (pref = slot->preferences; pref != 0; ) {
             struct preference *doomed = pref;
             pref = pref->next_in_slot;
-            wmem_remove_preference(gc->agent, doomed);
+            wmem_remove_preference(gc->agent, doomed, 0);
         }
 
         for (wme = slot->wmes; wme != 0; ) {
             struct wme *doomed = wme;
+
+            if (wme->state == wme_state_live)
+                rete_operate_wme(gc->agent, doomed, wme_operation_remove);
+
             wme = wme->next;
-            rete_operate_wme(gc->agent, doomed, wme_operation_remove);
             free(doomed);
         }
 
@@ -694,8 +700,7 @@ agent_pop_subgoals(struct agent *agent, struct goal_stack *bottom)
         inst = doomed->instantiations;
         while (inst) {
             struct instantiation *next = inst->next;
-            free(inst->token);
-            free(inst);
+            wmem_remove_instantiation(agent, inst, 1);
             inst = next;
         }
 #endif

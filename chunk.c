@@ -297,7 +297,7 @@ make_rhs(struct agent                 *agent,
     parent->children = node;
 
     /* Create tokens! */
-    initialize_matches(agent, node, parent);
+    rete_initialize_matches(agent, node, parent);
 }
 
 /*
@@ -313,7 +313,10 @@ make_production(struct agent            *agent,
     struct token_list *tokens;
     int depth = 0;
 
-    /* Create beta nodes for each token. */
+    /* Create beta nodes for each token.
+
+       XXX this entire swath of code is atrocious, and needs to be
+       re-written once I figure out what I'm doing. */
     for (tokens = *grounds; tokens != 0; tokens = tokens->next) {
         struct beta_node *memory;
         struct beta_node *orig = tokens->token->node;
@@ -435,11 +438,10 @@ make_production(struct agent            *agent,
         node->siblings = memory->children;
         memory->children = node;
 
-        initialize_matches(agent, memory, parent);
+        /* Propagate tokens downward. */
+        rete_initialize_matches(agent, memory, parent);
 
         parent = node;
-
-        /* XXX propagate tokens downward. */
 
         ++depth;
     }
@@ -453,34 +455,6 @@ make_production(struct agent            *agent,
         bindings = bindings->next;
         free(doomed);
     }
-}
-
-/*
- * Compute the instantiation's `level'; i.e., the lowest goal level at
- * which a token matched.
- */
-static int
-get_instantiation_level(struct agent *agent, struct instantiation *inst)
-{
-    struct token *token;
-    int level;
-
-    level = 0;
-    for (token = inst->token; token != 0; token = token->parent) {
-        if (token->wme) {
-            /* XXX we'll probably need to store the level in the token
-               to avoid confusion when an identifier promotion occurs
-               without resolving the impasse. */
-            int id_level = agent_get_id_level(agent, token->wme->slot->id);
-
-            ASSERT(id_level != 0, ("identifier without assigned level"));
-
-            if (id_level > level)
-                level = id_level;
-        }
-    }
-
-    return level;
 }
 
 static bool_t
@@ -564,7 +538,7 @@ backtrace(struct agent *agent, struct chunk *chunk)
             if (pref->type == preference_type_acceptable
                 && SYMBOLS_ARE_EQUAL(pref->value, wme->value)
                 && pref->instantiation
-                && get_instantiation_level(agent, pref->instantiation)) {
+                && rete_get_instantiation_level(agent, pref->instantiation)) {
                 break;
             }
         }
@@ -700,7 +674,7 @@ chunk_if_results(struct agent         *agent,
 
     /* Based on the goal level of the instantiation, determine if the
        instantation created any results for higher goals. */
-    level = get_instantiation_level(agent, inst);
+    level = rete_get_instantiation_level(agent, inst);
 
     results = 0;
     for (pref = inst->preferences; pref != 0; pref = pref->next_in_instantiation)

@@ -284,94 +284,93 @@ check_beta_tests(struct agent     *agent,
  * element |wme| may extend |token| if the parent node has no storage
  * of its own.
  */
-/*static*/ void
+static void
 do_left_addition(struct agent     *agent,
                  struct beta_node *node,
                  struct token     *token,
                  struct wme       *wme)
 {
     switch (node->type) {
-    case beta_node_type_memory:
-        {
-            /* Add a new token to the memory and notify children */
-            struct token *new_token;
+    case beta_node_type_memory: {
+        /* Add a new token to the memory and notify children */
+        struct token *new_token;
+        struct beta_node *child;
+
+        new_token = create_token(node, token, wme);
+        new_token->next = node->tokens;
+        node->tokens = new_token;
+
+        for (child = node->children; child != 0; child = child->siblings)
+            do_left_addition(agent, child, new_token, 0);
+
+        break;
+    }
+
+    case beta_node_type_positive_join: {
+        struct right_memory *rm;
+        for (rm = node->alpha_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
+            if (check_beta_tests(agent, node->data.tests, token, rm->wme)) {
+                struct beta_node *child;
+                for (child = node->children; child != 0; child = child->siblings)
+                    do_left_addition(agent, child, token, rm->wme);
+            }
+        }
+        break;
+    }
+
+    case beta_node_type_negative: {
+        struct token *new_token;
+        struct right_memory *rm;
+
+        new_token = create_token(node, token, wme);
+
+        /* Iterate through the right-memories to see if the token
+           is blocked. */
+        for (rm = node->alpha_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
+            if (check_beta_tests(agent, node->data.tests, new_token, rm->wme)) {
+                new_token->next = node->blocked;
+                node->blocked = new_token;
+                break;
+            }
+        }
+
+        if (! rm) {
+            /* Nothing matches the negative node, so go ahead and
+               propagate the token downwards. */
             struct beta_node *child;
 
-            new_token = create_token(node, token, wme);
             new_token->next = node->tokens;
             node->tokens = new_token;
 
             for (child = node->children; child != 0; child = child->siblings)
                 do_left_addition(agent, child, new_token, 0);
         }
+
         break;
+    }
 
-    case beta_node_type_positive_join:
-        {
-            struct right_memory *rm;
-            for (rm = node->alpha_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
-                if (check_beta_tests(agent, node->data.tests, token, rm->wme)) {
-                    struct beta_node *child;
-                    for (child = node->children; child != 0; child = child->siblings)
-                        do_left_addition(agent, child, token, rm->wme);
-                }
-            }
-        }
+    case beta_node_type_production: {
+        struct token *new_token = create_token(node, token, wme);
+        struct match *match;
+
+        new_token->next = node->tokens;
+        node->tokens = new_token;
+
+        /* XXX Soar8 checks the retraction queue to see if the
+           match has been retracted, and if so, removes the match
+           from the retraction queue. We've got a simpler ownership
+           model for tokens, so it's not possible to do that. Is
+           this gonna be a problem? */
+
+        /* Allocate a new match and place on the firing queue */
+        match = (struct match *) malloc(sizeof(struct match));
+        match->data.token = new_token;
+        match->production = node->data.production;
+        match->next       = agent->assertions;
+        agent->assertions = match;
+
         break;
-
-    case beta_node_type_negative:
-        {
-            struct token *new_token;
-            struct right_memory *rm;
-
-            new_token = create_token(node, token, wme);
-
-            /* Iterate through the right-memories to see if the token
-               is blocked. */
-            for (rm = node->alpha_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
-                if (check_beta_tests(agent, node->data.tests, new_token, rm->wme)) {
-                    new_token->next = node->blocked;
-                    node->blocked = new_token;
-                    break;
-                }
-            }
-
-            if (! rm) {
-                /* Nothing matches the negative node, so go ahead and
-                   propagate the token downwards. */
-                struct beta_node *child;
-
-                new_token->next = node->tokens;
-                node->tokens = new_token;
-
-                for (child = node->children; child != 0; child = child->siblings)
-                    do_left_addition(agent, child, new_token, 0);
-            }
-        }
-        break;
-
-    case beta_node_type_production:
-        {
-            struct token *new_token = create_token(node, token, wme);
-            struct match *match;
-
-            new_token->next = node->tokens;
-            node->tokens = new_token;
-
-            /* XXX Soar8 checks the retraction queue to see if the
-               match has been retracted, and if so, removes the match
-               from the retraction queue. We've got a simpler ownership
-               model for tokens, so it's not possible to do that. Is
-               this gonna be a problem? */
-
-            /* Allocate a new match and place on the firing queue */
-            match = (struct match *) malloc(sizeof(struct match));
-            match->data.token = new_token;
-            match->production = node->data.production;
-            match->next       = agent->assertions;
-            agent->assertions = match;
-        }
-        break;
+    }
 
     case beta_node_type_memory_positive_join:
     case beta_node_type_conjunctive_negative:
@@ -389,136 +388,201 @@ do_left_addition(struct agent     *agent,
  * Notify the beta node |node| that the <token, wme> pair are about to
  * be removed from the parent beta node.
  */
-static void
+static bool_t
 do_left_removal(struct agent     *agent,
                 struct beta_node *node,
                 struct token     *token,
                 struct wme       *wme)
 {
+    bool_t token_saved = 0;
+
     switch (node->type) {
-    case beta_node_type_memory:
+    case beta_node_type_memory: {
+        /* Iterate through the tokens we own, looking for the one that
+           corresponds to the parent token and wme that are being
+           removed. When we find it, pass the left-removal on to our
+           children. */
+        struct token *doomed, **link;
+        for (link = &node->tokens; (doomed = *link) != 0; link = &doomed->next) {
+            if ((doomed->wme == wme) && (doomed->parent == token)) {
+                struct beta_node *child;
+                for (child = node->children; child != 0; child = child->siblings) {
+                    if (do_left_removal(agent, child, doomed, 0))
+                        token_saved = 1;
+                }
+
+                /* Unlink the token from the list of tokens owned by
+                   the node, but only free it if it's not still being
+                   held by its child. */
+                *link = doomed->next;
+
+                if (! token_saved)
+                    free(doomed);
+#ifdef DEBUG
+                else
+                    doomed->next = 0;
+#endif
+
+                break;
+            }
+        }
+
+        /* XXX why is this okay? */
+        /*ASSERT(doomed != 0, ("couldn't find token for left-removal"));*/
+        break;
+    }
+
+    case beta_node_type_positive_join: {
+        /* Iterate throught the join node's right memories; remove any
+           wme that matches our beta tests. */
+        struct right_memory *rm;
+        for (rm = node->alpha_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
+            if (check_beta_tests(agent, node->data.tests, token, rm->wme)) {
+                struct beta_node *child;
+                for (child = node->children; child != 0; child = child->siblings) {
+                    if (do_left_removal(agent, child, token, rm->wme))
+                        token_saved = 1;
+                }
+            }
+        }
+        break;
+    }
+
+    case beta_node_type_negative: {
+        struct token *doomed, **link;
+
+        /* First see if this was a ``blocked'' token, in which
+           case its removal will have no side effects */
+        for (link = &node->blocked; (doomed = *link) != 0; link = &doomed->next) {
+            if ((doomed->wme == wme) && (doomed->parent == token)) {
+                /* Leave `token_saved' as false: we can free tokens as
+                   we unwind. */
+                *link = doomed->next;
+                free(doomed);
+                break;
+            }
+        }
+
+        if (! doomed) {
+            /* Okay, it must've been one of the tokens that we'd propagated
+               downwards. Find it and yank it. */
+            for (link = &node->tokens; (doomed = *link) != 0; link = &doomed->next) {
+                if ((doomed->wme == wme) && (doomed->parent == token)) {
+                    struct beta_node *child;
+                    for (child = node->children; child != 0; child = child->siblings) {
+                        if (do_left_removal(agent, child, doomed, 0))
+                            token_saved = 1;
+                    }
+
+                    /* Unlink the token from the list of tokens owned
+                       by the node, but only free it if it's not still
+                       being held by its child. */
+                    *link = doomed->next;
+
+                    if (! token_saved)
+                        free(doomed);
+#ifdef DEBUG
+                    else
+                        doomed->next = 0;
+#endif
+
+                    break;
+                }
+            }
+        }
+
+        ASSERT(doomed, ("couldn't find wme in left removal"));
+        break;
+    }
+
+    case beta_node_type_production: {
+        struct match *match;
+
+        /* See if this match is new */
+        {
+            struct match **link;
+
+            for (link = &agent->assertions; (match = *link) != 0; link = &match->next) {
+                if ((match->data.token->wme == wme) && (match->data.token->parent == token)) {
+                    /* Yep. Remove from the assertion queue. Since
+                       this production never even got instantiated,
+                       leave `token_saved' as false so that we can
+                       free any tokens as we unwind. */
+                    *link = match->next;
+                    free(match);
+                    break;
+                }
+            }
+        }
+
+        if (! match) {
+            /* It's not a new match. Find the instantiation that
+               we need to retract */
+            struct instantiation *inst;
+            for (inst = node->data.production->instantiations; inst != 0; inst = inst->next) {
+                if ((inst->token->wme == wme) && (inst->token->parent == token)) {
+                    /* See if this match is already on the retraction queue */
+                    for (match = agent->retractions; match != 0; match = match->next) {
+                        if (match->data.instantiation == inst)
+                            break;
+                    }
+
+                    if (! match) {
+                        /* Gotcha. Allocate a new match and place on the
+                           retraction queue */
+                        match = (struct match *) malloc(sizeof(struct match));
+                        match->data.instantiation = inst;
+                        match->production         = node->data.production;
+                        match->next               = agent->retractions;
+
+#ifdef SOAR_CONF_CHUNKING
+                        /* Save the token (so we can backtrace) if the
+                           instantiation is from a substate. If we
+                           don't save the token, then null out the
+                           instantiation's pointer so we don't try to
+                           free it later.
+
+                           XXX This unilaterally does all-goals
+                           chunking. We probably ought to have a
+                           (compile-time?)  option to look at the goal
+                           stack and do bottom-up chunking. */
+                        if (rete_get_instantiation_level(agent, inst) > 1)
+                            token_saved = 1;
+                        else
+#endif
+                            inst->token = 0;
+
+
+                        agent->retractions = match;
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        /* Unlink the token from the list of tokens owned by the node,
+           but only free it if it's not still being held by the
+           instantiation. */
         {
             struct token *doomed, **link;
             for (link = &node->tokens; (doomed = *link) != 0; link = &doomed->next) {
                 if ((doomed->wme == wme) && (doomed->parent == token)) {
-                    struct beta_node *child;
-                    for (child = node->children; child != 0; child = child->siblings)
-                        do_left_removal(agent, child, doomed, 0);
-
                     *link = doomed->next;
-                    free(doomed);
-                    break;
-                }
-            }
-        }
-        break;
-
-    case beta_node_type_positive_join:
-        {
-            struct right_memory *rm;
-            for (rm = node->alpha_node->right_memories; rm != 0; rm = rm->next_in_alpha_node) {
-                if (check_beta_tests(agent, node->data.tests, token, rm->wme)) {
-                    struct beta_node *child;
-                    for (child = node->children; child != 0; child = child->siblings)
-                        do_left_removal(agent, child, token, rm->wme);
-                }
-            }
-        }
-        break;
-
-    case beta_node_type_negative:
-        {
-            struct token *doomed, **link;
-
-            /* First see if this was a ``blocked'' token, in which
-               case its removal will have no side effects */
-            for (link = &node->blocked; (doomed = *link) != 0; link = &doomed->next) {
-                if ((doomed->wme == wme) && (doomed->parent == token)) {
-                    *link = doomed->next;
-                    free(doomed);
+                    if (! token_saved)
+                        free(doomed);
+#ifdef DEBUG
+                    else
+                        doomed->next = 0;
+#endif
                     break;
                 }
             }
 
-            if (! doomed) {
-                /* Okay, it must've been one of the tokens that we'd propagated
-                   downwards. Find it and yank it. */
-                for (link = &node->tokens; (doomed = *link) != 0; link = &doomed->next) {
-                    if ((doomed->wme == wme) && (doomed->parent == token)) {
-                        struct beta_node *child;
-                        for (child = node->children; child != 0; child = child->siblings)
-                            do_left_removal(agent, child, doomed, 0);
-
-                        *link = doomed->next;
-                        free(doomed);
-                        break;
-                    }
-                }
-            }
-
-            ASSERT(doomed, ("couldn't find wme in left removal"));
+            ASSERT(token, ("couldn't find token in left-removal"));
         }
         break;
-
-    case beta_node_type_production:
-        {
-            struct match *match;
-
-            /* See if this match is new */
-            {
-                struct match **link;
-
-                for (link = &agent->assertions; (match = *link) != 0; link = &match->next) {
-                    if ((match->data.token->wme == wme) && (match->data.token->parent == token)) {
-                        /* Yep. Remove from the assertion queue */
-                        *link = match->next;
-                        free(match);
-                        break;
-                    }
-                }
-            }
-
-            if (! match) {
-                /* It's not a new match. Find the instantiation that
-                   we need to retract */
-                struct instantiation *inst;
-                for (inst = node->data.production->instantiations; inst != 0; inst = inst->next) {
-                    if ((inst->token->wme == wme) && (inst->token->parent == token)) {
-                        /* See if this match is already on the retraction queue */
-                        for (match = agent->retractions; match != 0; match = match->next) {
-                            if (match->data.instantiation == inst)
-                                break;
-                        }
-
-                        if (! match) {
-                            /* Gotcha. Allocate a new match and place on the
-                               retraction queue */
-                            match = (struct match *) malloc(sizeof(struct match));
-                            match->data.instantiation = inst;
-                            match->production         = node->data.production;
-                            match->next               = agent->retractions;
-
-                            agent->retractions = match;
-                        }
-                    }
-                }
-            }
-
-            /* Nuke the token */
-            {
-                struct token *doomed, **link;
-                for (link = &node->tokens; (doomed = *link) != 0; link = &doomed->next) {
-                    if ((doomed->wme == wme) && (doomed->parent == token)) {
-                        *link = doomed->next;
-                        free(doomed);
-                        break;
-                    }
-                }
-
-                ASSERT(token, ("couldn't find token in left-removal"));
-            }
-        }
-        break;
+    }
 
     case beta_node_type_memory_positive_join:
     case beta_node_type_conjunctive_negative:
@@ -530,13 +594,15 @@ do_left_removal(struct agent     *agent,
         ERROR(("unexpected left addition")); /* can't get left addition on this node */
         break;
     }
+
+    return token_saved;
 }
 
 /*
  * Notify the beta node |node| that a new wme |wme| has been added to
  * the right-memory to which |node| is attached.
  */
-/*static inline*/ void
+static void
 do_right_addition(struct agent *agent, struct beta_node *node, struct wme *wme)
 {
     struct token **link, *token = node->tokens;
@@ -755,9 +821,9 @@ rete_init(struct agent *agent)
  * rete.c in Soar8.
  */
 void
-initialize_matches(struct agent     *agent,
-                   struct beta_node *child,
-                   struct beta_node *parent)
+rete_initialize_matches(struct agent     *agent,
+                        struct beta_node *child,
+                        struct beta_node *parent)
 {
     if (parent->type == beta_node_type_root) {
         do_left_addition(agent, child, &agent->root_token, 0);
@@ -787,6 +853,34 @@ initialize_matches(struct agent     *agent,
     else {
         UNIMPLEMENTED(); /* XXX write me! */
     }
+}
+
+/*
+ * Compute the instantiation's `level'; i.e., the lowest goal level at
+ * which a token matched.
+ */
+int
+rete_get_instantiation_level(struct agent *agent, struct instantiation *inst)
+{
+    struct token *token;
+    int level;
+
+    level = 0;
+    for (token = inst->token; token != 0; token = token->parent) {
+        if (token->wme) {
+            /* XXX we'll probably need to store the level in the token
+               to avoid confusion when an identifier promotion occurs
+               without resolving the impasse. */
+            int id_level = agent_get_id_level(agent, token->wme->slot->id);
+
+            ASSERT(id_level != 0, ("identifier without assigned level"));
+
+            if (id_level > level)
+                level = id_level;
+        }
+    }
+
+    return level;
 }
 
 void

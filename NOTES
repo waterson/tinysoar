@@ -875,3 +875,46 @@ potentials left to backtrace. So the algorithm basically marks all the
 known conditions that constitute the LHS of the chunk, and then walks
 backwards through the locals and ungrounded potentials until a
 connection is made to the grounds, or no more backtracing can be done.
+
+---
+
+A few notes on ownership.
+
+When we get a left-removal on a production node, that production
+stopped matching and needs to be removed. However, we may need the
+instantiation to stay around so that we can backtrace it. If that's
+the case, then we'll want to also keep the instantiation's tokens
+around, the wmes that the tokens refer to, and the preferences that
+the instantiation created. How do we do that without leaking?
+
+When we detect that an instantiation has been retracted in the rete
+network, we check the instantiation's goal-level: if it's at a level
+that may require backtracing, we don't immediately delete the token
+associated with the instantiation. Instead, we unlink it from the rete
+network and implicitly transfer ownership of the token to the
+instantiation. The left-removal routine now returns a boolean value
+which means `I've saved the token, so please don't remove its parent.'
+This allows us to keep the token's ancestors alive as we unwind.
+
+When we process the retractions in wmem.c's process_matches, we remove
+the instantiation as before; however, we'll detect that the
+instantiation now owns the tokens by virtue of the fact that the
+`tokens' slot wasn't nulled out during the left-removal of the
+production.
+
+An extra argument to wmem_remove_production indicates that the
+ownership of the preferences should likewise be transferred from the
+slot to the instantiation. The preference is removed from the slot
+(XXX the slot may die now!), but is not freed.
+
+Instead of being freed after retraction, the instantiation is placed
+on a queue of instantiations associated with the goal slot. These are
+removed when the goal is popped.
+
+In states below the top state, working memory elements are simply
+maintained in the slot, but marked as `zombies'. A zombie wme is
+ignored during processing of the wmes in a slot.
+
+The zombies are removed from the slots when a goal is popped.
+
+---

@@ -259,6 +259,9 @@ decide_slots(struct agent *agent)
         struct preference *pref = slots->slot->preferences;
         bool_t operator_slot = is_operator_slot(agent, slots->slot);
 
+        /* XXX implicit all-goals chunking. */
+        bool_t save = (agent_get_id_level(agent, slots->slot->id) > 1);
+
         next = slots->next;
 
         if (pref) {
@@ -273,8 +276,10 @@ decide_slots(struct agent *agent)
                 for (candidate = candidates; candidate != 0; candidate = candidate->next) {
                     struct wme *wme;
                     for (wme = slots->slot->wmes; wme != 0; wme = wme->next) {
-                        if (SYMBOLS_ARE_EQUAL(wme->value, candidate->symbol))
+                        if ((wme->state == wme_state_live) &&
+                            SYMBOLS_ARE_EQUAL(wme->value, candidate->symbol)) {
                             break;
+                        }
                     }
 
                     if (! wme) {
@@ -325,20 +330,28 @@ decide_slots(struct agent *agent)
                 struct wme *wme, **link = &slots->slot->wmes;
 
                 while ((wme = *link) != 0) {
-                    struct symbol_list *candidate;
-                    for (candidate = candidates; candidate != 0; candidate = candidate->next) {
-                        if (SYMBOLS_ARE_EQUAL(wme->value, candidate->symbol))
-                            break;
+                    if (wme->state == wme_state_live) {
+                        struct symbol_list *candidate;
+                        for (candidate = candidates; candidate != 0; candidate = candidate->next) {
+                            if (SYMBOLS_ARE_EQUAL(wme->value, candidate->symbol))
+                                break;
+                        }
+
+                        if (! candidate) {
+                            struct wme *doomed = wme;
+                            rete_operate_wme(agent, doomed, wme_operation_remove);
+
+                            if (save)
+                                wme->state = wme_state_zombie;
+                            else {
+                                *link = wme->next;
+                                free(wme);
+                                continue;
+                            }
+                        }
                     }
 
-                    if (candidate)
-                        link = &wme->next;
-                    else {
-                        struct wme *doomed = wme;
-                        *link = wme->next;
-                        rete_operate_wme(agent, doomed, wme_operation_remove);
-                        free(doomed);
-                    }
+                    link = &wme->next;
                 }
             }
 
@@ -349,20 +362,29 @@ decide_slots(struct agent *agent)
             }
         }
         else {
-            /* There are no preferences for the slot. Nuke the wmes
-               and remove the slot */
+            /* There are no preferences for the slot: remove the
+               wmes. */
             struct wme *wme = slots->slot->wmes;
             while (wme) {
                 struct wme *doomed = wme;
                 wme = wme->next;
 
-                rete_operate_wme(agent, doomed, wme_operation_remove);
-                free(doomed);
+                if (doomed->state == wme_state_live) {
+                    rete_operate_wme(agent, doomed, wme_operation_remove);
+
+                    if (save)
+                        doomed->state = wme_state_zombie;
+                    else
+                        free(doomed);
+                }
             }
 
-            slots->slot->wmes = 0;
-
-            remove_slot(agent, slots->slot);
+            /* Remove the slot, as well, unless we need it for
+               backtracing. */
+            if (! save) {
+                slots->slot->wmes = 0;
+                remove_slot(agent, slots->slot);
+            }
         }
 
         free(slots);
@@ -454,10 +476,14 @@ wmem_add_preference(struct agent     *agent,
 
 
 /*
- * Remove a preference from working memory
+ * Remove a preference from working memory. If `save' is set, the
+ * preference is not deleted; instead, ownership is transferred to the
+ * instantiation.
  */
 void
-wmem_remove_preference(struct agent *agent, struct preference *doomed)
+wmem_remove_preference(struct agent      *agent,
+                       struct preference *doomed,
+                       bool_t             save)
 {
     struct slot *slot = doomed->slot;
     struct preference *pref;
@@ -468,6 +494,8 @@ wmem_remove_preference(struct agent *agent, struct preference *doomed)
     for (link = &slot->preferences; (pref = *link) != 0; link = &pref->next_in_slot) {
         if (pref == doomed) {
             /* Splice the pref out of preferences for the slot */
+            /* XXX may not be sufficient to keep the slot alive. Do we
+               leave in the list and mark as `zombie'? */
             *link = pref->next_in_slot;
 
             /* Add to the list of slots that have changed */
@@ -476,19 +504,21 @@ wmem_remove_preference(struct agent *agent, struct preference *doomed)
         }
     }
 
-    if (doomed->instantiation) {
-        /* Splice the preference from the instantiation's preferences. */
-        for (link = &doomed->instantiation->preferences;
-             (pref = *link) != 0;
-             link = &pref->next_in_instantiation) {
-            if (pref == doomed) {
-                *link = pref->next_in_instantiation;
-                break;
+    if (! save) {
+        if (doomed->instantiation) {
+            /* Splice the preference from the instantiation's preferences. */
+            for (link = &doomed->instantiation->preferences;
+                 (pref = *link) != 0;
+                 link = &pref->next_in_instantiation) {
+                if (pref == doomed) {
+                    *link = pref->next_in_instantiation;
+                    break;
+                }
             }
         }
-    }
 
-    free(doomed);
+        free(doomed);
+    }
 }
 
 
@@ -515,7 +545,9 @@ wme_enumerator_helper(struct ht_entry_header *entry, void *closure)
     struct wme *wme = slot->wmes;
 
     while (wme) {
-        (*data->enumerator)(data->agent, wme, data->closure);
+        if (wme->state == wme_state_live)
+            (*data->enumerator)(data->agent, wme, data->closure);
+
         wme = wme->next;
     }
 
@@ -705,74 +737,118 @@ create_instantiation(struct agent       *agent,
  */
 static void
 remove_if_duplicate(struct agent      *agent,
-                    struct preference *doomed)
+                    struct preference *doomed,
+                    bool_t             save)
 {
     struct preference *pref = doomed->slot->preferences;
     for ( ; pref != 0; pref = pref->next_in_slot) {
         if (pref != doomed &&
             pref->support == support_type_osupport &&
             SYMBOLS_ARE_EQUAL(pref->value, doomed->value)) {
-            wmem_remove_preference(agent, doomed);
+            wmem_remove_preference(agent, doomed, save);
             return;
         }
     }
 
-    /* If we get here, it's not a duplicate. Splice it out of the
-       instantiation to avoid any dangling pointers. */
-    doomed->instantiation = 0;
-    doomed->next_in_instantiation = 0;
+    if (! save) {
+        /* If we get here, it's not a duplicate. Splice it out of the
+           instantiation to avoid any dangling pointers. */
+        doomed->instantiation = 0;
+        doomed->next_in_instantiation = 0;
+    }
 }
 
 /*
- * ``Un-instantiate'' a production.
+ * `Un-instantiate' a production.
  */
-static void
-remove_instantiation(struct agent         *agent,
-                     struct instantiation *inst)
+void
+wmem_remove_instantiation(struct agent         *agent,
+                          struct instantiation *inst,
+                          bool_t                final)
 {
-    /* Yank the instantiation from the production */
-    {
-        struct instantiation **link =
-            &inst->production->instantiations;
+    int level;
+    bool_t save;
 
-        struct instantiation *scan = *link;
+#ifdef CONF_SOAR_CHUNKING
+    if (! final) {
+        /* Determine if we need to save the instantiation for
+           backtracing. We'll know this if ownership of the tokens has
+           been transferred to the instantiation; i.e., its `token'
+           slot wasn't nulled out during the left-removal of the
+           production. */
+        save = (inst->tokens != 0);
+    }
+    else
+#endif
+        save = 0;
 
-        while (scan) {
-            if (scan == inst) {
+    /* Yank the instantiation from the production. (We may not have a
+       production if we're a `dummy' instantiation created by the
+       architecture.  */
+    if (inst->production) {
+        struct instantiation **link, *doomed;
+
+        for (link = &inst->production->instantiations;
+             (doomed = *link) != 0;
+             link = &doomed->next) {
+            if (doomed == inst) {
                 *link = inst->next;
                 break;
             }
-
-            link = &scan->next;
-            scan = scan->next;
         }
 
-        ASSERT(scan != 0, ("couldn't find instantiation"));
+        ASSERT(doomed != 0, ("couldn't find instantiation"));
     }
 
     /* Remove all the i-supported preferences associated with the
+       instantiation. If we need to save the preferences for
+       backtracing, then ownership is implicitly transferred to the
        instantiation. */
-    {
+    if (inst->preferences) {
         struct preference *pref = inst->preferences;
-        while (pref) {
+        do {
             struct preference *next = pref->next_in_instantiation;
 
             if (pref->support == support_type_isupport) {
                 /* If the preference is only i-supported, remove it. */
-                wmem_remove_preference(agent, pref);
+                wmem_remove_preference(agent, pref, save);
             }
             else {
                 /* If the preference is o-supported, remove it if it's
                    a duplicate of another o-supported preference with
                    the same value. */
-                remove_if_duplicate(agent, pref);
+                remove_if_duplicate(agent, pref, save);
             }
 
             pref = next;
+        } while (pref);
+    }
+
+    if (! save) {
+        /* Kill the tokens. */
+        struct token *token = inst->token;
+        while (token) {
+            struct token *doomed = token;
+            token = token->parent;
+            free(doomed);
         }
     }
 
-    free(inst);
+#ifdef CONF_SOAR_CHUNKING
+    if (save) {
+        /* Transfer ownership of the instantiation to the goal
+           stack. The instantiation, its tokens, and its preferences
+           will be removed when the goal is popped. */
+        struct goal_stack *goal = agent->goals;
+        while (--level)
+            goal = goal->next;
+
+        inst->next = goal->instantiations;
+        goal->instantiations = inst;
+    }
+    else
+#endif
+        free(inst);
 }
 
 /*
@@ -805,7 +881,7 @@ process_matches(struct agent *agent)
         free(match);
     }
 
-    /* The assertions have now been processed */
+    /* The assertions have now been processed. */
     agent->assertions = 0;
 
 #ifdef DEBUG
@@ -818,8 +894,8 @@ process_matches(struct agent *agent)
         printf("  %s\n", match->production->name);
 #endif
 
-        /* Remove the preferences involved with this instantiation */
-        remove_instantiation(agent, match->data.instantiation);
+        /* Remove the preferences involved with this instantiation. */
+        wmem_remove_instantiation(agent, match->data.instantiation, 0);
 
         doomed = match;
         match = match->next;
@@ -845,8 +921,18 @@ process_matches(struct agent *agent)
                 /* Nuke the pref if it has the same value, and it's not
                    architecturally supported. */
                 if (SYMBOLS_ARE_EQUAL(pref->value, rejector->value) &&
-                    (pref->support != support_type_architecture))
-                    wmem_remove_preference(agent, pref);
+                    (pref->support != support_type_architecture)) {
+                    bool_t save =
+#ifdef CONF_SOAR_CHUNKING
+                        /* XXX implicit all-goals chunking. */
+                        ((pref->instantiation) &&
+                         rete_get_instantiation_level(agent, pref->instantiation) > 1);
+#else
+                        0;
+#endif
+
+                    wmem_remove_preference(agent, pref, save);
+                }
 
                 pref = next;
             }
@@ -1178,7 +1264,7 @@ run_operator_semantics_for(struct agent *agent,
 static void
 select_operator(struct agent *agent)
 {
-    unsigned depth = 0;
+    unsigned depth = 1;
     struct goal_stack *goal;
     struct goal_stack *bottom;
 
@@ -1193,6 +1279,9 @@ select_operator(struct agent *agent)
         struct wme **link;
         struct preference *pref;
 
+        /* XXX implicit all-goals chunking. */
+        bool_t save = (depth > 1);
+
         /* If there's not even a slot, then there certainly is no
            operator selected for this goal! */
         if (! slot)
@@ -1202,7 +1291,7 @@ select_operator(struct agent *agent)
         for (wme = slot->wmes, link = &slot->wmes;
              wme != 0;
              link = &wme->next, wme = wme->next) {
-            if (wme->type == wme_type_normal)
+            if (wme->state == wme_state_live && wme->type == wme_type_normal)
                 break;
         }
 
@@ -1211,7 +1300,7 @@ select_operator(struct agent *agent)
         if (wme) {
             struct wme *check;
             for (check = wme->next; check != 0; check = check->next) {
-                ASSERT(check->type == wme_type_acceptable,
+                ASSERT(check->state == wme_state_zombie || check->type == wme_type_acceptable,
                        ("more than one operator selected"));
             }
         }
@@ -1232,8 +1321,13 @@ select_operator(struct agent *agent)
                    operator from the operator slot, and notify the
                    rete network. */
                 rete_operate_wme(agent, wme, wme_operation_remove);
-                *link = wme->next;
-                free(wme);
+
+                if (save)
+                    wme->state = wme_state_zombie;
+                else {
+                    *link = wme->next;
+                    free(wme);
+                }
 
                 if (goal->next) {
                     /* We have resolved an operator no-change
@@ -1256,7 +1350,7 @@ select_operator(struct agent *agent)
            operator. Let's see if there are any acceptable
            operators for the slot. */
         for (wme = slot->wmes; wme != 0; wme = wme->next) {
-            if (wme->type == wme_type_acceptable)
+            if (wme->state == wme_state_live && wme->type == wme_type_acceptable)
                 break;
         }
 
@@ -1268,7 +1362,7 @@ select_operator(struct agent *agent)
 
             /* Is there more than one? */
             for (wme2 = wme->next; wme2 != 0; wme2 = wme2->next) {
-                if (wme2->type == wme_type_acceptable)
+                if (wme2->state == wme_state_live && wme2->type == wme_type_acceptable)
                     break;
             }
 
@@ -1289,7 +1383,7 @@ select_operator(struct agent *agent)
                 /* XXX this should be done in a callback that the
                    embedding context handles. */
                 unsigned i;
-                for (i = 0; i < depth; ++i)
+                for (i = 1; i < depth; ++i)
                     printf("  ");
 
                 printf("[%d]: [%d]", GET_SYMBOL_VALUE(goal->symbol), GET_SYMBOL_VALUE(selected_op));
@@ -1312,7 +1406,7 @@ select_operator(struct agent *agent)
 #ifdef DEBUG
                 {
                     int level = agent_get_id_level(agent, op->value);
-                    ASSERT(level != 0 && level <= (depth + 1),
+                    ASSERT(level != 0 && level <= depth,
                            ("operator has a bad level %d", level));
                 }
 #endif
@@ -1380,7 +1474,9 @@ slot_wme_finalizer(struct ht_entry_header *header, void *closure)
         /* XXX Hrm, kind of a waste, because we'll pile up a ton
            of retractions. Maybe we should just have a
            `rete_clear()' function? */
-        rete_operate_wme(agent, wme, wme_operation_remove);
+        if (wme->state == wme_state_live)
+            rete_operate_wme(agent, wme, wme_operation_remove);
+
         wme = wme->next;
     }
 

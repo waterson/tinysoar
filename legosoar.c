@@ -242,7 +242,7 @@ sync_sensor(struct sensor *sensor)
 
     /* Remove the preference for the old value, if there is one. */
     if (pref)
-        wmem_remove_preference(&agent, pref);
+        wmem_remove_preference(&agent, pref, 0);
 
     /* Create a preference for the new value. */
     INIT_SYMBOL(sym_input_link, symbol_type_identifier, 3 /*XXX*/);
