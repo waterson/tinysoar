@@ -75,6 +75,157 @@ print_enumerator(struct agent* agent, struct wme* wme, void* closure)
 }
 
 /*
+ * `preferences'. Query or add preferences to working memory.
+ */
+static int
+preferences_command(ClientData data, Tcl_Interp* interp, int argc, char* argv[])
+{
+    symbol_t id, attr, value;
+    int i;
+    int op = 0; /* query */
+    preference_type_t type;
+
+    i = 1;
+
+    if (strncmp(argv[i], "-a", 2) == 0) {
+        op = 1; /* add */
+        ++i;
+    }
+    else if (strncmp(argv[i], "-r", 2) == 0) {
+        op = 2; /* remove */
+        ++i;
+    }
+
+    if (i >= argc) {
+        interp->result = "expected identifier";
+        return TCL_ERROR;
+    }
+
+    MAKE_SYMBOL(id, symbol_type_identifier, atoi(argv[i++]));
+
+    if (i >= argc || argv[i][0] != '^') {
+        interp->result = "expected attribute";
+        return TCL_ERROR;
+    }
+
+    attr = symtab_lookup(&symtab, symbol_type_symbolic_constant, argv[i++] + 1, (bool_t)(op == 1));
+    if (SYMBOL_IS_NIL(attr))
+        return TCL_OK;
+
+    if (op == 0) {
+        /* handle query */
+        struct preference* pref = wmem_get_preferences(&agent, id, attr);
+        while (pref) {
+            switch (pref->value.type) {
+            case symbol_type_symbolic_constant:
+                printf("%s ", symtab_find_name(&symtab, pref->value));
+                break;
+            
+            case symbol_type_integer_constant:
+            case symbol_type_identifier:
+                printf("%d ", pref->value.val);
+                break;
+
+            default:
+                ERROR(("illegal value in preference"));
+            }
+
+            switch (pref->type) {
+            case preference_type_acceptable:         printf("+"); break;
+            case preference_type_reject:             printf("-"); break;
+            case preference_type_reconsider:         printf("@"); break;
+            case preference_type_unary_indifferent:
+            case preference_type_binary_indifferent: printf("="); break;
+            case preference_type_best:
+            case preference_type_better:             printf(">"); break;
+            case preference_type_worst:
+            case preference_type_worse:              printf("<"); break;
+            case preference_type_prohibit:           printf("~"); break;
+            case preference_type_require:            printf("!"); break;
+            default:                                 printf("?"); break;
+            }
+
+            if (pref->type & preference_type_binary) {
+                switch (pref->referent.type) {
+                case symbol_type_symbolic_constant:
+                    printf("%s ", symtab_find_name(&symtab, pref->referent));
+                    break;
+            
+                case symbol_type_integer_constant:
+                case symbol_type_identifier:
+                    printf("%d ", pref->referent.val);
+                    break;
+
+                default:
+                    ERROR(("illegal referent in preference"));
+                }
+            }
+
+            if (pref->support == support_type_osupport)
+                printf(" :O");
+
+            printf("\n");
+            pref = pref->next_in_slot;
+        }
+
+        return TCL_OK;
+    }
+
+    /* If we get here, we're either adding or removing a preference */
+    if (i >= argc) {
+        interp->result = "expected preference value";
+        return TCL_ERROR;
+    }
+
+    /* parse the value */
+    if (argv[i][0] >= '0' && argv[i][0] <= '9') {
+        MAKE_SYMBOL(value, symbol_type_identifier, atoi(argv[i++]));
+    }
+    else if (argv[i][0] == '+' || argv[i][0] == '-') {
+        MAKE_SYMBOL(value, symbol_type_integer_constant, atoi(argv[i++]));
+    }
+    else {
+        value = symtab_lookup(&symtab, symbol_type_symbolic_constant, argv[i++], (bool_t)(op == 1));
+        if (SYMBOL_IS_NIL(value))
+            return TCL_OK;
+    }
+
+    if (i >= argc) {
+        interp->result = "expected preference type";
+        return TCL_ERROR;
+    }
+
+    /* parse the type */
+    switch (argv[i++][0]) {
+    case '+': type = preference_type_acceptable;        break;
+    case '-': type = preference_type_reject;            break;
+    case '@': type = preference_type_reconsider;        break;
+    case '=': type = preference_type_unary_indifferent; break;
+    case '>': type = preference_type_best;              break;
+    case '<': type = preference_type_worst;             break;
+    case '~': type = preference_type_prohibit;          break;
+    case '!': type = preference_type_require;           break;
+    default:
+        interp->result = "expected valid preference type";
+        return TCL_ERROR;
+    }
+
+    if (i < argc) {
+        /* XXX TODO: handle binary preferences */
+        interp->result = "can't handle binary preferences yet";
+        return TCL_ERROR;
+    }
+
+    /* do the nasty */
+    if (op == 1)
+        wmem_add_preference(&agent, id, attr, value, type, support_type_architecture);
+    else wmem_remove_preference(&agent, id, attr, value, type);
+
+    return TCL_OK;
+}
+
+
+/*
  * `print'. Print stuff that's hanging off an identifier
  */
 static int
@@ -155,10 +306,11 @@ Tinysoar_Init(Tcl_Interp* interp)
     agent_init(&agent);
     symtab_init(&symtab);
 
-    Tcl_CreateCommand(interp, "elaborate", elaborate_command, 0, 0);
-    Tcl_CreateCommand(interp, "init-soar", init_soar_command, 0, 0);
-    Tcl_CreateCommand(interp, "print",     print_command,     0, 0);
-    Tcl_CreateCommand(interp, "sp",        sp_command,        0, 0);
+    Tcl_CreateCommand(interp, "elaborate",   elaborate_command,   0, 0);
+    Tcl_CreateCommand(interp, "init-soar",   init_soar_command,   0, 0);
+    Tcl_CreateCommand(interp, "preferences", preferences_command, 0, 0);
+    Tcl_CreateCommand(interp, "print",       print_command,       0, 0);
+    Tcl_CreateCommand(interp, "sp",          sp_command,          0, 0);
 
     return TCL_OK;
 }
