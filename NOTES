@@ -188,3 +188,129 @@ able to do everything we need to do in the RETE network.
         preferences that created |wme| are accessible via
         |wme->slot->preferences|. Recurse here!
 
+
+---
+
+Trying to understand the backtracing algorithm...
+
+  var grounds_level;
+
+  procedure backtrace_through_instantiation(inst)
+  begin
+    |tc| = {}; /* the transitive closure of ... XXXwhat? */
+    do
+      foreach positive condition |c| in |inst|
+      begin
+        if |c.id| is in |tc| then
+          /* the ID is in the transitive closure, so add the value */
+          |tc| = |tc| U |c.value|
+        else if |c.id| is a goal and |c.backtrace_level <= grounds_level| then
+          /* id is a higher goal that was tested, so add the value */
+          |tc| = |tc| U |c.value|
+        endif
+      end
+    until |tc| is reaches a fix point.
+
+    foreach condition |c| in |inst|
+    begin
+      if |c| is a positive condition then
+        if |c.id| in |tc| then
+          |grounds| = |grounds| U |c|;
+        else if |c.backtrace_level <= grounds_level| then
+          |potentials| = |potentials| U |c|;
+        else
+          |locals| = |locals| U |c|;
+        endif
+      else
+        /* negative condi's are either grounds or potentials */
+        |negated| = |negated| U make_chunk_cond_for(|c|);
+      endif
+    end
+
+    /* add new nots to the not-set */
+    if |inst.nots| then
+      |instantiations_with_nots| = |instantiations_with_nots| U |inst|
+    endif
+  end.
+
+  procedure trace_locals()
+  begin
+    foreach condition |c| in |locals| do
+      |bt_pref| = find_clone_for_level(|c.preference|, |grounds_level| + 1);
+      if |bt_pref| then
+        backtrace_through_instantiation(|br_pref.instantiation|);
+
+        /* XXX check if any prohibit preferences */
+      else if |c.id| is a goal and |c.attr| == "quiescence" and |c.value| == "t" then
+        |variablize_this_chunk| = false;
+      else
+        |potentials| = |potentials| U |c|;
+      endif
+    end
+  end.
+
+  procedure trace_grounded_potentials()
+  begin
+    |tc| = {};
+    foreach positive condition |c| in |grounds| do
+      |tc| = |tc| U |c.id| U |c.value|;
+    end
+
+    do
+      foreach condition |c| in |potentials| do
+        if |c.id| in |tc| then /* XXX NCC */
+          |grounds| = |grounds| U |c|;
+        endif
+      end
+    until |grounds| reaches a fix point.
+  end.
+
+  procedure trace_ungrounded_potentials()
+  begin
+    /* pick out positive potentials that we can backtrace through */
+    |pots_to_bt| = {};
+
+    foreach condition |c| in |potentials| do
+      |bt_pref| = find_clone_for_level(|c.preference|, |grounds_level| + 1);
+      if |bt_pref| then
+        |potentials| = |potentials| - |c|
+        |pots_to_bt| = |pots_to_bt| U |c|
+      endif
+    end
+
+    foreach condition |c| in |pots_to_bt| do
+      |bt_pref| = find_clone_for_level(|c.preference|, |grounds_level| + 1);
+
+      backtrace_through_instantiation(|bt_pref.instantiation|);
+
+      /* XXX check if any prohibits preferences */
+    end
+  end.
+
+  procedure chunk(inst)
+  begin
+    |grounds_level| = |inst.match_goal_level| - 1;
+
+    |results| = get_results_of(inst);
+    foreach |pref| in |results| do
+      /* XXX isn't pref.instantiation always == inst?
+      backtrace_through_instantiation(|pref.instantiation|);
+    done
+
+    do
+      trace_locals();
+      trace_grounded_potentials();
+      trace_ungrouneded_potentials();
+    until (|potentials| == {})
+
+    foreach condition |c| in |grounds| do
+      /* add |c| to new chunk's conditions */
+    end
+
+    /* XXX deal with nots */
+
+    /* variablize the chunk */
+
+    /* add goal or impasse tests */
+  end.
+
