@@ -1294,7 +1294,7 @@ wmem_finish(struct agent* agent)
        of all wmes -- could such an evil rule be made?) */
     process_matches(agent);
 
-    /* Xxx At this point, it'd be nice to assert that there are no
+    /* XXX At this point, it'd be nice to assert that there are no
        instantiations. We can't do that now (without grovelling
        through the rete network) because we don't store productions or
        instantiations anywhere else. */

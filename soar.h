@@ -142,7 +142,7 @@ struct preference {
     struct slot*       slot;
     struct preference* next_in_slot;
     struct preference* next_in_instantiation;
-    struct preference* prev_in_instantiation;
+    struct preference* prev_in_instantiation; /* XXX should be a back-pointer to the instantiation */
     preference_type_t  type    : PREFERENCE_TYPE_BITS;
     support_type_t     support : SUPPORT_TYPE_BITS;
     symbol_t           value;
@@ -350,12 +350,12 @@ struct beta_test {
 };
 
 enum beta_node_type_bits {
-    beta_node_type_bit_hashed       = 0x01,
+    beta_node_type_bit_hashed       = 0x01, /* XXX unused */
     beta_node_type_bit_memory       = 0x02,
     beta_node_type_bit_positive     = 0x04,
     beta_node_type_bit_negative     = 0x08,
-    beta_node_type_bit_bottom_split = 0x10,
-    beta_node_type_bit_special      = 0x40
+    beta_node_type_bit_bottom_split = 0x10, /* XXX unused */
+    beta_node_type_bit_special      = 0x40  /* XXX unused */
 };
 
 typedef enum beta_node_type {
@@ -401,10 +401,13 @@ struct beta_node {
     struct beta_node* next_with_same_alpha_node;
 
     /* The tokens that exist at this beta node */
+    /* XXX not needed for positive_join; could production nodes store
+       this in the instantiation? */
     struct token* tokens;
 
     /* For negative nodes, the tokens that match the node and
        are ``blocked'' from propagating through. */
+    /* XXX only needed by negative */
     struct token* blocked;
 
     union {

@@ -640,3 +640,17 @@ ops-12.soar  pass
 ops-13.soar  fail, culled too many candidates, expect select
 ops-14.soar  fail, expect select, not o-tie
 ops-15.soar  pass
+
+---
+
+Thought a bit more about chunking today, and realized that I am,
+indeed, screwed. When it comes to o-support, that is. Soar8 is
+remembering all the WMEs that support a preference by holding on to
+them from the ``instantiated conditions'' structure. So, if I want to
+do the same thing (but only use the RETE net), then I'll need to have
+some token shadowing thing that isn't really a token, but remembers
+why an o-supported preference got instantiated. I should probably
+figure out how I'd do the simple case (i.e., pref returned whose
+dependencies still exist as proper tokens) first, anyway...
+
+

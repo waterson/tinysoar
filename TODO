@@ -26,3 +26,8 @@
      op-14.soar) are failing.
 
 (20) Deal with resolution of impasses. Depends on (3), above.
+
+(21) Write something that will dump the RETE network in a format
+     that's appropriate to be used immediately; i.e., so that we can
+     use the bits on the RCX.
+
