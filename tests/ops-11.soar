@@ -1,6 +1,8 @@
 # Can we detect a non-trivial conflict cycle? Soar-8.2 can't. It ends
 # up in a state no-change.
 
+package require TinySoar;
+
 sp {propose*one*two*three
     (state <s> ^superstate nil)
     -->

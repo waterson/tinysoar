@@ -6,6 +6,8 @@
 #       ^impasse tie ^item O1 ^item O3 ^quiescence t ^superstate S1 ^type state)
 #
 
+package require TinySoar;
+
 sp {propose*one*two*three
     (state <s> ^superstate nil)
     -->

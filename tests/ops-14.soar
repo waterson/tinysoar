@@ -2,6 +2,8 @@
 # indifferent? It appears Soar-8.2 does the right thing, and
 # oscillates between the two ``best''.
 
+package require TinySoar;
+
 sp {propose*one*two*three
     (state <s> ^superstate nil)
     -->

@@ -6,6 +6,8 @@
 #       ^type state)
 #
 
+package require TinySoar;
+
 sp {propose*one*two*three
     (state <s> ^superstate nil)
     -->

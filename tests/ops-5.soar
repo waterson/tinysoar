@@ -1,6 +1,8 @@
 # What happens if we have an operator tie, but there is still a single
 # ``best'' operator? In Soar-8.2, the ``best'' operator wins.
 
+package require TinySoar;
+
 sp {propose*one*best*two*three
     (state <s> ^superstate nil)
     -->

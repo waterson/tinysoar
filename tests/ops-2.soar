@@ -2,6 +2,8 @@
 # ``worst''? They do in Soar-8.2, so expect ``one'' to be the selected
 # operator after running this test.
 
+package require TinySoar;
+
 sp {propose*two*worst
     (state <s> ^superstate nil)
     -->

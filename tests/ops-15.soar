@@ -1,6 +1,8 @@
 # What happens if we have two worsts? Soar-8.2 ends up with an
 # operator-tie, as expected.
 
+package require TinySoar;
+
 sp {propose*one*two*worst
     (state <s> ^superstate nil)
     -->

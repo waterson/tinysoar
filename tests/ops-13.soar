@@ -1,5 +1,7 @@
 # Does better matter more than best/worst? Yes.
 
+package require TinySoar;
+
 sp {propose*one*two
     (state <s> ^superstate nil)
     -->
